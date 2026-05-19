@@ -5,15 +5,12 @@ import "./ContentList.css";
 
 import Loader from "../loader/Loader";
 
-
-const ITEMS_IN_PORTION = 5;
-
-
 function ContentList({
     fetchItems,
     filters,
     refresh,
     renderItem,
+    pageSize = 5,
     emptyText = "Nothing here yet",
     onItemsChange = null,
 }) {
@@ -47,7 +44,7 @@ function ContentList({
             const params = {
                 ...filters,
                 offset,
-                limit: ITEMS_IN_PORTION,
+                limit: pageSize,
             };
             const res = await fetchItems(params);
             return res.data;
@@ -74,15 +71,15 @@ function ContentList({
         }
 
         observerLoader.current = new IntersectionObserver((entries) => {
-            if (entries[0].isIntersecting && offset < ITEMS_IN_PORTION * 10) {
-                setOffset((prev) => prev + ITEMS_IN_PORTION);
+            if (entries[0].isIntersecting && offset < pageSize * 10) {
+                setOffset((prev) => prev + pageSize);
             }
         });
 
         if (lastItem.current) {
             observerLoader.current.observe(lastItem.current);
         }
-    }, [lastItem, offset]);
+    }, [lastItem, offset, pageSize]);
 
     if (isError) {
         console.log(error);

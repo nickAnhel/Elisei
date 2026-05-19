@@ -106,6 +106,7 @@ function Articles() {
                 key={`articles-${activeTab}`}
                 fetchItems={fetchItems}
                 filters={filters}
+                pageSize={activeTab === ARTICLE_TABS.recommendations ? 10 : 5}
                 refresh={`${store.isRefreshPosts}-${activeTab}`}
                 emptyText={emptyText}
                 renderItem={({ item, removeItem, ref }) => (

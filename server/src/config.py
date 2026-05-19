@@ -159,6 +159,15 @@ class Neo4jSettings(ConfigBase):
     model_config = SettingsConfigDict(env_prefix="neo4j_")
 
 
+class RecommendationsSettings(ConfigBase):
+    per_user_limit: int = 300
+    graph_limit_multiplier: int = 2
+    active_window_days: int = 7
+    refresh_active_users_schedule_seconds: int = 60 * 60
+
+    model_config = SettingsConfigDict(env_prefix="recommendations_")
+
+
 class Settings(BaseSettings):
     db: DBSettings = Field(default_factory=DBSettings)  # type: ignore
     logging: LoggingConfig = Field(default_factory=LoggingConfig)  # type: ignore
@@ -171,6 +180,7 @@ class Settings(BaseSettings):
     redis: RedisSettings = Field(default_factory=RedisSettings)  # type: ignore
     celery: CelerySettings = Field(default_factory=CelerySettings)  # type: ignore
     neo4j: Neo4jSettings = Field(default_factory=Neo4jSettings)  # type: ignore
+    recommendations: RecommendationsSettings = Field(default_factory=RecommendationsSettings)  # type: ignore
 
 
 settings = Settings()

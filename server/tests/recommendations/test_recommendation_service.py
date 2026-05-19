@@ -303,6 +303,41 @@ async def test_recommendations_feed_uses_fallback_when_graph_fails() -> None:
 
 
 @pytest.mark.anyio
+async def test_recommendations_feed_uses_fallback_for_anonymous_viewer() -> None:
+    fallback_id = uuid.uuid4()
+    graph = FakeGraphFeedRepository(rows=[])
+    postgres = FakePostgresRepository(
+        hydrated={},
+        fallback_items=[
+            FakeContent(
+                content_id=fallback_id,
+                content_type=ContentTypeEnum.POST,
+                author_id=uuid.uuid4(),
+            )
+        ],
+    )
+    service = RecommendationService(
+        graph_repository=graph,  # type: ignore[arg-type]
+        postgres_repository=postgres,  # type: ignore[arg-type]
+        projector_registry=FakeProjectorRegistry(),  # type: ignore[arg-type]
+        asset_storage=None,
+    )
+
+    response = await service.get_recommendations_feed(
+        viewer_id=None,
+        content_type=RecommendationFeedContentTypeEnum.ALL,
+        sort=RecommendationFeedSortEnum.RELEVANCE,
+        offset=2,
+        limit=4,
+    )
+
+    assert [item.content_id for item in response] == [fallback_id]
+    assert graph.calls == []
+    assert len(postgres.fallback_calls) == 1
+    assert postgres.fallback_calls[0]["offset"] == 2
+
+
+@pytest.mark.anyio
 async def test_recommended_authors_filters_self_followed_and_non_visible_and_keeps_score_order() -> None:
     viewer_id = uuid.uuid4()
     hidden_id = uuid.uuid4()
