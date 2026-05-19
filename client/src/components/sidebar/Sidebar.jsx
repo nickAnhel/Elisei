@@ -15,6 +15,7 @@ import PeopleIcon from "../icons/PeopleIcon";
 import SearchIcon from "../icons/SearchIcon";
 import VideoIcon from "../icons/VideoIcon";
 import { getAvatarRenderKey, getAvatarUrl } from "../../utils/avatar";
+import NotificationBell from "../notification-bell/NotificationBell";
 
 
 function Sidebar() {
@@ -63,22 +64,24 @@ function Sidebar() {
             </div>
 
             <div id="sidebar-bottom">
-                {/* <NavLink to="/settings" className="sidebar-item">
-                    <img src="/assets/settings.svg" alt="Settings" />
-                </NavLink> */}
-
                 {
                     store.isAuthenticated
                         ?
-                        <Link to="/profile" className="sidebar-item">
-                            <img
-                                key={avatarRenderKey}
-                                className="profile"
-                                src={avatarSrc}
-                                onError={(e) => { e.currentTarget.src = "/assets/profile.svg"; }}
-                                alt="Profile"
+                        <>
+                            <Link to="/profile" className="sidebar-item profile-link">
+                                <img
+                                    key={avatarRenderKey}
+                                    className="profile"
+                                    src={avatarSrc}
+                                    onError={(e) => { e.currentTarget.src = "/assets/profile.svg"; }}
+                                    alt="Profile"
+                                />
+                            </Link>
+                            <NotificationBell
+                                isAuthenticated={store.isAuthenticated}
+                                userId={store.user.user_id}
                             />
-                        </Link>
+                        </>
                         :
                         <Link to="/login" className="sidebar-item">
                             <LoginIcon />

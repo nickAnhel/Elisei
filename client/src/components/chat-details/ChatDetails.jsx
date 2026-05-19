@@ -7,6 +7,7 @@ import "./ChatDetails.css"
 import { StoreContext } from "../..";
 import AssetService from "../../service/AssetService";
 import ChatService from "../../service/ChatService";
+import NotificationService from "../../service/NotificationService";
 
 import NotFound from "../not-found/NotFound";
 
@@ -40,6 +41,7 @@ import {
 
 
 const HISTORY_PAGE_SIZE = 50;
+const CHAT_SETTING_UPDATED_EVENT = "notifications:chat-setting-updated";
 
 
 function getMaxCharsInLine(textarea, content) {
@@ -364,6 +366,9 @@ function ChatDetails() {
     const [isError, setIsError] = useState(false);
 
     const [chat, setChat] = useState({});
+    const [isChatMuted, setIsChatMuted] = useState(false);
+    const [isUpdatingChatMuted, setIsUpdatingChatMuted] = useState(false);
+    const [chatMuteError, setChatMuteError] = useState("");
 
     const [chatItems, setChatItems] = useState([]);
     const [message, setMessage] = useState("");
@@ -849,6 +854,15 @@ function ChatDetails() {
                 const res = await ChatService.getChatById(chatId);
 
                 setChat(res.data);
+                try {
+                    const settings = await NotificationService.getSettings();
+                    const chatSetting = (settings.data?.chats || []).find((item) => item.chat_id === chatId);
+                    setIsChatMuted(chatSetting?.is_muted || false);
+                    setChatMuteError("");
+                } catch (settingsError) {
+                    setIsChatMuted(false);
+                    setChatMuteError(settingsError?.response?.data?.detail || "Failed to load chat notification settings");
+                }
 
             } catch (e) {
                 console.log(e);
@@ -1337,6 +1351,39 @@ function ChatDetails() {
         menu.style.display = (menu.style.display === 'none' || menu.style.display === '') ? 'flex' : 'none';
     }
 
+    const handleToggleChatMuted = async () => {
+        if (!chat.chat_id || isUpdatingChatMuted) {
+            return;
+        }
+
+        const nextMuted = !isChatMuted;
+        setIsUpdatingChatMuted(true);
+        setChatMuteError("");
+        setIsChatMuted(nextMuted);
+        try {
+            const res = await NotificationService.updateChatSetting(chat.chat_id, nextMuted);
+            const updatedMuted = typeof res.data?.is_muted === "boolean"
+                ? res.data.is_muted
+                : nextMuted;
+            setIsChatMuted(updatedMuted);
+            window.dispatchEvent(new CustomEvent(CHAT_SETTING_UPDATED_EVENT, {
+                detail: {
+                    chat_id: chat.chat_id,
+                    title: res.data?.title || chat.title,
+                    display_title: res.data?.display_title || chat.title,
+                    chat_type: res.data?.chat_type || chat.chat_type,
+                    avatar_small_url: res.data?.avatar_small_url || null,
+                    is_muted: updatedMuted,
+                },
+            }));
+        } catch (error) {
+            setIsChatMuted(!nextMuted);
+            setChatMuteError(error?.response?.data?.detail || "Failed to update chat notifications");
+        } finally {
+            setIsUpdatingChatMuted(false);
+        }
+    }
+
     const handleChatDelete = async () => {
         try {
             stopTyping();
@@ -1504,6 +1551,21 @@ function ChatDetails() {
                 </div>
             </div>
             <div id="options">
+                <div
+                    className={`option${isUpdatingChatMuted ? " disabled" : ""}`}
+                    onClick={handleToggleChatMuted}
+                >
+                    <img src="../../../assets/chat.svg" alt="Notifications" />
+                    <div>
+                        {isUpdatingChatMuted
+                            ? "Updating notification setting..."
+                            : isChatMuted
+                                ? "Enable notifications"
+                                : "Mute notifications"}
+                    </div>
+                </div>
+                {chatMuteError && <div className="chat-mute-error">{chatMuteError}</div>}
+                <hr />
                 {
                     store.user.user_id === chat.owner_id && chat.chat_type !== "direct" &&
                     <>

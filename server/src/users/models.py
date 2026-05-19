@@ -20,6 +20,7 @@ class SubscriptionModel(Base):
         ForeignKey("users.user_id", ondelete="CASCADE"),
         primary_key=True,
     )
+    is_muted: Mapped[bool] = mapped_column(default=False, server_default=text("false"))
 
 
 class UserModel(Base):

@@ -176,7 +176,8 @@ class FakeVideoRepository:
         available_quality_metadata: dict[str, object],
         processing_error: str | None,
         now: datetime.datetime,
-    ) -> None:
+    ) -> list[uuid.UUID]:
+        autopublished_content_ids: list[uuid.UUID] = []
         for video in self.videos.values():
             if not any(
                 link.asset_id == asset_id
@@ -193,27 +194,30 @@ class FakeVideoRepository:
             video.video_playback_details.processing_error = processing_error
             video.video_playback_details.available_quality_metadata = available_quality_metadata
             if processing_status == VideoProcessingStatusEnum.READY:
-                await self._auto_publish_if_requested(video=video, now=now)
+                if await self._auto_publish_if_requested(video=video, now=now):
+                    autopublished_content_ids.append(video.content_id)
+        return autopublished_content_ids
 
-    async def _auto_publish_if_requested(self, *, video: FakeVideo, now: datetime.datetime) -> None:
+    async def _auto_publish_if_requested(self, *, video: FakeVideo, now: datetime.datetime) -> bool:
         if video.video_details.publish_requested_at is None:
-            return
+            return False
         if video.status == ContentStatusEnum.PUBLISHED or video.deleted_at is not None:
-            return
+            return False
         if not (video.title or "").strip():
             video.video_playback_details.processing_error = "Publish validation failed: title is required"
-            return
+            return False
         has_cover = any(
             link.attachment_type == AttachmentTypeEnum.COVER and link.deleted_at is None
             for link in video.asset_links
         )
         if not has_cover:
             video.video_playback_details.processing_error = "Publish validation failed: cover asset is required"
-            return
+            return False
         video.status = ContentStatusEnum.PUBLISHED
         video.published_at = video.published_at or now
         video.updated_at = now
         video.video_playback_details.processing_error = None
+        return True
 
     def _decorate(self, video: FakeVideo, viewer_id: uuid.UUID | None) -> FakeVideo:
         video.is_owner = video.author_id == viewer_id
@@ -252,6 +256,74 @@ class FakeAssetService:
 class FakeStorage:
     async def generate_presigned_get(self, *, bucket: str, key: str, **kwargs) -> str:
         return f"https://cdn.example/{bucket}/{key}"
+
+
+@dataclass
+class FakeNotificationCall:
+    actor_id: uuid.UUID
+    content_id: uuid.UUID
+    content_type: str
+    title: str
+    body: str | None
+    canonical_path: str
+
+
+class FakeNotificationService:
+    def __init__(self) -> None:
+        self.publication_calls: list[FakeNotificationCall] = []
+
+    async def create_publication_notifications(self, **kwargs):  # type: ignore[no-untyped-def]
+        self.publication_calls.append(
+            FakeNotificationCall(
+                actor_id=kwargs["actor_id"],
+                content_id=kwargs["content_id"],
+                content_type=kwargs["content_type"],
+                title=kwargs["title"],
+                body=kwargs["body"],
+                canonical_path=kwargs["canonical_path"],
+            )
+        )
+        return []
+
+
+@dataclass
+class _MomentDetails:
+    caption: str
+
+
+@dataclass
+class _MomentAuthor:
+    username: str
+
+
+@dataclass
+class _Moment:
+    content_id: uuid.UUID
+    author_id: uuid.UUID
+    author: _MomentAuthor
+    status: ContentStatusEnum
+    visibility: ContentVisibilityEnum
+    deleted_at: datetime.datetime | None
+    moment_details: _MomentDetails
+
+
+class FakeNotifierMomentRepository:
+    def __init__(self, moment: _Moment | None = None) -> None:
+        self._moment = moment
+        self._autopublished_ids: list[uuid.UUID] = [moment.content_id] if moment is not None else []
+
+    def set_autopublished_ids(self, content_ids: list[uuid.UUID]) -> None:
+        self._autopublished_ids = content_ids
+
+    async def update_processing_for_source_asset(self, **kwargs):  # type: ignore[no-untyped-def]
+        return list(self._autopublished_ids)
+
+    async def get_single(self, *, content_id: uuid.UUID, viewer_id: uuid.UUID | None = None):  # noqa: ARG002
+        if self._moment is None:
+            return None
+        if self._moment.content_id != content_id:
+            return None
+        return self._moment
 
 
 @dataclass
@@ -422,6 +494,148 @@ async def test_video_processing_notifier_auto_publishes_requested_ready_video(bu
     assert stored_video.published_at is not None
     assert stored_video.video_playback_details.processing_status == VideoProcessingStatusEnum.READY
     assert stored_video.video_playback_details.processing_error is None
+
+
+@pytest.mark.anyio
+async def test_video_processing_notifier_sends_publication_notification_for_autopublished_video(bundle: Bundle) -> None:
+    video = await bundle.service.create_video(
+        user=bundle.author,
+        data=VideoCreate(
+            source_asset_id=bundle.source_asset.asset_id,
+            cover_asset_id=bundle.cover_asset.asset_id,
+            title="Video notify",
+            description="Video body preview",
+            visibility="public",
+            status="published",
+        ),
+    )
+    notifications = FakeNotificationService()
+
+    await VideoAssetProcessingNotifier(
+        bundle.repository,
+        notification_service=notifications,  # type: ignore[arg-type]
+    ).notify(
+        VideoProcessingAssetUpdate(
+            asset_id=bundle.source_asset.asset_id,
+            processing_status=VideoProcessingStatusEnum.READY,
+            duration_seconds=55,
+            width=1920,
+            height=1080,
+            orientation=VideoOrientationEnum.LANDSCAPE,
+            available_quality_metadata={"qualities": ["720p"]},
+        )
+    )
+
+    assert len(notifications.publication_calls) == 1
+    call = notifications.publication_calls[0]
+    assert call.actor_id == bundle.author.user_id
+    assert call.content_id == video.video_id
+    assert call.content_type == "video"
+    assert call.title == "author published a new video"
+    assert call.canonical_path == f"/videos/{video.video_id}"
+
+
+@pytest.mark.anyio
+async def test_video_processing_notifier_does_not_send_for_private_video(bundle: Bundle) -> None:
+    await bundle.service.create_video(
+        user=bundle.author,
+        data=VideoCreate(
+            source_asset_id=bundle.source_asset.asset_id,
+            cover_asset_id=bundle.cover_asset.asset_id,
+            title="Private video",
+            visibility="private",
+            status="published",
+        ),
+    )
+    notifications = FakeNotificationService()
+
+    await VideoAssetProcessingNotifier(
+        bundle.repository,
+        notification_service=notifications,  # type: ignore[arg-type]
+    ).notify(
+        VideoProcessingAssetUpdate(
+            asset_id=bundle.source_asset.asset_id,
+            processing_status=VideoProcessingStatusEnum.READY,
+            duration_seconds=55,
+            width=1920,
+            height=1080,
+            orientation=VideoOrientationEnum.LANDSCAPE,
+            available_quality_metadata={"qualities": ["720p"]},
+        )
+    )
+
+    assert notifications.publication_calls == []
+
+
+@pytest.mark.anyio
+async def test_video_processing_notifier_does_not_send_when_publish_validation_fails(bundle: Bundle) -> None:
+    await bundle.service.create_video(
+        user=bundle.author,
+        data=VideoCreate(
+            source_asset_id=bundle.source_asset.asset_id,
+            cover_asset_id=bundle.cover_asset.asset_id,
+            visibility="public",
+            status="published",
+        ),
+    )
+    notifications = FakeNotificationService()
+
+    await VideoAssetProcessingNotifier(
+        bundle.repository,
+        notification_service=notifications,  # type: ignore[arg-type]
+    ).notify(
+        VideoProcessingAssetUpdate(
+            asset_id=bundle.source_asset.asset_id,
+            processing_status=VideoProcessingStatusEnum.READY,
+            duration_seconds=55,
+            width=1920,
+            height=1080,
+            orientation=VideoOrientationEnum.LANDSCAPE,
+            available_quality_metadata={"qualities": ["720p"]},
+        )
+    )
+
+    assert notifications.publication_calls == []
+
+
+@pytest.mark.anyio
+async def test_video_processing_notifier_sends_publication_notification_for_autopublished_moment(bundle: Bundle) -> None:
+    notifications = FakeNotificationService()
+    moment_id = uuid.uuid4()
+    moment_repository = FakeNotifierMomentRepository(
+        _Moment(
+            content_id=moment_id,
+            author_id=bundle.author.user_id,
+            author=_MomentAuthor(username=bundle.author.username),
+            status=ContentStatusEnum.PUBLISHED,
+            visibility=ContentVisibilityEnum.PUBLIC,
+            deleted_at=None,
+            moment_details=_MomentDetails(caption="Moment preview text"),
+        )
+    )
+
+    await VideoAssetProcessingNotifier(
+        bundle.repository,
+        moment_repository=moment_repository,  # type: ignore[arg-type]
+        notification_service=notifications,  # type: ignore[arg-type]
+    ).notify(
+        VideoProcessingAssetUpdate(
+            asset_id=bundle.source_asset.asset_id,
+            processing_status=VideoProcessingStatusEnum.READY,
+            duration_seconds=30,
+            width=720,
+            height=1280,
+            orientation=VideoOrientationEnum.PORTRAIT,
+            available_quality_metadata={"qualities": ["original"]},
+        )
+    )
+
+    moment_calls = [call for call in notifications.publication_calls if call.content_type == "moment"]
+    assert len(moment_calls) == 1
+    call = moment_calls[0]
+    assert call.content_id == moment_id
+    assert call.title == "author published a new moment"
+    assert call.canonical_path == f"/moments?moment={moment_id}"
 
 
 @pytest.mark.anyio

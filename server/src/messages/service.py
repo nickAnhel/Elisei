@@ -33,6 +33,7 @@ from src.messages.schemas import (
 
 if TYPE_CHECKING:
     from src.assets.storage import AssetStorage
+    from src.notifications.service import NotificationService
 
 
 class MessageService:
@@ -43,12 +44,14 @@ class MessageService:
         storage: AssetStorage | None = None,
         chat_repository: ChatRepository | None = None,
         content_service: ContentService | None = None,
+        notification_service: NotificationService | None = None,
     ) -> None:
         self._repository = repostory
         self._asset_repository = asset_repository
         self._storage = storage
         self._chat_repository = chat_repository
         self._content_service = content_service
+        self._notification_service = notification_service
 
     async def create_message(
         self,
@@ -91,10 +94,19 @@ class MessageService:
                     asset_ids=asset_ids,
                     shared_content_id=message.shared_content_id,
                 )
-            return await self._build_message_with_user(
+            response = await self._build_message_with_user(
                 msg,
                 shared_content_preview=shared_content_preview,
             )
+            if self._notification_service is not None:
+                await self._notification_service.create_messenger_notifications(
+                    sender_id=response.user_id,
+                    sender_username=response.user.username,
+                    chat_id=response.chat_id,
+                    message_id=response.message_id,
+                    message_preview=response.content[:160] if response.content else "",
+                )
+            return response
         except (IntegrityError, NoResultFound) as exc:
             raise ChatNotFound(f"Chat with id '{message.chat_id}' not found") from exc
 
