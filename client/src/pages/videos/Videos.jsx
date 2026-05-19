@@ -76,6 +76,7 @@ function Videos() {
                     key={activeTab}
                     fetchItems={(params) => fetchItems(withoutInternalFilters(params))}
                     filters={{ order: "published_at", desc: true, section: activeTab }}
+                    pageSize={activeTab === VIDEO_TABS.recommendations ? 10 : 5}
                     refresh={`${store.isRefreshPosts}-${activeTab}`}
                     emptyText="No videos yet"
                     renderItem={({ item, removeItem, ref }) => (

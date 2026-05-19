@@ -78,6 +78,8 @@ class RecommendationGraphRepository:
             "CREATE INDEX recomm_content_status IF NOT EXISTS FOR (c:Content) ON (c.status)",
             "CREATE INDEX recomm_content_visibility IF NOT EXISTS FOR (c:Content) ON (c.visibility)",
             "CREATE INDEX recomm_content_published_at IF NOT EXISTS FOR (c:Content) ON (c.published_at)",
+            "CREATE INDEX recomm_content_feed IF NOT EXISTS FOR (c:Content) ON (c.status, c.visibility, c.content_type)",
+            "CREATE INDEX recomm_content_published_feed IF NOT EXISTS FOR (c:Content) ON (c.status, c.visibility, c.published_at)",
         ]
         for statement in statements:
             await self._write(statement)
@@ -123,6 +125,7 @@ class RecommendationGraphRepository:
                 c.visibility = row.visibility,
                 c.created_at = CASE WHEN row.created_at IS NULL THEN NULL ELSE datetime(row.created_at) END,
                 c.published_at = CASE WHEN row.published_at IS NULL THEN NULL ELSE datetime(row.published_at) END,
+                c.deleted_at = CASE WHEN row.deleted_at IS NULL THEN NULL ELSE datetime(row.deleted_at) END,
                 c.likes_count = row.likes_count,
                 c.dislikes_count = row.dislikes_count,
                 c.comments_count = row.comments_count,
@@ -466,6 +469,282 @@ class RecommendationGraphRepository:
             },
         )
 
+    async def recompute_recommended_content(
+        self,
+        user_ids: list[uuid.UUID] | None = None,
+        *,
+        per_user_limit: int | None = None,
+    ) -> dict[str, int]:
+        target_limit = per_user_limit or settings.recommendations.per_user_limit
+        target_limit = max(target_limit, 1)
+        candidate_pool_limit = max(target_limit * 3, target_limit)
+
+        payload = [str(user_id) for user_id in (user_ids or [])]
+        if payload:
+            existing_rows = await self._read(
+                """
+                MATCH (u:User)
+                WHERE u.user_id IN $user_ids
+                RETURN u.user_id AS user_id
+                """,
+                {"user_ids": payload},
+            )
+            payload = [
+                str(row.get("user_id"))
+                for row in existing_rows
+                if isinstance(row.get("user_id"), str)
+            ]
+
+        users_recomputed = len(payload)
+        if not payload and user_ids is None:
+            count_rows = await self._read(
+                """
+                MATCH (u:User)
+                RETURN count(u) AS users_count
+                """
+            )
+            users_recomputed = int(count_rows[0].get("users_count") or 0) if count_rows else 0
+
+        if users_recomputed <= 0:
+            return {"users_recomputed": 0, "edges_created": 0}
+
+        await self._write(
+            """
+            MATCH (u:User)
+            WHERE size($user_ids) = 0 OR u.user_id IN $user_ids
+            OPTIONAL MATCH (u)-[old:RECOMMENDED_CONTENT]->(:Content)
+            DELETE old
+            """,
+            {"user_ids": payload},
+        )
+
+        await self._write(
+            """
+            MATCH (u:User)
+            WHERE size($user_ids) = 0 OR u.user_id IN $user_ids
+            WITH DISTINCT u
+            CALL (u) {
+                CALL {
+                    WITH u
+                    MATCH (u)-[interest:INTERESTED_IN]->(:Tag)<-[:HAS_TAG]-(candidate:Content)
+                    WITH candidate, sum(coalesce(interest.weight, 0.0)) AS signal_score
+                    RETURN candidate
+                    ORDER BY signal_score DESC
+                    LIMIT $candidate_pool_limit
+                    UNION
+                    WITH u
+                    MATCH (u)-[affinity:AFFINITY_TO_AUTHOR]->(:User)-[:AUTHORED]->(candidate:Content)
+                    WITH candidate, sum(coalesce(affinity.weight, 0.0)) AS signal_score
+                    RETURN candidate
+                    ORDER BY signal_score DESC
+                    LIMIT $candidate_pool_limit
+                    UNION
+                    WITH u
+                    MATCH (u)-[:LIKED|VIEWED|COMMENTED]->(seed:Content)<-[:LIKED|VIEWED|COMMENTED]-(peer:User)
+                    WHERE peer.user_id <> u.user_id
+                    WITH u, peer, count(DISTINCT seed) AS overlap
+                    WHERE overlap > 0
+                    MATCH (peer)-[:LIKED|VIEWED|COMMENTED]->(candidate:Content)
+                    WITH candidate, sum(toFloat(overlap)) AS signal_score
+                    RETURN candidate
+                    ORDER BY signal_score DESC
+                    LIMIT $candidate_pool_limit
+                    UNION
+                    WITH u
+                    MATCH (candidate:Content)
+                    WHERE candidate.status = 'published'
+                        AND candidate.visibility = 'public'
+                        AND candidate.deleted_at IS NULL
+                    WITH candidate, coalesce(candidate.quality_score, 0.0) AS quality_score
+                    RETURN candidate
+                    ORDER BY quality_score DESC, coalesce(candidate.published_at, candidate.created_at) DESC
+                    LIMIT $candidate_pool_limit
+                }
+                WITH DISTINCT u, candidate
+                WHERE candidate IS NOT NULL
+                    AND candidate.status = 'published'
+                    AND candidate.visibility = 'public'
+                    AND candidate.deleted_at IS NULL
+                    AND (candidate.author_id IS NULL OR candidate.author_id <> u.user_id)
+                    AND NOT EXISTS {
+                        MATCH (u)-[:DISLIKED]->(candidate)
+                    }
+                    AND NOT EXISTS {
+                        MATCH (u)-[seen:VIEWED]->(candidate)
+                        WHERE coalesce(seen.progress_percent, 0) >= 90
+                    }
+                OPTIONAL MATCH (u)-[interest:INTERESTED_IN]->(:Tag)<-[:HAS_TAG]-(candidate)
+                WITH
+                    u,
+                    candidate,
+                    coalesce(sum(interest.weight), 0.0) AS tag_affinity
+                OPTIONAL MATCH (u)-[author_affinity:AFFINITY_TO_AUTHOR]->(:User)-[:AUTHORED]->(candidate)
+                WITH
+                    u,
+                    candidate,
+                    tag_affinity,
+                    coalesce(sum(author_affinity.weight), 0.0) AS author_affinity
+                CALL {
+                    WITH u, candidate
+                    MATCH (u)-[:LIKED|VIEWED|COMMENTED]->(seed:Content)<-[:LIKED|VIEWED|COMMENTED]-(peer:User)
+                    WHERE peer.user_id <> u.user_id
+                    WITH candidate, peer, count(DISTINCT seed) AS overlap
+                    WHERE overlap > 0
+                    MATCH (peer)-[peer_rel:LIKED|VIEWED|COMMENTED]->(candidate)
+                    RETURN coalesce(sum(
+                        CASE type(peer_rel)
+                            WHEN 'LIKED' THEN toFloat(overlap) * $collaborative_like_weight
+                            WHEN 'VIEWED' THEN toFloat(overlap) * $collaborative_view_weight
+                            WHEN 'COMMENTED' THEN toFloat(overlap) * $collaborative_comment_weight
+                            ELSE 0.0
+                        END
+                    ), 0.0) AS collaborative_score
+                    UNION
+                    WITH candidate
+                    RETURN 0.0 AS collaborative_score
+                }
+                WITH
+                    u,
+                    candidate,
+                    tag_affinity,
+                    author_affinity,
+                    max(collaborative_score) AS collaborative_score,
+                    coalesce(candidate.quality_score, 0.0) AS content_quality_score,
+                    duration.inDays(coalesce(candidate.published_at, candidate.created_at), datetime()).days AS age_days
+                WITH
+                    u,
+                    candidate,
+                    tag_affinity,
+                    author_affinity,
+                    collaborative_score,
+                    content_quality_score,
+                    (
+                        1.0
+                        / (1.0 + (toFloat(abs(coalesce(age_days, 0))) / $freshness_decay_days))
+                    ) AS freshness_score,
+                    coalesce(candidate.published_at, candidate.created_at) AS published_sort
+                WITH
+                    u,
+                    candidate,
+                    tag_affinity,
+                    author_affinity,
+                    collaborative_score,
+                    content_quality_score,
+                    freshness_score,
+                    published_sort,
+                    (tag_affinity * $tag_affinity_weight) AS tag_component,
+                    (author_affinity * $author_affinity_weight) AS author_component,
+                    (collaborative_score * $collaborative_weight) AS collaborative_component,
+                    (content_quality_score * $content_quality_weight) AS quality_component,
+                    (freshness_score * $freshness_weight) AS freshness_component
+                WITH
+                    u,
+                    candidate,
+                    tag_affinity,
+                    author_affinity,
+                    collaborative_score,
+                    content_quality_score,
+                    freshness_score,
+                    published_sort,
+                    tag_component,
+                    author_component,
+                    collaborative_component,
+                    quality_component,
+                    freshness_component,
+                    (
+                        tag_component
+                        + author_component
+                        + collaborative_component
+                        + quality_component
+                        + freshness_component
+                    ) AS score
+                WHERE score > 0
+                ORDER BY score DESC, published_sort DESC
+                WITH u, collect({
+                    candidate: candidate,
+                    score: score,
+                    tag_affinity: tag_affinity,
+                    author_affinity: author_affinity,
+                    collaborative_score: collaborative_score,
+                    content_quality_score: content_quality_score,
+                    freshness_score: freshness_score,
+                    tag_component: tag_component,
+                    author_component: author_component,
+                    collaborative_component: collaborative_component,
+                    quality_component: quality_component,
+                    freshness_component: freshness_component
+                })[..$per_user_limit] AS recommendations
+                UNWIND recommendations AS rec
+                WITH
+                    u,
+                    rec,
+                    rec.candidate AS candidate,
+                    CASE
+                        WHEN rec.tag_component >= rec.author_component
+                            AND rec.tag_component >= rec.collaborative_component
+                            AND rec.tag_component >= rec.quality_component
+                            AND rec.tag_component >= rec.freshness_component
+                            AND rec.tag_component > 0
+                            THEN 'tag_affinity'
+                        WHEN rec.author_component >= rec.collaborative_component
+                            AND rec.author_component >= rec.quality_component
+                            AND rec.author_component >= rec.freshness_component
+                            AND rec.author_component > 0
+                            THEN 'author_affinity'
+                        WHEN rec.collaborative_component >= rec.quality_component
+                            AND rec.collaborative_component >= rec.freshness_component
+                            AND rec.collaborative_component > 0
+                            THEN 'collaborative'
+                        WHEN rec.quality_component >= rec.freshness_component
+                            AND rec.quality_component > 0
+                            THEN 'quality'
+                        WHEN rec.freshness_component > 0
+                            THEN 'fresh'
+                        ELSE 'personalized_graph_feed'
+                    END AS reason
+                MERGE (u)-[rel:RECOMMENDED_CONTENT]->(candidate)
+                SET
+                    rel.score = rec.score,
+                    rel.reason = reason,
+                    rel.tag_affinity = rec.tag_affinity,
+                    rel.author_affinity = rec.author_affinity,
+                    rel.collaborative_score = rec.collaborative_score,
+                    rel.content_quality_score = rec.content_quality_score,
+                    rel.freshness_score = rec.freshness_score,
+                    rel.updated_at = datetime()
+            }
+            """,
+            {
+                "user_ids": payload,
+                "per_user_limit": target_limit,
+                "candidate_pool_limit": candidate_pool_limit,
+                "tag_affinity_weight": TAG_AFFINITY_WEIGHT,
+                "author_affinity_weight": AUTHOR_AFFINITY_WEIGHT,
+                "collaborative_weight": COLLABORATIVE_WEIGHT,
+                "content_quality_weight": CONTENT_QUALITY_WEIGHT,
+                "freshness_weight": FRESHNESS_WEIGHT,
+                "freshness_decay_days": FRESHNESS_DECAY_DAYS,
+                "collaborative_like_weight": COLLABORATIVE_LIKE_WEIGHT,
+                "collaborative_view_weight": COLLABORATIVE_VIEW_WEIGHT,
+                "collaborative_comment_weight": COLLABORATIVE_COMMENT_WEIGHT,
+            },
+        )
+
+        count_rows = await self._read(
+            """
+            MATCH (u:User)-[rel:RECOMMENDED_CONTENT]->(:Content)
+            WHERE size($user_ids) = 0 OR u.user_id IN $user_ids
+            RETURN count(rel) AS edges_count
+            """,
+            {"user_ids": payload},
+        )
+        edges_created = int(count_rows[0].get("edges_count") or 0) if count_rows else 0
+
+        return {
+            "users_recomputed": users_recomputed,
+            "edges_created": edges_created,
+        }
+
     async def get_sync_state(
         self,
         *,
@@ -559,124 +838,35 @@ class RecommendationGraphRepository:
         offset: int,
         limit: int,
     ) -> list[RecommendationFeedGraphResult]:
+        if viewer_id is None:
+            return []
+
         rows = await self._read(
             """
-            OPTIONAL MATCH (viewer:User {user_id: $viewer_id})
-            MATCH (candidate:Content)
+            MATCH (:User {user_id: $viewer_id})-[rel:RECOMMENDED_CONTENT]->(candidate:Content)
             WHERE candidate.status = 'published'
                 AND candidate.visibility = 'public'
+                AND candidate.deleted_at IS NULL
                 AND ($content_type IS NULL OR candidate.content_type = $content_type)
-                AND (
-                    viewer IS NULL
-                    OR candidate.author_id IS NULL
-                    OR candidate.author_id <> viewer.user_id
-                )
-                AND (
-                    viewer IS NULL
-                    OR NOT EXISTS {
-                        MATCH (viewer)-[:DISLIKED]->(candidate)
-                    }
-                )
-                AND (
-                    viewer IS NULL
-                    OR NOT EXISTS {
-                        MATCH (viewer)-[seen:VIEWED]->(candidate)
-                        WHERE coalesce(seen.progress_percent, 0) >= 90
-                    }
-                )
-            OPTIONAL MATCH (viewer)-[interest:INTERESTED_IN]->(:Tag)<-[:HAS_TAG]-(candidate)
-            WITH viewer, candidate, coalesce(sum(interest.weight), 0.0) AS tag_affinity
-            OPTIONAL MATCH (viewer)-[author_affinity:AFFINITY_TO_AUTHOR]->(:User)-[:AUTHORED]->(candidate)
-            WITH
-                viewer,
-                candidate,
-                tag_affinity,
-                coalesce(sum(author_affinity.weight), 0.0) AS author_affinity
-            CALL {
-                WITH viewer, candidate
-                WITH viewer, candidate WHERE viewer IS NOT NULL
-                MATCH (viewer)-[:LIKED|VIEWED|COMMENTED]->(seed:Content)<-[:LIKED|VIEWED|COMMENTED]-(peer:User)
-                WHERE peer.user_id <> viewer.user_id
-                WITH candidate, peer, count(DISTINCT seed) AS overlap
-                WHERE overlap > 0
-                MATCH (peer)-[peer_rel:LIKED|VIEWED|COMMENTED]->(candidate)
-                RETURN coalesce(sum(
-                    CASE type(peer_rel)
-                        WHEN 'LIKED' THEN toFloat(overlap) * $collaborative_like_weight
-                        WHEN 'VIEWED' THEN toFloat(overlap) * $collaborative_view_weight
-                        WHEN 'COMMENTED' THEN toFloat(overlap) * $collaborative_comment_weight
-                        ELSE 0.0
-                    END
-                ), 0.0) AS collaborative_score
-                UNION
-                WITH candidate
-                RETURN 0.0 AS collaborative_score
-            }
-            WITH
-                candidate,
-                tag_affinity,
-                author_affinity,
-                max(collaborative_score) AS collaborative_score
-            WITH
-                candidate,
-                tag_affinity,
-                author_affinity,
-                collaborative_score,
-                coalesce(candidate.quality_score, 0.0) AS content_quality_score,
-                duration.inDays(coalesce(candidate.published_at, candidate.created_at), datetime()).days AS age_days
-            WITH
-                candidate,
-                tag_affinity,
-                author_affinity,
-                collaborative_score,
-                content_quality_score,
-                (
-                    1.0
-                    / (1.0 + (toFloat(abs(coalesce(age_days, 0))) / $freshness_decay_days))
-                ) AS freshness_score
-            WITH
-                candidate,
-                tag_affinity,
-                author_affinity,
-                collaborative_score,
-                content_quality_score,
-                freshness_score,
-                (
-                    (tag_affinity * $tag_affinity_weight)
-                    + (author_affinity * $author_affinity_weight)
-                    + (collaborative_score * $collaborative_weight)
-                    + (content_quality_score * $content_quality_weight)
-                    + (freshness_score * $freshness_weight)
-                ) AS score,
-                coalesce(candidate.published_at, candidate.created_at) AS published_sort
-            WITH candidate, score, published_sort
+            WITH candidate, rel, coalesce(candidate.published_at, candidate.created_at) AS published_sort
             ORDER BY
-                CASE WHEN $sort = 'relevance' THEN score ELSE 0.0 END DESC,
+                CASE WHEN $sort = 'relevance' THEN coalesce(rel.score, 0.0) ELSE 0.0 END DESC,
                 CASE WHEN $sort = 'newest' THEN published_sort END DESC,
                 CASE WHEN $sort = 'oldest' THEN published_sort END ASC,
-                CASE WHEN $sort = 'relevance' THEN published_sort END DESC
+                published_sort DESC
             SKIP $offset
             LIMIT $limit
             RETURN
                 candidate.content_id AS content_id,
-                score AS score,
-                'personalized_graph_feed' AS reason
+                coalesce(rel.score, 0.0) AS score,
+                coalesce(rel.reason, 'personalized_graph_feed') AS reason
             """,
             {
-                "viewer_id": str(viewer_id) if viewer_id is not None else None,
+                "viewer_id": str(viewer_id),
                 "content_type": content_type,
                 "sort": sort,
                 "offset": offset,
                 "limit": limit,
-                "tag_affinity_weight": TAG_AFFINITY_WEIGHT,
-                "author_affinity_weight": AUTHOR_AFFINITY_WEIGHT,
-                "collaborative_weight": COLLABORATIVE_WEIGHT,
-                "content_quality_weight": CONTENT_QUALITY_WEIGHT,
-                "freshness_weight": FRESHNESS_WEIGHT,
-                "freshness_decay_days": FRESHNESS_DECAY_DAYS,
-                "collaborative_like_weight": COLLABORATIVE_LIKE_WEIGHT,
-                "collaborative_view_weight": COLLABORATIVE_VIEW_WEIGHT,
-                "collaborative_comment_weight": COLLABORATIVE_COMMENT_WEIGHT,
             },
         )
 

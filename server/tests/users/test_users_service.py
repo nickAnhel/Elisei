@@ -315,3 +315,77 @@ async def test_change_password_rejects_same_or_weak_new_password() -> None:
                 new_password="weakpass",
             ),
         )
+
+
+class FakeSubscriptionRepository(FakeUserRepository):
+    def __init__(self, user: FakeUser, assets: dict[uuid.UUID, FakeAsset]) -> None:
+        super().__init__(user=user, assets=assets)
+        self.subscribe_calls: list[tuple[uuid.UUID, uuid.UUID]] = []
+        self.unsubscribe_calls: list[tuple[uuid.UUID, uuid.UUID]] = []
+
+    async def subscribe(self, *, user_id: uuid.UUID, subscriber_id: uuid.UUID) -> bool:
+        self.subscribe_calls.append((user_id, subscriber_id))
+        return True
+
+    async def unsubscribe(self, *, user_id: uuid.UUID, subscriber_id: uuid.UUID) -> bool:
+        self.unsubscribe_calls.append((user_id, subscriber_id))
+        return True
+
+
+class FakeCacheInvalidationService:
+    def __init__(self) -> None:
+        self.invalidate_calls: list[tuple[str, str]] = []
+
+    async def invalidate_index(self, *, index_key: str, namespace: str = "default") -> int:
+        self.invalidate_calls.append((index_key, namespace))
+        return 1
+
+
+@pytest.mark.anyio
+async def test_subscribe_invalidates_recommendation_cache_indexes_for_subscriber() -> None:
+    user_id = uuid.uuid4()
+    subscriber_id = uuid.uuid4()
+    repository = FakeSubscriptionRepository(
+        user=FakeUser(
+            user_id=subscriber_id,
+            username="subscriber",
+            hashed_password=get_password_hash("oldpass123"),
+        ),
+        assets={},
+    )
+    cache = FakeCacheInvalidationService()
+    service = UserService(
+        repository=repository,  # type: ignore[arg-type]
+        asset_service=FakeAssetService(),  # type: ignore[arg-type]
+        avatar_storage=FakeAvatarStorage(),  # type: ignore[arg-type]
+        cache_service=cache,  # type: ignore[arg-type]
+    )
+
+    await service.subscribe(user_id=user_id, subscriber_id=subscriber_id)
+
+    assert len(cache.invalidate_calls) == 2
+
+
+@pytest.mark.anyio
+async def test_unsubscribe_invalidates_recommendation_cache_indexes_for_subscriber() -> None:
+    user_id = uuid.uuid4()
+    subscriber_id = uuid.uuid4()
+    repository = FakeSubscriptionRepository(
+        user=FakeUser(
+            user_id=subscriber_id,
+            username="subscriber",
+            hashed_password=get_password_hash("oldpass123"),
+        ),
+        assets={},
+    )
+    cache = FakeCacheInvalidationService()
+    service = UserService(
+        repository=repository,  # type: ignore[arg-type]
+        asset_service=FakeAssetService(),  # type: ignore[arg-type]
+        avatar_storage=FakeAvatarStorage(),  # type: ignore[arg-type]
+        cache_service=cache,  # type: ignore[arg-type]
+    )
+
+    await service.unsubscribe(user_id=user_id, subscriber_id=subscriber_id)
+
+    assert len(cache.invalidate_calls) == 2

@@ -86,6 +86,7 @@ test("feed shows recommendations tab by default and does not expose popular tab"
         content_type: "all",
         sort: "relevance",
     });
+    expect(props.pageSize).toBe(10);
 });
 
 
@@ -106,5 +107,6 @@ test("subscriptions mode maps sort and content type to subscriptions endpoint fi
             order: "published_at",
             desc: false,
         });
+        expect(props.pageSize).toBe(5);
     });
 });

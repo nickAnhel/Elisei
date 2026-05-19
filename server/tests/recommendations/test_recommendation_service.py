@@ -1,6 +1,7 @@
 import datetime
 import uuid
 from dataclasses import dataclass
+from typing import Any
 
 import pytest
 
@@ -26,6 +27,41 @@ class FakeContent:
     content_id: uuid.UUID
     content_type: ContentTypeEnum
     author_id: uuid.UUID
+
+
+class FakeCacheService:
+    def __init__(self, initial_data: dict[str, Any] | None = None) -> None:
+        self.data = initial_data or {}
+        self.get_calls: list[tuple[str, str]] = []
+        self.set_calls: list[tuple[str, int | None, str]] = []
+        self.index_calls: list[tuple[str, str, int, str]] = []
+
+    async def get_json(self, key: str, *, namespace: str = "default") -> Any | None:
+        self.get_calls.append((key, namespace))
+        return self.data.get(key)
+
+    async def set_json(
+        self,
+        key: str,
+        value: Any,
+        ttl_seconds: int | None = None,
+        *,
+        namespace: str = "default",
+    ) -> bool:
+        self.set_calls.append((key, ttl_seconds, namespace))
+        self.data[key] = value
+        return True
+
+    async def add_index_member(
+        self,
+        *,
+        index_key: str,
+        member_key: str,
+        ttl_seconds: int,
+        namespace: str = "default",
+    ) -> bool:
+        self.index_calls.append((index_key, member_key, ttl_seconds, namespace))
+        return True
 
 
 class FakeGraphRepository:
@@ -82,11 +118,13 @@ class FakePostgresRepository:
         self.hydrated = hydrated
         self.fallback_items = fallback_items or []
         self.fallback_calls: list[dict] = []
+        self.hydration_calls: list[dict] = []
         self.users: dict[uuid.UUID, UserGet] = {}
         self.subscribed_user_ids: set[uuid.UUID] = set()
         self.visible_author_ids: set[uuid.UUID] = set()
 
     async def get_visible_content_by_ids(self, *, content_ids, viewer_id):  # type: ignore[no-untyped-def]
+        self.hydration_calls.append({"content_ids": content_ids, "viewer_id": viewer_id})
         return {
             content_id: self.hydrated[content_id]
             for content_id in content_ids
@@ -188,6 +226,7 @@ async def test_service_keeps_graph_order_and_drops_non_visible_hydration_rows() 
         postgres_repository=postgres,  # type: ignore[arg-type]
         projector_registry=FakeProjectorRegistry(),  # type: ignore[arg-type]
         asset_storage=None,
+        cache_service=FakeCacheService(),  # type: ignore[arg-type]
     )
 
     response = await service.get_similar_content(
@@ -213,6 +252,7 @@ async def test_service_returns_empty_when_graph_unavailable() -> None:
         postgres_repository=postgres,  # type: ignore[arg-type]
         projector_registry=FakeProjectorRegistry(),  # type: ignore[arg-type]
         asset_storage=None,
+        cache_service=FakeCacheService(),  # type: ignore[arg-type]
     )
 
     response = await service.get_similar_content(
@@ -252,6 +292,7 @@ async def test_recommendations_feed_hydrates_graph_order_and_filters_missing() -
         postgres_repository=postgres,  # type: ignore[arg-type]
         projector_registry=FakeProjectorRegistry(),  # type: ignore[arg-type]
         asset_storage=None,
+        cache_service=FakeCacheService(),  # type: ignore[arg-type]
     )
 
     response = await service.get_recommendations_feed(
@@ -285,6 +326,7 @@ async def test_recommendations_feed_uses_fallback_when_graph_fails() -> None:
         postgres_repository=postgres,  # type: ignore[arg-type]
         projector_registry=FakeProjectorRegistry(),  # type: ignore[arg-type]
         asset_storage=None,
+        cache_service=FakeCacheService(),  # type: ignore[arg-type]
     )
 
     response = await service.get_recommendations_feed(
@@ -300,6 +342,150 @@ async def test_recommendations_feed_uses_fallback_when_graph_fails() -> None:
     assert postgres.fallback_calls[0]["offset"] == 4
     assert postgres.fallback_calls[0]["sort"] == "newest"
     assert postgres.fallback_calls[0]["content_type"] == ContentTypeEnum.VIDEO
+
+
+@pytest.mark.anyio
+async def test_recommendations_feed_uses_fallback_for_anonymous_viewer() -> None:
+    fallback_id = uuid.uuid4()
+    graph = FakeGraphFeedRepository(rows=[])
+    postgres = FakePostgresRepository(
+        hydrated={},
+        fallback_items=[
+            FakeContent(
+                content_id=fallback_id,
+                content_type=ContentTypeEnum.POST,
+                author_id=uuid.uuid4(),
+            )
+        ],
+    )
+    service = RecommendationService(
+        graph_repository=graph,  # type: ignore[arg-type]
+        postgres_repository=postgres,  # type: ignore[arg-type]
+        projector_registry=FakeProjectorRegistry(),  # type: ignore[arg-type]
+        asset_storage=None,
+        cache_service=FakeCacheService(),  # type: ignore[arg-type]
+    )
+
+    response = await service.get_recommendations_feed(
+        viewer_id=None,
+        content_type=RecommendationFeedContentTypeEnum.ALL,
+        sort=RecommendationFeedSortEnum.RELEVANCE,
+        offset=2,
+        limit=4,
+    )
+
+    assert [item.content_id for item in response] == [fallback_id]
+    assert graph.calls == []
+    assert len(postgres.fallback_calls) == 1
+    assert postgres.fallback_calls[0]["offset"] == 2
+
+
+@pytest.mark.anyio
+async def test_recommendations_feed_cache_hit_still_hydrates_postgres() -> None:
+    viewer_id = uuid.uuid4()
+    content_id = uuid.uuid4()
+    cache = FakeCacheService(
+        {
+            "v1:recommendations:feed:key": [
+                {
+                    "content_id": str(content_id),
+                    "score": 12.4,
+                    "reason": "personalized_graph_feed",
+                }
+            ]
+        }
+    )
+    graph = FakeGraphFeedRepository(rows=[])
+    postgres = FakePostgresRepository(
+        hydrated={
+            content_id: FakeContent(
+                content_id=content_id,
+                content_type=ContentTypeEnum.POST,
+                author_id=uuid.uuid4(),
+            )
+        }
+    )
+
+    service = RecommendationService(
+        graph_repository=graph,  # type: ignore[arg-type]
+        postgres_repository=postgres,  # type: ignore[arg-type]
+        projector_registry=FakeProjectorRegistry(),  # type: ignore[arg-type]
+        asset_storage=None,
+        cache_service=cache,  # type: ignore[arg-type]
+    )
+
+    original_get_json = cache.get_json
+
+    async def fake_get_json(key: str, *, namespace: str = "default") -> Any | None:
+        return await original_get_json("v1:recommendations:feed:key", namespace=namespace)
+
+    cache.get_json = fake_get_json  # type: ignore[assignment]
+
+    response = await service.get_recommendations_feed(
+        viewer_id=viewer_id,
+        content_type=RecommendationFeedContentTypeEnum.ALL,
+        sort=RecommendationFeedSortEnum.RELEVANCE,
+        offset=0,
+        limit=1,
+    )
+
+    assert [item.content_id for item in response] == [content_id]
+    assert graph.calls == []
+    assert len(postgres.hydration_calls) == 1
+
+
+@pytest.mark.anyio
+async def test_similar_content_cache_hit_still_hydrates_postgres() -> None:
+    content_id = uuid.uuid4()
+    target_id = uuid.uuid4()
+    cache = FakeCacheService(
+        {
+            "v1:recommendations:similar:key": [
+                {
+                    "content_id": str(target_id),
+                    "score": 8.2,
+                    "reason": "shared_tags",
+                }
+            ]
+        }
+    )
+    graph = FakeGraphRepository(rows=[])
+    postgres = FakePostgresRepository(
+        hydrated={
+            target_id: FakeContent(
+                content_id=target_id,
+                content_type=ContentTypeEnum.POST,
+                author_id=uuid.uuid4(),
+            )
+        }
+    )
+
+    service = RecommendationService(
+        graph_repository=graph,  # type: ignore[arg-type]
+        postgres_repository=postgres,  # type: ignore[arg-type]
+        projector_registry=FakeProjectorRegistry(),  # type: ignore[arg-type]
+        asset_storage=None,
+        cache_service=cache,  # type: ignore[arg-type]
+    )
+
+    original_get_json = cache.get_json
+
+    async def fake_get_json(key: str, *, namespace: str = "default") -> Any | None:
+        return await original_get_json("v1:recommendations:similar:key", namespace=namespace)
+
+    cache.get_json = fake_get_json  # type: ignore[assignment]
+
+    response = await service.get_similar_content(
+        content_id=content_id,
+        viewer_id=None,
+        limit=1,
+        content_type=None,
+    )
+
+    assert len(response.items) == 1
+    assert response.items[0].content_id == target_id
+    assert graph.calls == []
+    assert len(postgres.hydration_calls) == 1
 
 
 @pytest.mark.anyio
@@ -336,6 +522,7 @@ async def test_recommended_authors_filters_self_followed_and_non_visible_and_kee
         postgres_repository=postgres,  # type: ignore[arg-type]
         projector_registry=FakeProjectorRegistry(),  # type: ignore[arg-type]
         asset_storage=None,
+        cache_service=FakeCacheService(),  # type: ignore[arg-type]
     )
 
     response = await service.get_recommended_authors(
@@ -351,6 +538,55 @@ async def test_recommended_authors_filters_self_followed_and_non_visible_and_kee
 
 
 @pytest.mark.anyio
+async def test_recommended_authors_cache_hit_still_queries_postgres_visibility() -> None:
+    viewer_id = uuid.uuid4()
+    kept_id = uuid.uuid4()
+    cache = FakeCacheService(
+        {
+            "v1:recommendations:authors:key": [
+                {
+                    "user_id": str(kept_id),
+                    "score": 9.5,
+                    "reason": "topic_author_affinity",
+                }
+            ]
+        }
+    )
+
+    graph = FakeGraphAuthorsRepository(rows=[])
+    postgres = FakePostgresRepository(hydrated={})
+    postgres.visible_author_ids = {kept_id}
+    postgres.users = {
+        kept_id: await _build_user(kept_id, "kept"),
+    }
+
+    service = RecommendationService(
+        graph_repository=graph,  # type: ignore[arg-type]
+        postgres_repository=postgres,  # type: ignore[arg-type]
+        projector_registry=FakeProjectorRegistry(),  # type: ignore[arg-type]
+        asset_storage=None,
+        cache_service=cache,  # type: ignore[arg-type]
+    )
+
+    original_get_json = cache.get_json
+
+    async def fake_get_json(key: str, *, namespace: str = "default") -> Any | None:
+        return await original_get_json("v1:recommendations:authors:key", namespace=namespace)
+
+    cache.get_json = fake_get_json  # type: ignore[assignment]
+
+    response = await service.get_recommended_authors(
+        viewer_id=viewer_id,
+        offset=0,
+        limit=3,
+    )
+
+    assert len(response) == 1
+    assert response[0].user_id == kept_id
+    assert graph.calls == []
+
+
+@pytest.mark.anyio
 async def test_recommended_authors_returns_empty_when_graph_fails() -> None:
     graph = FakeGraphAuthorsRepository(rows=[], should_fail=True)
     postgres = FakePostgresRepository(hydrated={})
@@ -359,6 +595,7 @@ async def test_recommended_authors_returns_empty_when_graph_fails() -> None:
         postgres_repository=postgres,  # type: ignore[arg-type]
         projector_registry=FakeProjectorRegistry(),  # type: ignore[arg-type]
         asset_storage=None,
+        cache_service=FakeCacheService(),  # type: ignore[arg-type]
     )
 
     response = await service.get_recommended_authors(

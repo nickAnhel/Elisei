@@ -31,5 +31,9 @@ celery_app.conf.update(
             "task": "recommendations.incremental_sync",
             "schedule": 60 * 5,
         },
+        "recommendations-refresh-active-users": {
+            "task": "recommendations.refresh_active_users",
+            "schedule": settings.recommendations.refresh_active_users_schedule_seconds,
+        },
     },
 )

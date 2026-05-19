@@ -8,6 +8,7 @@ from sqlalchemy import and_, desc, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from src.activity.enums import ActivityActionTypeEnum
 from src.activity.models import ActivityEventModel
 from src.assets.models import AssetModel, ContentAssetModel
 import src.articles.models  # noqa: F401
@@ -35,6 +36,7 @@ class ContentGraphRow:
     dislikes_count: int
     comments_count: int
     views_count: int
+    deleted_at: datetime.datetime | None
 
 
 @dataclass(slots=True)
@@ -287,6 +289,31 @@ class RecommendationPostgresRepository:
             for row in result.all()
         ]
 
+    async def get_active_user_ids_for_recommendations(
+        self,
+        *,
+        window_days: int,
+    ) -> list[uuid.UUID]:
+        since = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=max(window_days, 1))
+        result = await self._session.execute(
+            select(ActivityEventModel.user_id)
+            .where(
+                ActivityEventModel.created_at >= since,
+                ActivityEventModel.action_type.in_(
+                    [
+                        ActivityActionTypeEnum.CONTENT_VIEW,
+                        ActivityActionTypeEnum.CONTENT_LIKE,
+                        ActivityActionTypeEnum.CONTENT_DISLIKE,
+                        ActivityActionTypeEnum.CONTENT_COMMENT,
+                        ActivityActionTypeEnum.USER_FOLLOW,
+                        ActivityActionTypeEnum.USER_UNFOLLOW,
+                    ]
+                ),
+            )
+            .distinct()
+        )
+        return list(result.scalars().all())
+
     async def get_visible_content_by_ids(
         self,
         *,
@@ -407,6 +434,7 @@ class RecommendationPostgresRepository:
             ContentModel.dislikes_count,
             ContentModel.comments_count,
             ContentModel.views_count,
+            ContentModel.deleted_at,
         )
 
         if content_ids is not None:
@@ -426,6 +454,7 @@ class RecommendationPostgresRepository:
                 dislikes_count=row.dislikes_count,
                 comments_count=row.comments_count,
                 views_count=row.views_count,
+                deleted_at=row.deleted_at,
             )
             for row in result.all()
         ]

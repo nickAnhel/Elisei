@@ -94,12 +94,16 @@ class FakeIncrementalPostgresRepository:
     async def get_content_tags_by_content_ids(self, content_ids):  # type: ignore[no-untyped-def]
         return []
 
+    async def get_active_user_ids_for_recommendations(self, *, window_days):  # type: ignore[no-untyped-def]
+        return []
+
 
 class FakeIncrementalGraphRepository:
     def __init__(self) -> None:
         self.follow_rows: list[list[tuple[uuid.UUID, uuid.UUID]]] = []
         self.unfollow_rows: list[list[dict[str, str]]] = []
         self.recompute_affinity_calls: list[list[uuid.UUID]] = []
+        self.recompute_recommended_calls: list[list[uuid.UUID]] = []
 
     async def ensure_schema(self) -> None:
         return None
@@ -142,6 +146,13 @@ class FakeIncrementalGraphRepository:
 
     async def recompute_similar_to(self, content_ids):  # type: ignore[no-untyped-def]
         return None
+
+    async def recompute_recommended_content(self, user_ids, *, per_user_limit=None):  # type: ignore[no-untyped-def]
+        self.recompute_recommended_calls.append(user_ids)
+        return {
+            "users_recomputed": len(user_ids),
+            "edges_created": len(user_ids) * 2,
+        }
 
     async def upsert_sync_state(self, **kwargs):  # type: ignore[no-untyped-def]
         return None
@@ -203,3 +214,32 @@ async def test_incremental_sync_updates_follow_edges_and_recomputes_affinity() -
     assert actor_id in recomputed_user_ids
     assert followed_id in recomputed_user_ids
     assert unfollowed_id in recomputed_user_ids
+    assert len(graph_repository.recompute_recommended_calls) == 1
+    recomputed_recommended_user_ids = set(graph_repository.recompute_recommended_calls[0])
+    assert actor_id in recomputed_recommended_user_ids
+    assert followed_id in recomputed_recommended_user_ids
+    assert unfollowed_id in recomputed_recommended_user_ids
+
+
+@pytest.mark.anyio
+async def test_refresh_active_users_recomputes_only_active_users() -> None:
+    active_user_ids = [uuid.uuid4(), uuid.uuid4()]
+
+    class ActiveUsersPostgresRepository(FakeIncrementalPostgresRepository):
+        async def get_active_user_ids_for_recommendations(self, *, window_days):  # type: ignore[no-untyped-def]
+            assert window_days > 0
+            return active_user_ids
+
+    postgres_repository = ActiveUsersPostgresRepository(events=[])
+    graph_repository = FakeIncrementalGraphRepository()
+    service = RecommendationGraphSyncService(
+        postgres_repository=postgres_repository,  # type: ignore[arg-type]
+        graph_repository=graph_repository,  # type: ignore[arg-type]
+    )
+
+    report = await service.refresh_active_users()
+
+    assert report["active_users_count"] == 2
+    assert report["recomputed_users_count"] == 2
+    assert len(graph_repository.recompute_recommended_calls) == 1
+    assert graph_repository.recompute_recommended_calls[0] == active_user_ids

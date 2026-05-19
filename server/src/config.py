@@ -1,7 +1,7 @@
 from urllib.parse import urlsplit, urlunsplit
 from typing import Literal
 
-from pydantic import Field, field_validator
+from pydantic import AliasChoices, Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -45,9 +45,22 @@ class ProjectSettings(ConfigBase):
 
 
 class LoggingConfig(ConfigBase):
-    level: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
-
-    model_config = SettingsConfigDict(env_prefix="logging_")
+    level: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = Field(
+        default="INFO",
+        validation_alias=AliasChoices("LOG_LEVEL", "LOGGING_LEVEL"),
+    )
+    format: Literal["plain", "json"] = Field(
+        default="plain",
+        validation_alias="LOG_FORMAT",
+    )
+    slow_request_threshold_ms: int = Field(
+        default=1000,
+        validation_alias="SLOW_REQUEST_THRESHOLD_MS",
+    )
+    slow_recommendation_threshold_ms: int = Field(
+        default=1000,
+        validation_alias="SLOW_RECOMMENDATION_THRESHOLD_MS",
+    )
 
 
 class AdminSettings(ConfigBase):
@@ -146,6 +159,26 @@ class Neo4jSettings(ConfigBase):
     model_config = SettingsConfigDict(env_prefix="neo4j_")
 
 
+class RecommendationsSettings(ConfigBase):
+    per_user_limit: int = 300
+    graph_limit_multiplier: int = 2
+    active_window_days: int = 7
+    refresh_active_users_schedule_seconds: int = 60 * 60
+
+    model_config = SettingsConfigDict(env_prefix="recommendations_")
+
+
+class CacheSettings(ConfigBase):
+    enabled: bool = True
+    default_ttl_seconds: int = 300
+    recommendation_feed_ttl_seconds: int = 300
+    similar_content_ttl_seconds: int = 1800
+    recommended_authors_ttl_seconds: int = 1800
+    search_popular_ttl_seconds: int = 300
+
+    model_config = SettingsConfigDict(env_prefix="cache_")
+
+
 class Settings(BaseSettings):
     db: DBSettings = Field(default_factory=DBSettings)  # type: ignore
     logging: LoggingConfig = Field(default_factory=LoggingConfig)  # type: ignore
@@ -156,8 +189,10 @@ class Settings(BaseSettings):
     storage: StorageSettings = Field(default_factory=StorageSettings)  # type: ignore
     assets: AssetsSettings = Field(default_factory=AssetsSettings)  # type: ignore
     redis: RedisSettings = Field(default_factory=RedisSettings)  # type: ignore
+    cache: CacheSettings = Field(default_factory=CacheSettings)  # type: ignore
     celery: CelerySettings = Field(default_factory=CelerySettings)  # type: ignore
     neo4j: Neo4jSettings = Field(default_factory=Neo4jSettings)  # type: ignore
+    recommendations: RecommendationsSettings = Field(default_factory=RecommendationsSettings)  # type: ignore
 
 
 settings = Settings()

@@ -7,9 +7,12 @@ import json
 from src.common.database import async_session_maker
 from src.common.model_registry import import_all_models
 from src.config import settings
+from src.observability import configure_logging
 from src.recommendations.graph_repository import RecommendationGraphRepository, create_neo4j_driver
 from src.recommendations.postgres_repository import RecommendationPostgresRepository
 from src.recommendations.sync_service import RecommendationGraphSyncService
+
+configure_logging()
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -19,7 +22,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "command",
-        choices=["full-rebuild", "incremental-sync"],
+        choices=["full-rebuild", "incremental-sync", "refresh-active-users"],
     )
     return parser
 
@@ -64,6 +67,26 @@ async def run_incremental_sync() -> dict:
             await graph_repository.close()
 
 
+async def run_refresh_active_users() -> dict:
+    import_all_models()
+
+    async with async_session_maker() as session:
+        driver = create_neo4j_driver()
+        await _wait_for_neo4j(driver=driver, database=settings.neo4j.database)
+        graph_repository = RecommendationGraphRepository(
+            driver=driver,
+            database=settings.neo4j.database,
+        )
+        try:
+            service = RecommendationGraphSyncService(
+                postgres_repository=RecommendationPostgresRepository(session),
+                graph_repository=graph_repository,
+            )
+            return await service.refresh_active_users()
+        finally:
+            await graph_repository.close()
+
+
 async def _wait_for_neo4j(*, driver, database: str, attempts: int = 30, delay_seconds: float = 1.0) -> None:  # type: ignore[no-untyped-def]
     last_error: Exception | None = None
     for _ in range(attempts):
@@ -87,6 +110,11 @@ async def run_cli_async(args: argparse.Namespace) -> int:
 
     if args.command == "incremental-sync":
         result = await run_incremental_sync()
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+        return 0
+
+    if args.command == "refresh-active-users":
+        result = await run_refresh_active_users()
         print(json.dumps(result, ensure_ascii=False, indent=2))
         return 0
 
