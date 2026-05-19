@@ -1,0 +1,208 @@
+.notification-bell-root {
+    position: relative;
+}
+
+.notification-bell-trigger {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    border-radius: .5rem;
+    background: transparent;
+    color: #e8eaed;
+    cursor: pointer;
+}
+
+.notification-bell-trigger:hover {
+    opacity: .85;
+}
+
+.notification-bell-trigger.active {
+    color: #9d50ff;
+}
+
+.notification-bell-trigger svg {
+    width: 2rem;
+    height: 2rem;
+}
+
+.notification-bell-badge {
+    position: absolute;
+    top: .15rem;
+    right: .25rem;
+    min-width: 1.2rem;
+    height: 1.2rem;
+    border-radius: .8rem;
+    background: #ff4d4f;
+    color: #fff;
+    font-size: .7rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 .3rem;
+}
+
+.notification-popup {
+    position: absolute;
+    left: calc(100% + .8rem);
+    bottom: 0;
+    width: min(28rem, 82vw);
+    max-height: 75vh;
+    background: #171717;
+    border: 1px solid #2d2d2d;
+    border-radius: .9rem;
+    overflow: hidden;
+    z-index: 2200;
+}
+
+.notification-popup-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: .8rem;
+    padding: .7rem;
+    border-bottom: 1px solid #2d2d2d;
+}
+
+.notification-popup-tabs {
+    display: flex;
+    gap: .4rem;
+}
+
+.notification-tab,
+.notification-mark-all,
+.notification-load-more {
+    border: 1px solid #323232;
+    border-radius: .55rem;
+    background: #232323;
+    color: #e7e7e7;
+    font-size: .82rem;
+    padding: .35rem .6rem;
+    cursor: pointer;
+}
+
+.notification-tab.active {
+    background: #9d50ff;
+    border-color: #9d50ff;
+    color: #fff;
+}
+
+.notification-popup-list {
+    display: flex;
+    flex-direction: column;
+    max-height: 22rem;
+    overflow-y: auto;
+}
+
+.notification-item {
+    border: none;
+    border-bottom: 1px solid #252525;
+    background: transparent;
+    color: #ebebeb;
+    text-align: left;
+    padding: .7rem;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: .8rem;
+    cursor: pointer;
+}
+
+.notification-item.unread {
+    background: rgba(157, 80, 255, .09);
+}
+
+.notification-item.read {
+    opacity: .85;
+}
+
+.notification-item-title {
+    font-size: .9rem;
+    font-weight: 600;
+}
+
+.notification-item-body {
+    margin-top: .15rem;
+    font-size: .82rem;
+    color: #c9c9c9;
+}
+
+.notification-item-date {
+    font-size: .75rem;
+    color: #9f9f9f;
+    white-space: nowrap;
+}
+
+.notification-load-more {
+    margin: .7rem;
+    width: calc(100% - 1.4rem);
+}
+
+.notification-state {
+    padding: 1rem;
+    color: #b6b6b6;
+    text-align: center;
+}
+
+.notification-state.error {
+    color: #ff9b9b;
+}
+
+.notification-toast-stack {
+    position: absolute;
+    left: calc(100% + .8rem);
+    bottom: 0;
+    width: min(22rem, 72vw);
+    display: flex;
+    flex-direction: column;
+    gap: .5rem;
+    pointer-events: none;
+    z-index: 2300;
+}
+
+.notification-toast {
+    pointer-events: auto;
+    border: 1px solid #31263f;
+    background: linear-gradient(135deg, #251930, #1c1c1c);
+    color: #efefef;
+    border-radius: .75rem;
+    padding: .7rem .8rem;
+    text-align: left;
+    cursor: pointer;
+    transition: transform .22s ease, opacity .22s ease;
+}
+
+.notification-toast.old {
+    transform: scale(.95);
+    opacity: .65;
+}
+
+.notification-toast-title {
+    font-size: .88rem;
+    font-weight: 600;
+}
+
+.notification-toast-body {
+    font-size: .8rem;
+    color: #cdcdcd;
+    margin-top: .2rem;
+}
+
+@media (max-width: 860px) {
+    .notification-popup {
+        left: calc(100% + .6rem);
+        right: auto;
+        bottom: calc(100% + .6rem);
+        width: min(24rem, calc(100vw - 5.5rem));
+    }
+
+    .notification-toast-stack {
+        left: calc(100% + .6rem);
+        right: auto;
+        bottom: calc(100% + .6rem);
+        width: min(20rem, calc(100vw - 5.5rem));
+    }
+}

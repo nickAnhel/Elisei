@@ -1,0 +1,137 @@
+.profile-notifications-settings {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.profile-notifications-settings.loading,
+.profile-notifications-settings.error,
+.profile-notifications-settings.empty {
+    min-height: 12rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #bdbdbd;
+}
+
+.profile-notifications-settings.error {
+    color: #ff9f9f;
+}
+
+.profile-notifications-feedback {
+    border-radius: .75rem;
+    padding: .65rem .75rem;
+    font-size: .9rem;
+}
+
+.profile-notifications-feedback.error {
+    border: 1px solid #5f2a2a;
+    background: #2a1818;
+    color: #ffb2b2;
+}
+
+.profile-notifications-feedback.success {
+    border: 1px solid #2f5f38;
+    background: #18231a;
+    color: #acdcb4;
+}
+
+.profile-notifications-section {
+    background: #1b1b1b;
+    border: 1px solid #2f2f2f;
+    border-radius: .9rem;
+    padding: .85rem;
+    display: flex;
+    flex-direction: column;
+    gap: .6rem;
+}
+
+.profile-notifications-section h3 {
+    margin: 0;
+    font-size: 1rem;
+}
+
+.notification-setting-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: .6rem;
+    padding: .5rem .55rem;
+    border-radius: .6rem;
+    background: #151515;
+    border: 1px solid #292929;
+}
+
+.notification-setting-row.disabled {
+    opacity: .6;
+    pointer-events: none;
+}
+
+.notification-setting-row input {
+    width: 1.1rem;
+    height: 1.1rem;
+}
+
+.notification-setting-main {
+    display: flex;
+    align-items: center;
+    gap: .6rem;
+    min-width: 0;
+}
+
+.notification-setting-avatar {
+    width: 2rem;
+    height: 2rem;
+    border-radius: 999px;
+    object-fit: cover;
+    background: #2c2c2c;
+}
+
+.notification-setting-text {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.notification-setting-title {
+    color: #ececec;
+    font-size: .92rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.notification-setting-subtitle {
+    color: #a3a3a3;
+    font-size: .78rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.profile-notifications-actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: .8rem;
+    flex-wrap: wrap;
+}
+
+.profile-notifications-unsaved {
+    color: #9f9f9f;
+    font-size: .85rem;
+}
+
+.profile-notifications-unsaved.active {
+    color: #ffd18a;
+}
+
+.profile-notifications-action-buttons {
+    display: flex;
+    gap: .5rem;
+}
+
+.profile-notifications-empty {
+    color: #9f9f9f;
+    font-size: .9rem;
+}

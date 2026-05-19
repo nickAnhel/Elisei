@@ -334,7 +334,8 @@ class MomentRepository:
         available_quality_metadata: dict[str, object],
         processing_error: str | None,
         now: datetime.datetime,
-    ) -> None:
+    ) -> list[uuid.UUID]:
+        autopublished_content_ids: list[uuid.UUID] = []
         result = await self._session.execute(
             select(ContentAssetModel.content_id)
             .join(ContentModel, ContentModel.content_id == ContentAssetModel.content_id)
@@ -358,8 +359,11 @@ class MomentRepository:
                 commit=False,
             )
             if processing_status == VideoProcessingStatusEnum.READY:
-                await self._auto_publish_if_requested(content_id=content_id, now=now)
+                was_autopublished = await self._auto_publish_if_requested(content_id=content_id, now=now)
+                if was_autopublished:
+                    autopublished_content_ids.append(content_id)
         await self._session.commit()
+        return autopublished_content_ids
 
     async def commit(self) -> None:
         await self._session.commit()
@@ -369,12 +373,12 @@ class MomentRepository:
         *,
         content_id: uuid.UUID,
         now: datetime.datetime,
-    ) -> None:
+    ) -> bool:
         moment = await self.get_single(content_id=content_id)
         if moment is None or moment.moment_details.publish_requested_at is None:
-            return
+            return False
         if moment.status == ContentStatusEnum.PUBLISHED or moment.deleted_at is not None:
-            return
+            return False
         error = await self._publish_validation_error(moment)
         if error is not None:
             await self._session.execute(
@@ -382,7 +386,7 @@ class MomentRepository:
                 .where(VideoPlaybackDetailsModel.content_id == content_id)
                 .values(processing_error=error, updated_at=now)
             )
-            return
+            return False
         await self._session.execute(
             update(ContentModel)
             .where(ContentModel.content_id == content_id)
@@ -397,6 +401,7 @@ class MomentRepository:
             .where(VideoPlaybackDetailsModel.content_id == content_id)
             .values(processing_error=None, updated_at=now)
         )
+        return True
 
     async def _publish_validation_error(self, moment) -> str | None:  # type: ignore[no-untyped-def]
         playback = moment.video_playback_details

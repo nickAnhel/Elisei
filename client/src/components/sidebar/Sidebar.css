@@ -75,6 +75,14 @@
     gap: 1rem;
 }
 
+#sidebar-bottom .profile-link {
+    margin-bottom: .2rem;
+}
+
+#sidebar-bottom .notification-bell-root {
+    width: 100%;
+}
+
 #sidebar-bottom img {
     width: 2.3rem;
     aspect-ratio: 1/1;

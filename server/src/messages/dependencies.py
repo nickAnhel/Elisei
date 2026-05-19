@@ -10,6 +10,8 @@ from src.content.repository import ContentRepository
 from src.content.service import ContentService
 from src.messages.repository import MessageRepository
 from src.messages.service import MessageService
+from src.notifications.repository import NotificationRepository
+from src.notifications.service import NotificationService
 
 
 def get_message_service(
@@ -28,4 +30,7 @@ def get_message_service(
         storage=storage,
         chat_repository=ChatRepository(session),
         content_service=content_service,
+        notification_service=NotificationService(
+            repository=NotificationRepository(session),
+        ),
     )

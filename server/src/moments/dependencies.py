@@ -8,6 +8,8 @@ from src.common.database import get_async_session
 from src.config import settings
 from src.moments.repository import MomentRepository
 from src.moments.service import MomentService
+from src.notifications.repository import NotificationRepository
+from src.notifications.service import NotificationService
 from src.tags.repository import TagRepository
 from src.tags.service import TagService
 
@@ -26,4 +28,7 @@ async def get_moment_service(
             task_dispatcher=get_task_dispatcher(),
         ),
         asset_storage=get_asset_storage(),
+        notification_service=NotificationService(
+            repository=NotificationRepository(async_session),
+        ),
     )

@@ -23,6 +23,7 @@ from src.moments.router import router as moments_router
 from src.activity.router import router as activity_router
 from src.search.router import router as search_router
 from src.recommendations.router import router as recommendations_router
+from src.notifications.router import router as notifications_router
 from src.observability.router import router as observability_router
 from src.observability.middleware import request_logging_middleware
 
@@ -120,6 +121,16 @@ from src.videos.exc_handlers import invalid_video_handler, video_not_found_handl
 from src.videos.exceptions import InvalidVideo, VideoNotFound
 from src.moments.exc_handlers import invalid_moment_handler, moment_not_found_handler
 from src.moments.exceptions import InvalidMoment, MomentNotFound
+from src.notifications.exc_handlers import (
+    notification_author_settings_not_found_handler,
+    notification_chat_settings_not_found_handler,
+    notification_not_found_handler,
+)
+from src.notifications.exceptions import (
+    NotificationAuthorSettingsNotFound,
+    NotificationChatSettingsNotFound,
+    NotificationNotFound,
+)
 
 
 def register_routes(app: FastAPI) -> None:
@@ -139,6 +150,7 @@ def register_routes(app: FastAPI) -> None:
     app.include_router(activity_router)
     app.include_router(search_router)
     app.include_router(recommendations_router)
+    app.include_router(notifications_router)
     app.include_router(observability_router)
 
     app.mount("/ws", ws_app)
@@ -191,6 +203,15 @@ def register_exception_handlers(app: FastAPI) -> None:
     app.add_exception_handler(InvalidVideo, invalid_video_handler)  # type: ignore
     app.add_exception_handler(MomentNotFound, moment_not_found_handler)  # type: ignore
     app.add_exception_handler(InvalidMoment, invalid_moment_handler)  # type: ignore
+    app.add_exception_handler(NotificationNotFound, notification_not_found_handler)  # type: ignore
+    app.add_exception_handler(
+        NotificationAuthorSettingsNotFound,
+        notification_author_settings_not_found_handler,  # type: ignore
+    )
+    app.add_exception_handler(
+        NotificationChatSettingsNotFound,
+        notification_chat_settings_not_found_handler,  # type: ignore
+    )
 
 
 def register_middleware(app: FastAPI) -> None:
@@ -198,7 +219,7 @@ def register_middleware(app: FastAPI) -> None:
         CORSMiddleware,
         allow_origins=settings.cors.allowed_hosts,
         allow_credentials=True,
-        allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+        allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
         allow_headers=["Content-Type", "Authorization", "Accept", "X-Request-ID"],
     )
     app.middleware("http")(request_logging_middleware)

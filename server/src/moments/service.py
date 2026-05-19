@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import datetime
 import uuid
+from typing import TYPE_CHECKING
 
 from src.assets.enums import (
     AssetStatusEnum,
@@ -16,7 +17,7 @@ from src.assets.service import AssetService
 from src.assets.storage import AssetStorage, detect_extension
 from src.common.exceptions import PermissionDenied
 from src.content.access import can_view_content
-from src.content.enums import ContentStatusEnum, ContentVisibilityEnum
+from src.content.enums import ContentStatusEnum, ContentTypeEnum, ContentVisibilityEnum
 from src.moments.enums import MomentOrder, MomentProfileFilter, MomentWriteStatus, MomentWriteVisibility
 from src.moments.exceptions import InvalidMoment, MomentNotFound
 from src.moments.presentation import build_moment_editor_get, build_moment_get
@@ -25,6 +26,9 @@ from src.moments.schemas import MomentCreate, MomentEditorGet, MomentGet, Moment
 from src.tags.service import TagService
 from src.users.schemas import UserGet
 from src.videos.enums import VideoOrientationEnum, VideoProcessingStatusEnum
+
+if TYPE_CHECKING:
+    from src.notifications.service import NotificationService
 
 
 MOMENT_SOURCE_ALLOWED_STATUSES = {
@@ -56,12 +60,14 @@ class MomentService:
         asset_repository: AssetRepository,
         asset_service: AssetService,
         asset_storage: AssetStorage,
+        notification_service: NotificationService | None = None,
     ) -> None:
         self._repository = repository
         self._tag_service = tag_service
         self._asset_repository = asset_repository
         self._asset_service = asset_service
         self._asset_storage = asset_storage
+        self._notification_service = notification_service
 
     async def create_moment(
         self,
@@ -121,6 +127,12 @@ class MomentService:
         created = await self._repository.get_single(content_id=moment.content_id, viewer_id=user.user_id)
         if created is None:
             raise MomentNotFound("Created moment is unavailable")
+        await self._maybe_notify_publication(
+            author_username=user.username,
+            previous_status=None,
+            previous_published_at=None,
+            current_moment=created,
+        )
         return await self._build_moment_get(created, viewer_id=user.user_id)
 
     async def get_feed(
@@ -281,6 +293,12 @@ class MomentService:
         updated = await self._repository.get_single(content_id=moment_id, viewer_id=user.user_id)
         if updated is None:
             raise MomentNotFound(f"Moment with id {moment_id!s} not found")
+        await self._maybe_notify_publication(
+            author_username=user.username,
+            previous_status=moment.status,
+            previous_published_at=moment.published_at,
+            current_moment=updated,
+        )
         return await self._build_moment_get(updated, viewer_id=user.user_id)
 
     async def delete_moment(self, *, user: UserGet, moment_id: uuid.UUID) -> None:
@@ -515,6 +533,34 @@ class MomentService:
         if len(text) <= 220:
             return text
         return text[:217].rstrip() + "..."
+
+    async def _maybe_notify_publication(
+        self,
+        *,
+        author_username: str,
+        previous_status: ContentStatusEnum | None,
+        previous_published_at: datetime.datetime | None,
+        current_moment,
+    ) -> None:
+        if self._notification_service is None:
+            return
+        if current_moment.deleted_at is not None:
+            return
+        if current_moment.status != ContentStatusEnum.PUBLISHED:
+            return
+        if current_moment.visibility != ContentVisibilityEnum.PUBLIC:
+            return
+        if previous_status == ContentStatusEnum.PUBLISHED or previous_published_at is not None:
+            return
+
+        await self._notification_service.create_publication_notifications(
+            actor_id=current_moment.author_id,
+            content_id=current_moment.content_id,
+            content_type=ContentTypeEnum.MOMENT.value,
+            title=f"{author_username} published a new moment",
+            body=(current_moment.moment_details.caption or "").strip()[:240] or None,
+            canonical_path=f"/moments?moment={current_moment.content_id}",
+        )
 
     def _now(self) -> datetime.datetime:
         return datetime.datetime.now(datetime.timezone.utc)

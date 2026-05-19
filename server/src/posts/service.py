@@ -17,7 +17,7 @@ from src.assets.service import AssetService
 from src.assets.storage import AssetStorage
 from src.common.exceptions import PermissionDenied
 from src.content.access import can_view_content
-from src.content.enums import ContentStatusEnum, ContentVisibilityEnum, ReactionTypeEnum
+from src.content.enums import ContentStatusEnum, ContentTypeEnum, ContentVisibilityEnum, ReactionTypeEnum
 from src.posts.enums import PostOrder, PostProfileFilter, PostWriteStatus, PostWriteVisibility
 from src.posts.exceptions import InvalidPost, PostNotFound
 from src.posts.presentation import build_post_get
@@ -28,6 +28,7 @@ from src.users.schemas import UserGet
 
 if TYPE_CHECKING:
     from src.activity.service import ActivityService
+    from src.notifications.service import NotificationService
 
 
 POST_MEDIA_LIMIT = 30
@@ -51,6 +52,7 @@ class PostService:
         asset_service: AssetService,
         asset_storage: AssetStorage,
         activity_service: ActivityService | None = None,
+        notification_service: NotificationService | None = None,
     ) -> None:
         self._repository = repository
         self._tag_service = tag_service
@@ -58,6 +60,7 @@ class PostService:
         self._asset_service = asset_service
         self._asset_storage = asset_storage
         self._activity_service = activity_service
+        self._notification_service = notification_service
 
     async def create_post(
         self,
@@ -106,6 +109,12 @@ class PostService:
         if post is None:
             raise PostNotFound("Created post is unavailable")
         post.is_owner = True
+        await self._maybe_notify_publication(
+            author_username=user.username,
+            previous_status=None,
+            previous_published_at=None,
+            current_post=post,
+        )
         return await self._build_post_get(post, viewer_id=user.user_id)
 
     async def get_post(
@@ -235,6 +244,12 @@ class PostService:
         updated_post = await self._repository.get_single(content_id=post_id, viewer_id=user.user_id)
         if updated_post is None:
             raise PostNotFound(f"Post with id {post_id!s} not found")
+        await self._maybe_notify_publication(
+            author_username=user.username,
+            previous_status=post.status,
+            previous_published_at=post.published_at,
+            current_post=updated_post,
+        )
         return await self._build_post_get(updated_post, viewer_id=user.user_id)
 
     async def delete_post(
@@ -565,6 +580,34 @@ class PostService:
             post,
             viewer_id=viewer_id,
             storage=self._asset_storage,
+        )
+
+    async def _maybe_notify_publication(
+        self,
+        *,
+        author_username: str,
+        previous_status: ContentStatusEnum | None,
+        previous_published_at: datetime.datetime | None,
+        current_post,
+    ) -> None:
+        if self._notification_service is None:
+            return
+        if current_post.deleted_at is not None:
+            return
+        if current_post.status != ContentStatusEnum.PUBLISHED:
+            return
+        if current_post.visibility != ContentVisibilityEnum.PUBLIC:
+            return
+        if previous_status == ContentStatusEnum.PUBLISHED or previous_published_at is not None:
+            return
+
+        await self._notification_service.create_publication_notifications(
+            actor_id=current_post.author_id,
+            content_id=current_post.content_id,
+            content_type=ContentTypeEnum.POST.value,
+            title=f"{author_username} published a new post",
+            body=(current_post.post_details.body_text or "").strip()[:240] or None,
+            canonical_path=f"/posts/{current_post.content_id}",
         )
 
     def _now(self) -> datetime.datetime:

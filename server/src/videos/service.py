@@ -17,7 +17,7 @@ from src.assets.service import AssetService
 from src.assets.storage import AssetStorage, detect_extension
 from src.common.exceptions import PermissionDenied
 from src.content.access import can_view_content
-from src.content.enums import ContentStatusEnum, ContentVisibilityEnum, ReactionTypeEnum
+from src.content.enums import ContentStatusEnum, ContentTypeEnum, ContentVisibilityEnum, ReactionTypeEnum
 from src.tags.service import TagService
 from src.users.schemas import UserGet
 from src.videos.enums import (
@@ -32,6 +32,10 @@ from src.videos.exceptions import InvalidVideo, VideoNotFound
 from src.videos.presentation import build_video_card_get, build_video_editor_get, build_video_get
 from src.videos.repository import VideoRepository
 from src.videos.schemas import VideoCardGet, VideoCreate, VideoEditorGet, VideoGet, VideoRating, VideoUpdate
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from src.notifications.service import NotificationService
 
 
 VIDEO_SOURCE_ALLOWED_STATUSES = {
@@ -67,9 +71,15 @@ class VideoProcessingAssetUpdate:
 
 
 class VideoAssetProcessingNotifier:
-    def __init__(self, repository: VideoRepository, moment_repository=None) -> None:  # type: ignore[no-untyped-def]
+    def __init__(
+        self,
+        repository: VideoRepository,
+        moment_repository=None,  # type: ignore[no-untyped-def]
+        notification_service: NotificationService | None = None,
+    ) -> None:
         self._repository = repository
         self._moment_repository = moment_repository
+        self._notification_service = notification_service
 
     async def notify(self, update: VideoProcessingAssetUpdate) -> None:
         now = datetime.datetime.now(datetime.timezone.utc)
@@ -84,9 +94,55 @@ class VideoAssetProcessingNotifier:
             "processing_error": update.processing_error,
             "now": now,
         }
-        await self._repository.update_processing_for_source_asset(**payload)
+        video_autopublished_ids = await self._repository.update_processing_for_source_asset(**payload)
+        moment_autopublished_ids: list[uuid.UUID] = []
         if self._moment_repository is not None:
-            await self._moment_repository.update_processing_for_source_asset(**payload)
+            moment_autopublished_ids = await self._moment_repository.update_processing_for_source_asset(**payload)
+
+        if self._notification_service is None:
+            return
+
+        for content_id in video_autopublished_ids:
+            video = await self._repository.get_single(content_id=content_id)
+            if video is None:
+                continue
+            if video.status != ContentStatusEnum.PUBLISHED:
+                continue
+            if video.visibility != ContentVisibilityEnum.PUBLIC:
+                continue
+            if video.deleted_at is not None:
+                continue
+            author_username = video.author.username
+            await self._notification_service.create_publication_notifications(
+                actor_id=video.author_id,
+                content_id=video.content_id,
+                content_type=ContentTypeEnum.VIDEO.value,
+                title=f"{author_username} published a new video",
+                body=(video.excerpt or "").strip()[:240] or None,
+                canonical_path=f"/videos/{video.content_id}",
+            )
+
+        if self._moment_repository is None:
+            return
+        for content_id in moment_autopublished_ids:
+            moment = await self._moment_repository.get_single(content_id=content_id)
+            if moment is None:
+                continue
+            if moment.status != ContentStatusEnum.PUBLISHED:
+                continue
+            if moment.visibility != ContentVisibilityEnum.PUBLIC:
+                continue
+            if moment.deleted_at is not None:
+                continue
+            author_username = moment.author.username
+            await self._notification_service.create_publication_notifications(
+                actor_id=moment.author_id,
+                content_id=moment.content_id,
+                content_type=ContentTypeEnum.MOMENT.value,
+                title=f"{author_username} published a new moment",
+                body=(moment.moment_details.caption or "").strip()[:240] or None,
+                canonical_path=f"/moments?moment={moment.content_id}",
+            )
 
 
 class VideoService:
@@ -97,12 +153,14 @@ class VideoService:
         asset_repository: AssetRepository,
         asset_service: AssetService,
         asset_storage: AssetStorage,
+        notification_service: NotificationService | None = None,
     ) -> None:
         self._repository = repository
         self._tag_service = tag_service
         self._asset_repository = asset_repository
         self._asset_service = asset_service
         self._asset_storage = asset_storage
+        self._notification_service = notification_service
 
     async def create_video(
         self,
@@ -164,6 +222,12 @@ class VideoService:
         created = await self._repository.get_single(content_id=video.content_id, viewer_id=user.user_id)
         if created is None:
             raise VideoNotFound("Created video is unavailable")
+        await self._maybe_notify_publication(
+            author_username=user.username,
+            previous_status=None,
+            previous_published_at=None,
+            current_video=created,
+        )
         return await self._build_video_get(created, viewer_id=user.user_id)
 
     async def get_video(
@@ -326,6 +390,12 @@ class VideoService:
         updated = await self._repository.get_single(content_id=video_id, viewer_id=user.user_id)
         if updated is None:
             raise VideoNotFound(f"Video with id {video_id!s} not found")
+        await self._maybe_notify_publication(
+            author_username=user.username,
+            previous_status=video.status,
+            previous_published_at=video.published_at,
+            current_video=updated,
+        )
         return await self._build_video_get(updated, viewer_id=user.user_id)
 
     async def delete_video(self, *, user: UserGet, video_id: uuid.UUID) -> None:
@@ -587,6 +657,34 @@ class VideoService:
         if len(text) <= 220:
             return text
         return text[:217].rstrip() + "..."
+
+    async def _maybe_notify_publication(
+        self,
+        *,
+        author_username: str,
+        previous_status: ContentStatusEnum | None,
+        previous_published_at: datetime.datetime | None,
+        current_video,
+    ) -> None:
+        if self._notification_service is None:
+            return
+        if current_video.deleted_at is not None:
+            return
+        if current_video.status != ContentStatusEnum.PUBLISHED:
+            return
+        if current_video.visibility != ContentVisibilityEnum.PUBLIC:
+            return
+        if previous_status == ContentStatusEnum.PUBLISHED or previous_published_at is not None:
+            return
+
+        await self._notification_service.create_publication_notifications(
+            actor_id=current_video.author_id,
+            content_id=current_video.content_id,
+            content_type=ContentTypeEnum.VIDEO.value,
+            title=f"{author_username} published a new video",
+            body=(current_video.title or "").strip()[:240] or None,
+            canonical_path=f"/videos/{current_video.content_id}",
+        )
 
     def _now(self) -> datetime.datetime:
         return datetime.datetime.now(datetime.timezone.utc)
