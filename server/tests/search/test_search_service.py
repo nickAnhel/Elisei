@@ -1,6 +1,7 @@
 import datetime
 import uuid
 from dataclasses import dataclass, field
+from typing import Any
 
 import pytest
 
@@ -44,6 +45,29 @@ class FakeContent:
     tags: list = field(default_factory=list)
     my_reaction: str | None = None
     is_owner: bool = False
+
+
+class FakeCacheService:
+    def __init__(self, initial_data: dict[str, Any] | None = None) -> None:
+        self.data = initial_data or {}
+        self.get_calls: list[str] = []
+        self.set_calls: list[str] = []
+
+    async def get_json(self, key: str, *, namespace: str = "default") -> Any | None:
+        self.get_calls.append(key)
+        return self.data.get(key)
+
+    async def set_json(
+        self,
+        key: str,
+        value: Any,
+        ttl_seconds: int | None = None,
+        *,
+        namespace: str = "default",
+    ) -> bool:
+        self.set_calls.append(key)
+        self.data[key] = value
+        return True
 
 
 class FakeProjector:
@@ -137,6 +161,7 @@ async def test_search_authors_returns_author_items() -> None:
         repository=repository,  # type: ignore[arg-type]
         projector_registry=FakeProjectorRegistry(),  # type: ignore[arg-type]
         asset_storage=None,
+        cache_service=FakeCacheService(),  # type: ignore[arg-type]
     )
 
     response = await service.search(
@@ -182,6 +207,7 @@ async def test_search_all_returns_mixed_items_in_order() -> None:
         repository=repository,  # type: ignore[arg-type]
         projector_registry=FakeProjectorRegistry(),  # type: ignore[arg-type]
         asset_storage=None,
+        cache_service=FakeCacheService(),  # type: ignore[arg-type]
     )
 
     response = await service.search(
@@ -221,6 +247,7 @@ async def test_search_post_type_uses_content_mapping() -> None:
         repository=repository,  # type: ignore[arg-type]
         projector_registry=FakeProjectorRegistry(),  # type: ignore[arg-type]
         asset_storage=None,
+        cache_service=FakeCacheService(),  # type: ignore[arg-type]
     )
 
     response = await service.search(
@@ -265,6 +292,7 @@ async def test_search_popular_uses_popular_repository_and_allows_negative_scores
         repository=repository,  # type: ignore[arg-type]
         projector_registry=FakeProjectorRegistry(),  # type: ignore[arg-type]
         asset_storage=None,
+        cache_service=FakeCacheService(),  # type: ignore[arg-type]
     )
 
     response = await service.search_popular(
@@ -287,6 +315,52 @@ async def test_search_popular_uses_popular_repository_and_allows_negative_scores
 
 
 @pytest.mark.anyio
+async def test_search_popular_cache_hit_skips_repository_but_hydrates_content() -> None:
+    viewer_id = uuid.uuid4()
+    content_id = uuid.uuid4()
+    author = UserGet(
+        user_id=uuid.uuid4(),
+        username="writer",
+        is_admin=False,
+        subscribers_count=0,
+        avatar=None,
+        avatar_asset_id=None,
+    )
+
+    repository = FakeRepository()
+    repository.content_map[content_id] = FakeContent(content_id=content_id, content_type=ContentTypeEnum.POST, author=author)
+    cache = FakeCacheService(
+        {
+            "v1:search:popular:year:post:10:5": {
+                "items": [{"content_id": str(content_id), "score": 3.5}],
+                "has_more": True,
+            }
+        }
+    )
+
+    service = SearchService(
+        repository=repository,  # type: ignore[arg-type]
+        projector_registry=FakeProjectorRegistry(),  # type: ignore[arg-type]
+        asset_storage=None,
+        cache_service=cache,  # type: ignore[arg-type]
+    )
+
+    response = await service.search_popular(
+        search_type=SearchContentTypeEnum.POST,
+        period=SearchPopularPeriodEnum.YEAR,
+        offset=10,
+        limit=5,
+        viewer_id=viewer_id,
+    )
+
+    assert len(response.items) == 1
+    assert response.items[0].content is not None
+    assert response.items[0].content.content_id == content_id
+    assert response.has_more is True
+    assert all(call[0] != "search_popular_content" for call in repository.calls)
+
+
+@pytest.mark.anyio
 async def test_search_popular_authors_returns_author_results() -> None:
     viewer_id = uuid.uuid4()
     author_id = uuid.uuid4()
@@ -298,6 +372,7 @@ async def test_search_popular_authors_returns_author_results() -> None:
         repository=repository,  # type: ignore[arg-type]
         projector_registry=FakeProjectorRegistry(),  # type: ignore[arg-type]
         asset_storage=None,
+        cache_service=FakeCacheService(),  # type: ignore[arg-type]
     )
 
     response = await service.search_popular_authors(

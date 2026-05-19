@@ -6,6 +6,8 @@ from fastapi import Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.assets.dependencies import get_asset_storage
+from src.cache.dependencies import get_cache_service
+from src.cache.service import CacheService
 from src.common.database import get_async_session
 from src.content.projectors import build_default_content_projector_registry
 from src.recommendations.graph_repository import RecommendationGraphRepository, create_neo4j_driver
@@ -27,12 +29,14 @@ async def get_recommendation_graph_repository() -> AsyncGenerator[Recommendation
 async def get_recommendation_service(
     async_session: AsyncSession = Depends(get_async_session),
     graph_repository: RecommendationGraphRepository = Depends(get_recommendation_graph_repository),
+    cache_service: CacheService = Depends(get_cache_service),
 ) -> RecommendationService:
     return RecommendationService(
         graph_repository=graph_repository,
         postgres_repository=RecommendationPostgresRepository(async_session),
         projector_registry=build_default_content_projector_registry(),
         asset_storage=get_asset_storage(),
+        cache_service=cache_service,
     )
 
 

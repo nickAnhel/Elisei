@@ -9,6 +9,13 @@ from sqlalchemy.exc import IntegrityError, NoResultFound
 from src.assets.service import AssetService
 from src.assets.storage import AssetStorage
 from src.auth.utils import validate_password
+from src.cache.keys import (
+    CACHE_NAMESPACE_RECOMMENDATIONS_AUTHORS,
+    CACHE_NAMESPACE_RECOMMENDATIONS_FEED,
+    build_recommendations_authors_user_index_key,
+    build_recommendations_feed_user_index_key,
+)
+from src.cache.service import CacheService
 from src.s3.exceptions import CantDeleteFileFromStorage
 from src.users.enums import UserOrder
 from src.users.presentation import build_user_get, build_user_get_many
@@ -51,11 +58,13 @@ class UserService:
         asset_service: AssetService,
         avatar_storage: AssetStorage,
         activity_service: ActivityService | None = None,
+        cache_service: CacheService | None = None,
     ) -> None:
         self._repository: UserRepository = repository
         self._asset_service = asset_service
         self._avatar_storage = avatar_storage
         self._activity_service = activity_service
+        self._cache_service = cache_service
 
     async def create_user(
         self,
@@ -241,6 +250,8 @@ class UserService:
                     user_id=subscriber_id,
                     target_user_id=user_id,
                 )
+            if changed:
+                await self._invalidate_recommendation_cache_for_user(user_id=subscriber_id)
         except NoResultFound as exc:
             raise UserNotFound(f"User with id {user_id} not found") from exc
 
@@ -263,6 +274,8 @@ class UserService:
                     user_id=subscriber_id,
                     target_user_id=user_id,
                 )
+            if changed:
+                await self._invalidate_recommendation_cache_for_user(user_id=subscriber_id)
 
         except NoResultFound as exc:
             raise UserNotFound(f"User with id {user_id} not found") from exc
@@ -354,6 +367,19 @@ class UserService:
             )
 
         return await build_user_get(user, storage=self._avatar_storage)
+
+    async def _invalidate_recommendation_cache_for_user(self, *, user_id: uuid.UUID) -> None:
+        if self._cache_service is None:
+            return
+
+        await self._cache_service.invalidate_index(
+            index_key=build_recommendations_feed_user_index_key(viewer_id=user_id),
+            namespace=CACHE_NAMESPACE_RECOMMENDATIONS_FEED,
+        )
+        await self._cache_service.invalidate_index(
+            index_key=build_recommendations_authors_user_index_key(viewer_id=user_id),
+            namespace=CACHE_NAMESPACE_RECOMMENDATIONS_AUTHORS,
+        )
 
     def _normalize_optional_text(self, value: str | None) -> str | None:
         if value is None:

@@ -6,6 +6,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.activity.repository import ActivityRepository
 from src.activity.service import ActivityService
+from src.cache.dependencies import get_cache_service
+from src.cache.service import CacheService
 from src.content.projectors import build_default_content_projector_registry
 from src.common.database import get_async_session
 from src.users.repository import UserRepository
@@ -16,6 +18,7 @@ async def get_user_service(
     async_session: AsyncSession = Depends(get_async_session),
     asset_service: AssetService = Depends(get_asset_service),
     avatar_storage: AssetStorage = Depends(get_asset_storage),
+    cache_service: CacheService = Depends(get_cache_service),
 ) -> UserService:
     return UserService(
         repository=UserRepository(async_session),
@@ -26,4 +29,5 @@ async def get_user_service(
             asset_storage=avatar_storage,
             projector_registry=build_default_content_projector_registry(),
         ),
+        cache_service=cache_service,
     )
