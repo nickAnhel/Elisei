@@ -43,9 +43,9 @@ async def test_feed_query_contains_required_visibility_and_exclusion_filters() -
     query = captured["query"]
     assert "candidate.status = 'published'" in query
     assert "candidate.visibility = 'public'" in query
-    assert "candidate.author_id <> viewer.user_id" in query
-    assert "MATCH (viewer)-[:DISLIKED]->(candidate)" in query
-    assert "coalesce(seen.progress_percent, 0) >= 90" in query
+    assert "MATCH (:User {user_id: $viewer_id})-[rel:RECOMMENDED_CONTENT]->(candidate:Content)" in query
+    assert "candidate.deleted_at IS NULL" in query
+    assert "coalesce(rel.reason, 'personalized_graph_feed')" in query
     assert captured["parameters"]["content_type"] == "video"
     assert captured["parameters"]["sort"] == "relevance"
 
@@ -70,11 +70,38 @@ async def test_feed_query_accepts_anonymous_viewer() -> None:
     )
 
     assert rows == []
-    assert captured["parameters"]["viewer_id"] is None
-    assert captured["parameters"]["content_type"] is None
-    assert captured["parameters"]["sort"] == "newest"
-    assert captured["parameters"]["offset"] == 5
-    assert captured["parameters"]["limit"] == 7
+    assert captured == {}
+
+
+@pytest.mark.anyio
+async def test_recompute_recommended_content_contains_filters_and_scores() -> None:
+    repository = RecommendationGraphRepository(driver=DummyDriver(), database="neo4j")
+    captured_writes: list[str] = []
+    user_id = uuid.uuid4()
+
+    async def fake_write(query, parameters=None):  # type: ignore[no-untyped-def]
+        captured_writes.append(query)
+
+    async def fake_read(query, parameters=None):  # type: ignore[no-untyped-def]
+        if "RETURN u.user_id AS user_id" in query:
+            return [{"user_id": str(user_id)}]
+        if "RETURN count(rel) AS edges_count" in query:
+            return [{"edges_count": 8}]
+        return []
+
+    repository._write = fake_write  # type: ignore[method-assign]
+    repository._read = fake_read  # type: ignore[method-assign]
+
+    stats = await repository.recompute_recommended_content([user_id], per_user_limit=50)
+
+    assert stats == {"users_recomputed": 1, "edges_created": 8}
+    recompute_query = next(query for query in captured_writes if "RECOMMENDED_CONTENT" in query and "MERGE" in query)
+    assert "candidate.status = 'published'" in recompute_query
+    assert "candidate.visibility = 'public'" in recompute_query
+    assert "candidate.deleted_at IS NULL" in recompute_query
+    assert "candidate.author_id <> u.user_id" in recompute_query
+    assert "MATCH (u)-[:DISLIKED]->(candidate)" in recompute_query
+    assert "coalesce(seen.progress_percent, 0) >= 90" in recompute_query
 
 
 @pytest.mark.anyio

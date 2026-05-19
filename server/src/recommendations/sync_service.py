@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from src.activity.enums import ActivityActionTypeEnum
 from src.config import settings
 from src.content.enums import ReactionTypeEnum
-from src.observability.metrics import observe_recommendations_sync
+from src.observability.metrics import observe_recommendation_recompute, observe_recommendations_sync
 from src.recommendations.enums import RecommendationSyncMode
 from src.recommendations.graph_repository import RecommendationGraphRepository
 from src.recommendations.postgres_repository import (
@@ -34,6 +34,8 @@ class SyncRunReport:
     views: int = 0
     comments: int = 0
     events: int = 0
+    recommended_content_users: int = 0
+    recommended_content_edges: int = 0
 
     def to_dict(self) -> dict:
         return {
@@ -46,6 +48,8 @@ class SyncRunReport:
             "views": self.views,
             "comments": self.comments,
             "events": self.events,
+            "recommended_content_users": self.recommended_content_users,
+            "recommended_content_edges": self.recommended_content_edges,
         }
 
 
@@ -154,6 +158,24 @@ class RecommendationGraphSyncService:
             await self._graph_repository.recompute_interested_in()
             await self._graph_repository.recompute_affinity_to_author()
             await self._graph_repository.recompute_similar_to()
+            recompute_started_at = time.perf_counter()
+            recommended_content_stats = await self._graph_repository.recompute_recommended_content(
+                per_user_limit=settings.recommendations.per_user_limit
+            )
+            recompute_duration_ms = self._to_milliseconds(time.perf_counter() - recompute_started_at)
+            report.recommended_content_users = int(recommended_content_stats.get("users_recomputed") or 0)
+            report.recommended_content_edges = int(recommended_content_stats.get("edges_created") or 0)
+            observe_recommendation_recompute(
+                duration_seconds=recompute_duration_ms / 1000,
+                users_count=report.recommended_content_users,
+                edges_count=report.recommended_content_edges,
+            )
+            self._log_recompute_event(
+                mode=report.mode.value,
+                duration_ms=recompute_duration_ms,
+                users_count=report.recommended_content_users,
+                edges_count=report.recommended_content_edges,
+            )
 
             latest_activity_cursor = await self._postgres_repository.get_latest_activity_cursor()
             now = datetime.datetime.now(datetime.timezone.utc)
@@ -291,6 +313,27 @@ class RecommendationGraphSyncService:
             if touched_content_ids:
                 await self._graph_repository.recompute_similar_to(list(touched_content_ids))
 
+            if touched_user_ids:
+                recompute_started_at = time.perf_counter()
+                recommended_content_stats = await self._graph_repository.recompute_recommended_content(
+                    list(touched_user_ids),
+                    per_user_limit=settings.recommendations.per_user_limit,
+                )
+                recompute_duration_ms = self._to_milliseconds(time.perf_counter() - recompute_started_at)
+                report.recommended_content_users = int(recommended_content_stats.get("users_recomputed") or 0)
+                report.recommended_content_edges = int(recommended_content_stats.get("edges_created") or 0)
+                observe_recommendation_recompute(
+                    duration_seconds=recompute_duration_ms / 1000,
+                    users_count=report.recommended_content_users,
+                    edges_count=report.recommended_content_edges,
+                )
+                self._log_recompute_event(
+                    mode=report.mode.value,
+                    duration_ms=recompute_duration_ms,
+                    users_count=report.recommended_content_users,
+                    edges_count=report.recommended_content_edges,
+                )
+
             await self._graph_repository.upsert_sync_state(
                 last_event_at=cursor_at,
                 last_event_id=cursor_id,
@@ -315,6 +358,48 @@ class RecommendationGraphSyncService:
         )
         return report.to_dict()
 
+    async def refresh_active_users(self) -> dict:
+        started_at = time.perf_counter()
+        await self._graph_repository.ensure_schema()
+        active_user_ids = await self._postgres_repository.get_active_user_ids_for_recommendations(
+            window_days=settings.recommendations.active_window_days
+        )
+
+        recomputed_users_count = 0
+        edges_created = 0
+        if active_user_ids:
+            recompute_started_at = time.perf_counter()
+            stats = await self._graph_repository.recompute_recommended_content(
+                active_user_ids,
+                per_user_limit=settings.recommendations.per_user_limit,
+            )
+            recompute_duration_ms = self._to_milliseconds(time.perf_counter() - recompute_started_at)
+            recomputed_users_count = int(stats.get("users_recomputed") or 0)
+            edges_created = int(stats.get("edges_created") or 0)
+            observe_recommendation_recompute(
+                duration_seconds=recompute_duration_ms / 1000,
+                users_count=recomputed_users_count,
+                edges_count=edges_created,
+            )
+            self._log_recompute_event(
+                mode="refresh_active_users",
+                duration_ms=recompute_duration_ms,
+                users_count=recomputed_users_count,
+                edges_count=edges_created,
+            )
+
+        duration_ms = self._to_milliseconds(time.perf_counter() - started_at)
+        payload = {
+            "event": "recommendations.refresh_active_users",
+            "active_users_count": len(active_user_ids),
+            "recomputed_users_count": recomputed_users_count,
+            "recommended_content_edges": edges_created,
+            "duration_ms": duration_ms,
+        }
+        logger.info("recommendations active users refresh completed", extra=payload)
+
+        return payload
+
     async def _sync_content_nodes(self, content_rows: list[ContentGraphRow]) -> None:
         await self._graph_repository.upsert_content_nodes(
             rows=[
@@ -330,6 +415,7 @@ class RecommendationGraphSyncService:
                     "dislikes_count": row.dislikes_count,
                     "comments_count": row.comments_count,
                     "views_count": row.views_count,
+                    "deleted_at": self._datetime_to_iso(row.deleted_at),
                     "quality_score": compute_content_quality_score(
                         likes_count=row.likes_count,
                         dislikes_count=row.dislikes_count,
@@ -498,6 +584,8 @@ class RecommendationGraphSyncService:
             "views": report.views,
             "comments": report.comments,
             "events": report.events,
+            "recommended_content_users": report.recommended_content_users,
+            "recommended_content_edges": report.recommended_content_edges,
             "duration_ms": duration_ms,
             "status": status,
             "error": error,
@@ -505,3 +593,22 @@ class RecommendationGraphSyncService:
         if duration_ms > settings.logging.slow_recommendation_threshold_ms and status == "success":
             level = logging.WARNING
         logger.log(level, "recommendations sync completed", extra=payload)
+
+    def _log_recompute_event(
+        self,
+        *,
+        mode: str,
+        duration_ms: float,
+        users_count: int,
+        edges_count: int,
+    ) -> None:
+        logger.info(
+            "recommendations recompute completed",
+            extra={
+                "event": "recommendations.recompute",
+                "mode": mode,
+                "users_count": users_count,
+                "edges_count": edges_count,
+                "duration_ms": duration_ms,
+            },
+        )

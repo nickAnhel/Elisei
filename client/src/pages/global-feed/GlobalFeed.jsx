@@ -191,6 +191,7 @@ function GlobalFeed() {
                 key={`${activeTab}-${activeContentType}-${activeSort}`}
                 fetchItems={fetchItems}
                 filters={filters}
+                pageSize={activeTab === FEED_TABS.recommendations ? 10 : 5}
                 refresh={`${store.isRefreshPosts}-${activeTab}-${activeContentType}-${activeSort}`}
                 emptyText={activeTab === FEED_TABS.subscriptions ? "No content from subscriptions" : "No recommendations yet"}
                 renderItem={({ item, removeItem, ref }) => (

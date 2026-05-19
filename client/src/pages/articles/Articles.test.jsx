@@ -83,6 +83,7 @@ test("articles default to recommendations section", () => {
         content_type: "article",
         sort: "relevance",
     });
+    expect(props.pageSize).toBe(10);
 });
 
 
@@ -99,5 +100,6 @@ test("articles subscriptions section uses subscriptions feed for authenticated u
             order: "published_at",
             desc: true,
         });
+        expect(props.pageSize).toBe(5);
     });
 });

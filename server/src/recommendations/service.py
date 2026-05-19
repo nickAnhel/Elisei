@@ -57,7 +57,7 @@ class RecommendationService:
     ) -> SimilarContentListGet:
         started_at = time.perf_counter()
         request_id = get_request_id()
-        graph_limit = max(limit * 4, limit)
+        graph_limit = max(limit * max(settings.recommendations.graph_limit_multiplier, 1), limit)
         neo4j_ms = 0.0
         postgres_hydration_ms = 0.0
         projection_ms = 0.0
@@ -180,29 +180,29 @@ class RecommendationService:
         started_at = time.perf_counter()
         request_id = get_request_id()
         target_content_type = self._resolve_content_type(content_type)
-        graph_limit = max(limit * 4, limit)
 
-        graph_rows = []
+        graph_rows: list[RecommendationFeedGraphResult] = []
         graph_failed = False
         neo4j_ms = 0.0
         postgres_hydration_ms = 0.0
         fallback_ms = 0.0
         projection_ms = 0.0
         fallback_used = False
-        graph_started_at = time.perf_counter()
-        try:
-            graph_rows = await self._graph_repository.get_recommendation_feed(
-                viewer_id=viewer_id,
-                content_type=target_content_type.value if target_content_type is not None else None,
-                sort=sort.value,
-                offset=offset,
-                limit=graph_limit,
-            )
-            neo4j_ms = self._to_milliseconds(time.perf_counter() - graph_started_at)
-        except Exception:
-            graph_failed = True
-            logger.exception("Neo4j recommendations feed query failed")
-            neo4j_ms = self._to_milliseconds(time.perf_counter() - graph_started_at)
+        if viewer_id is not None:
+            graph_started_at = time.perf_counter()
+            try:
+                graph_rows = await self._graph_repository.get_recommendation_feed(
+                    viewer_id=viewer_id,
+                    content_type=target_content_type.value if target_content_type is not None else None,
+                    sort=sort.value,
+                    offset=offset,
+                    limit=limit,
+                )
+                neo4j_ms = self._to_milliseconds(time.perf_counter() - graph_started_at)
+            except Exception:
+                graph_failed = True
+                logger.exception("Neo4j recommendations feed query failed")
+                neo4j_ms = self._to_milliseconds(time.perf_counter() - graph_started_at)
 
         hydrated = {}
         if graph_rows:
@@ -228,6 +228,7 @@ class RecommendationService:
                 total_seconds=total_ms / 1000,
                 neo4j_seconds=neo4j_ms / 1000,
                 postgres_seconds=postgres_hydration_ms / 1000,
+                fallback_used=fallback_used,
             )
             self._log_timing_event(
                 level=self._slow_level(total_ms),
@@ -253,17 +254,17 @@ class RecommendationService:
             return items
 
         fallback_needed = limit - len(items)
+        fallback_used = True
         fallback_started_at = time.perf_counter()
         fallback_items = await self._postgres_repository.get_recommendation_fallback_content(
             viewer_id=viewer_id,
             content_type=target_content_type,
             sort=sort.value,
-            offset=offset if graph_failed else 0,
+            offset=offset if graph_failed or not graph_rows else 0,
             limit=fallback_needed,
             exclude_content_ids=[item.content_id for item in items],
         )
         fallback_ms = self._to_milliseconds(time.perf_counter() - fallback_started_at)
-        fallback_used = bool(fallback_items)
 
         fallback_projection_started_at = time.perf_counter()
         for content in fallback_items:
@@ -277,6 +278,7 @@ class RecommendationService:
             total_seconds=total_ms / 1000,
             neo4j_seconds=neo4j_ms / 1000,
             postgres_seconds=postgres_hydration_ms / 1000,
+            fallback_used=fallback_used,
         )
         self._log_timing_event(
             level=self._slow_level(total_ms),
@@ -311,7 +313,7 @@ class RecommendationService:
     ) -> list[RecommendedAuthorItemGet]:
         started_at = time.perf_counter()
         request_id = get_request_id()
-        graph_limit = max(limit * 4, limit)
+        graph_limit = max(limit * max(settings.recommendations.graph_limit_multiplier, 1), limit)
         neo4j_ms = 0.0
         postgres_ms = 0.0
         graph_started_at = time.perf_counter()

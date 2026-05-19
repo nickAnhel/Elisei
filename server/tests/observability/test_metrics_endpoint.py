@@ -19,3 +19,6 @@ async def test_metrics_endpoint_exposes_prometheus_metrics() -> None:
     assert "http_requests_total" in body
     assert "http_request_duration_seconds" in body
     assert "recommendations_feed_duration_seconds" in body
+    assert "recommendation_recompute_duration_seconds" in body
+    assert "recommendation_recompute_users_total" in body
+    assert "recommendations_feed_fallback_total" in body
