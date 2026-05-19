@@ -168,6 +168,17 @@ class RecommendationsSettings(ConfigBase):
     model_config = SettingsConfigDict(env_prefix="recommendations_")
 
 
+class CacheSettings(ConfigBase):
+    enabled: bool = True
+    default_ttl_seconds: int = 300
+    recommendation_feed_ttl_seconds: int = 300
+    similar_content_ttl_seconds: int = 1800
+    recommended_authors_ttl_seconds: int = 1800
+    search_popular_ttl_seconds: int = 300
+
+    model_config = SettingsConfigDict(env_prefix="cache_")
+
+
 class Settings(BaseSettings):
     db: DBSettings = Field(default_factory=DBSettings)  # type: ignore
     logging: LoggingConfig = Field(default_factory=LoggingConfig)  # type: ignore
@@ -178,6 +189,7 @@ class Settings(BaseSettings):
     storage: StorageSettings = Field(default_factory=StorageSettings)  # type: ignore
     assets: AssetsSettings = Field(default_factory=AssetsSettings)  # type: ignore
     redis: RedisSettings = Field(default_factory=RedisSettings)  # type: ignore
+    cache: CacheSettings = Field(default_factory=CacheSettings)  # type: ignore
     celery: CelerySettings = Field(default_factory=CelerySettings)  # type: ignore
     neo4j: Neo4jSettings = Field(default_factory=Neo4jSettings)  # type: ignore
     recommendations: RecommendationsSettings = Field(default_factory=RecommendationsSettings)  # type: ignore

@@ -79,6 +79,26 @@ recommendation_recompute_edges_total = Counter(
     "Total RECOMMENDED_CONTENT edges materialized",
 )
 
+cache_requests_total = Counter(
+    "cache_requests_total",
+    "Total cache get requests by result",
+    labelnames=("namespace", "result"),
+)
+
+cache_operation_duration_seconds = Histogram(
+    "cache_operation_duration_seconds",
+    "Cache operation duration",
+    labelnames=("operation", "namespace"),
+    buckets=(0.0005, 0.001, 0.0025, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1),
+)
+
+cache_payload_items = Histogram(
+    "cache_payload_items",
+    "Number of payload items stored/read from cache entries",
+    labelnames=("namespace",),
+    buckets=(0, 1, 2, 5, 10, 20, 50, 100, 250, 500),
+)
+
 
 def observe_http_request(*, method: str, path: str, status_code: int, duration_seconds: float) -> None:
     status_code_label = str(status_code)
@@ -127,3 +147,15 @@ def observe_recommendation_recompute(
         recommendation_recompute_users_total.inc(users_count)
     if edges_count > 0:
         recommendation_recompute_edges_total.inc(edges_count)
+
+
+def observe_cache_request(*, namespace: str, result: str) -> None:
+    cache_requests_total.labels(namespace=namespace, result=result).inc()
+
+
+def observe_cache_operation_duration(*, operation: str, namespace: str, duration_seconds: float) -> None:
+    cache_operation_duration_seconds.labels(operation=operation, namespace=namespace).observe(duration_seconds)
+
+
+def observe_cache_payload_items(*, namespace: str, items: int) -> None:
+    cache_payload_items.labels(namespace=namespace).observe(items)
