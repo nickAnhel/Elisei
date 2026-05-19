@@ -11,6 +11,8 @@ from src.articles.service import ArticleService
 from src.common.database import get_async_session
 from src.config import settings
 from src.content.projectors import build_default_content_projector_registry
+from src.notifications.repository import NotificationRepository
+from src.notifications.service import NotificationService
 from src.tags.repository import TagRepository
 from src.tags.service import TagService
 
@@ -33,5 +35,8 @@ async def get_article_service(
             repository=ActivityRepository(async_session),
             asset_storage=get_asset_storage(),
             projector_registry=build_default_content_projector_registry(),
+        ),
+        notification_service=NotificationService(
+            repository=NotificationRepository(async_session),
         ),
     )

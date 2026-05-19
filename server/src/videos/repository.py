@@ -423,7 +423,8 @@ class VideoRepository:
         available_quality_metadata: dict[str, object],
         processing_error: str | None,
         now: datetime.datetime,
-    ) -> None:
+    ) -> list[uuid.UUID]:
+        autopublished_content_ids: list[uuid.UUID] = []
         result = await self._session.execute(
             select(ContentAssetModel.content_id)
             .where(ContentAssetModel.asset_id == asset_id)
@@ -445,8 +446,11 @@ class VideoRepository:
                 commit=False,
             )
             if processing_status == VideoProcessingStatusEnum.READY:
-                await self._auto_publish_if_requested(content_id=content_id, now=now)
+                was_autopublished = await self._auto_publish_if_requested(content_id=content_id, now=now)
+                if was_autopublished:
+                    autopublished_content_ids.append(content_id)
         await self._session.commit()
+        return autopublished_content_ids
 
     async def commit(self) -> None:
         await self._session.commit()
@@ -456,12 +460,12 @@ class VideoRepository:
         *,
         content_id: uuid.UUID,
         now: datetime.datetime,
-    ) -> None:
+    ) -> bool:
         video = await self.get_single(content_id=content_id)
         if video is None or video.video_details.publish_requested_at is None:
-            return
+            return False
         if video.status == ContentStatusEnum.PUBLISHED or video.deleted_at is not None:
-            return
+            return False
         error = await self._publish_validation_error(video)
         if error is not None:
             await self._session.execute(
@@ -469,7 +473,7 @@ class VideoRepository:
                 .where(VideoPlaybackDetailsModel.content_id == content_id)
                 .values(processing_error=error, updated_at=now)
             )
-            return
+            return False
         await self._session.execute(
             update(ContentModel)
             .where(ContentModel.content_id == content_id)
@@ -484,6 +488,7 @@ class VideoRepository:
             .where(VideoPlaybackDetailsModel.content_id == content_id)
             .values(processing_error=None, updated_at=now)
         )
+        return True
 
     async def _publish_validation_error(self, video) -> str | None:  # type: ignore[no-untyped-def]
         if not (video.title or "").strip():

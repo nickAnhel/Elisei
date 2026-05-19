@@ -178,7 +178,8 @@ class FakeMomentRepository:
         available_quality_metadata: dict[str, object],
         processing_error: str | None,
         now: datetime.datetime,
-    ) -> None:
+    ) -> list[uuid.UUID]:
+        autopublished_content_ids: list[uuid.UUID] = []
         for moment in self.moments.values():
             if not any(link.asset_id == asset_id and link.attachment_type == AttachmentTypeEnum.VIDEO_SOURCE for link in moment.asset_links):
                 continue
@@ -194,8 +195,10 @@ class FakeMomentRepository:
                     moment.status = ContentStatusEnum.PUBLISHED
                     moment.published_at = moment.published_at or now
                     moment.video_playback_details.processing_error = None
+                    autopublished_content_ids.append(moment.content_id)
                 else:
                     moment.video_playback_details.processing_error = "Publish validation failed: moment source must be portrait"
+        return autopublished_content_ids
 
     async def get_attachment_asset_ids(self, *, content_id: uuid.UUID) -> set[uuid.UUID]:
         return {link.asset_id for link in self.moments[content_id].asset_links}

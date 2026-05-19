@@ -150,6 +150,7 @@ async def connect(
             "username": user.username,
         },
     )
+    await sio.enter_room(sid, f"user:{user.user_id}")
 
 
 @sio.on("join")
