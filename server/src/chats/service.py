@@ -5,17 +5,22 @@ from typing import TYPE_CHECKING
 
 from sqlalchemy.exc import IntegrityError, NoResultFound
 
+from src.assets.service import AssetService
 from src.chats.enums import ChatMemberRole, ChatOrder, ChatType
 from src.chats.exceptions import (
     AlreadyInChat,
     CantAddMembers,
     CantRemoveMembers,
+    ChatAvatarNotSupported,
     ChatNotFound,
     FailedToLeaveChat,
     InvalidChatHistoryCursor,
 )
+from src.chats.presentation import build_chat_avatar_get
 from src.chats.repository import ChatRepository
 from src.chats.schemas import (
+    ChatAvatarGet,
+    ChatAvatarUpdate,
     ChatCreate,
     ChatDialogGet,
     ChatGet,
@@ -42,10 +47,12 @@ class ChatService:
         repository: ChatRepository,
         storage: AssetStorage | None = None,
         content_service: ContentService | None = None,
+        asset_service: AssetService | None = None,
     ) -> None:
         self._repository = repository
         self._storage = storage
         self._content_service = content_service
+        self._asset_service = asset_service
 
     async def create_chat(
         self,
@@ -385,6 +392,56 @@ class ChatService:
         await self.check_chat_exists_and_user_is_owner(chat_id=chat_id, user_id=user_id)
         await self._repository.delete(chat_id=chat_id)
 
+    async def update_chat_avatar(
+        self,
+        *,
+        chat_id: uuid.UUID,
+        user_id: uuid.UUID,
+        data: ChatAvatarUpdate,
+    ) -> ChatGet:
+        chat = await self.check_chat_exists_and_user_is_owner(chat_id=chat_id, user_id=user_id)
+        if chat.chat_type == ChatType.DIRECT.value:
+            raise ChatAvatarNotSupported("Chat avatar is available only for group chats")
+
+        previous_avatar_asset_id = chat.avatar_asset_id
+        asset_service = self._require_asset_service()
+        await asset_service.generate_avatar_variants(
+            asset_id=data.asset_id,
+            owner_id=user_id,
+            crop=data.crop.model_dump(),
+        )
+
+        updated_chat = await self._repository.set_avatar(
+            chat_id=chat_id,
+            avatar_asset_id=data.asset_id,
+            avatar_crop=data.crop.model_dump(),
+        )
+
+        if previous_avatar_asset_id is not None and previous_avatar_asset_id != data.asset_id:
+            await asset_service.mark_asset_orphaned_if_unreferenced(asset_id=previous_avatar_asset_id)
+
+        return await self._build_chat_get(updated_chat)
+
+    async def delete_chat_avatar(
+        self,
+        *,
+        chat_id: uuid.UUID,
+        user_id: uuid.UUID,
+    ) -> ChatGet:
+        chat = await self.check_chat_exists_and_user_is_owner(chat_id=chat_id, user_id=user_id)
+        if chat.chat_type == ChatType.DIRECT.value:
+            raise ChatAvatarNotSupported("Chat avatar is available only for group chats")
+
+        previous_avatar_asset_id = chat.avatar_asset_id
+        updated_chat = await self._repository.clear_avatar(chat_id=chat_id)
+
+        if previous_avatar_asset_id is not None:
+            await self._require_asset_service().mark_asset_orphaned_if_unreferenced(
+                asset_id=previous_avatar_asset_id,
+            )
+
+        return await self._build_chat_get(updated_chat)
+
     async def search_chats(
         self,
         *,
@@ -429,12 +486,15 @@ class ChatService:
         return await self._repository.mark_read(chat_id=chat_id, user_id=user_id)
 
     async def _build_chat_get(self, chat) -> ChatGet:
+        avatar = await self._build_chat_avatar(chat)
         return ChatGet(
             chat_id=chat.chat_id,
             title=chat.title,
             is_private=chat.is_private,
             chat_type=chat.chat_type,
             owner_id=chat.owner_id,
+            avatar_asset_id=getattr(chat, "avatar_asset_id", None),
+            avatar=avatar,
             members=[
                 await build_user_get(member)
                 for member in getattr(chat, "members", [])
@@ -461,11 +521,16 @@ class ChatService:
 
         last_message = getattr(chat, "last_message", None)
         membership = getattr(chat, "membership", None)
+        display_avatar = (
+            ChatAvatarGet(**direct_member.avatar.model_dump())
+            if direct_member is not None and direct_member.avatar is not None
+            else chat_get.avatar
+        )
 
         return ChatDialogGet(
             **chat_get.model_dump(),
             display_title=direct_member.username if direct_member is not None else chat.title,
-            display_avatar=direct_member.avatar if direct_member is not None else None,
+            display_avatar=display_avatar,
             last_message=(
                 await self._build_message_get_with_user(last_message, viewer_id=user_id)
                 if last_message is not None
@@ -525,3 +590,13 @@ class ChatService:
         raise PermissionDenied(
             f"User with id '{user_id}' is not a member of chat with id '{chat.chat_id}'"
         )
+
+    async def _build_chat_avatar(self, chat) -> ChatAvatarGet | None:
+        if self._storage is None:
+            return None
+        return await build_chat_avatar_get(chat, storage=self._storage)
+
+    def _require_asset_service(self) -> AssetService:
+        if self._asset_service is None:
+            raise RuntimeError("Asset service is not configured")
+        return self._asset_service

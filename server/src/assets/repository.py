@@ -16,6 +16,7 @@ from src.assets.enums import (
     AssetVariantTypeEnum,
 )
 from src.assets.models import AssetModel, AssetVariantModel, ContentAssetModel, MessageAssetModel
+from src.chats.models import ChatModel
 from src.content.models import ContentModel
 from src.users.models import UserModel
 
@@ -377,7 +378,13 @@ class AssetRepository:
         avatar_exists = await self._session.scalar(
             select(exists().where(UserModel.avatar_asset_id == asset_id))
         )
-        return bool(avatar_exists)
+        if avatar_exists:
+            return True
+
+        chat_avatar_exists = await self._session.scalar(
+            select(exists().where(ChatModel.avatar_asset_id == asset_id))
+        )
+        return bool(chat_avatar_exists)
 
     async def mark_orphaned(
         self,

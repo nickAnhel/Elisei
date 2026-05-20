@@ -7,6 +7,7 @@ from src.auth.dependencies import get_current_user
 from src.chats.dependencies import get_chat_service
 from src.chats.enums import ChatOrder, ChatType
 from src.chats.schemas import (
+    ChatAvatarUpdate,
     ChatCreate,
     ChatDialogGet,
     ChatGet,
@@ -265,6 +266,32 @@ async def update_chat(
         data=data,
         user_id=user.user_id,
         chat_id=chat_id,
+    )
+
+
+@router.put("/{chat_id}/avatar")
+async def update_chat_avatar(
+    chat_id: uuid.UUID,
+    data: ChatAvatarUpdate,
+    user: UserGet = Depends(get_current_user),
+    service: ChatService = Depends(get_chat_service),
+) -> ChatGet:
+    return await service.update_chat_avatar(
+        chat_id=chat_id,
+        user_id=user.user_id,
+        data=data,
+    )
+
+
+@router.delete("/{chat_id}/avatar")
+async def delete_chat_avatar(
+    chat_id: uuid.UUID,
+    user: UserGet = Depends(get_current_user),
+    service: ChatService = Depends(get_chat_service),
+) -> ChatGet:
+    return await service.delete_chat_avatar(
+        chat_id=chat_id,
+        user_id=user.user_id,
     )
 
 

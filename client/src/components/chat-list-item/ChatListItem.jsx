@@ -70,7 +70,10 @@ const ChatListItem = forwardRef((props, ref) => {
         ? chat.members?.find((member) => member.user_id !== store.user.user_id)
         : null;
     const title = chat.display_title || directMember?.username || chat.title;
-    const imageSrc = chat.display_avatar?.small_url || (directMember ? getAvatarUrl(directMember, "small") : "../../../assets/chat.svg");
+    const groupAvatar = chat.display_avatar?.small_url || chat.avatar?.small_url;
+    const imageSrc = directMember
+        ? (chat.display_avatar?.small_url || getAvatarUrl(directMember, "small"))
+        : (groupAvatar || "/assets/chat.svg");
     const lastMessagePreview = buildLastMessagePreview(chat.last_message);
     const lastMessageAt = chat.last_message_at || chat.last_message?.created_at;
     const unreadCount = chat.unread_count || 0;
@@ -82,7 +85,7 @@ const ChatListItem = forwardRef((props, ref) => {
                 src={imageSrc}
                 alt={`${title}`}
                 onError={(event) => {
-                    event.currentTarget.src = "../../../assets/chat.svg";
+                    event.currentTarget.src = "/assets/chat.svg";
                 }}
             />
             <div className="info">

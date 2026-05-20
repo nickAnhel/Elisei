@@ -107,6 +107,10 @@ class AssetModel(Base):
         back_populates="avatar_asset",
         foreign_keys="UserModel.avatar_asset_id",
     )
+    avatar_for_chats: Mapped[list["ChatModel"]] = relationship(  # type: ignore[name-defined]
+        back_populates="avatar_asset",
+        foreign_keys="ChatModel.avatar_asset_id",
+    )
 
 
 class AssetVariantModel(Base):

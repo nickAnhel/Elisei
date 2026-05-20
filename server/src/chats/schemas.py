@@ -8,7 +8,7 @@ from src.chats.enums import ChatType
 from src.events.schemas import EventGetWithUsers
 from src.messages.schemas import MessageGetWithUser
 from src.common.schemas import BaseSchema
-from src.users.schemas import UserAvatarGet, UserGet
+from src.users.schemas import UserGet
 
 TitleStr = Annotated[str, Field(min_length=1, max_length=64)]
 
@@ -32,18 +32,37 @@ class ChatCreate(BaseSchema):
         return self
 
 
+class ChatAvatarCrop(BaseSchema):
+    x: float = Field(ge=0, le=1)
+    y: float = Field(ge=0, le=1)
+    size: float = Field(gt=0, le=1)
+
+
+class ChatAvatarGet(BaseSchema):
+    small_url: str | None = None
+    medium_url: str | None = None
+    crop: ChatAvatarCrop
+
+
+class ChatAvatarUpdate(BaseSchema):
+    asset_id: uuid.UUID
+    crop: ChatAvatarCrop
+
+
 class ChatGet(BaseSchema):
     chat_id: uuid.UUID
     title: TitleStr
     is_private: bool
     chat_type: ChatType
     owner_id: uuid.UUID
+    avatar_asset_id: uuid.UUID | None = None
+    avatar: ChatAvatarGet | None = None
     members: list[UserGet] = Field(default_factory=list)
 
 
 class ChatDialogGet(ChatGet):
     display_title: str
-    display_avatar: UserAvatarGet | None = None
+    display_avatar: ChatAvatarGet | None = None
     last_message: MessageGetWithUser | None = None
     last_message_at: datetime.datetime | None = None
     unread_count: int = 0
