@@ -12,70 +12,17 @@ import { StoreContext } from "../..";
 import Loader from "../loader/Loader";
 import Modal from "../modal/Modal";
 import { getAvatarRenderKey, getAvatarUrl } from "../../utils/avatar";
+import {
+    buildCenteredOffset,
+    buildCropPayload,
+    clamp,
+    constrainOffset,
+    getRenderedSize,
+} from "../../utils/avatarCrop";
 
 
 const VIEWPORT_SIZE = 280;
 const MAX_ZOOM = 10;
-
-
-function clamp(value, min, max) {
-    return Math.min(Math.max(value, min), max);
-}
-
-function getBaseScale(imageSize) {
-    if (!imageSize) {
-        return 1;
-    }
-
-    return Math.max(
-        VIEWPORT_SIZE / imageSize.width,
-        VIEWPORT_SIZE / imageSize.height,
-    );
-}
-
-function getRenderedSize(imageSize, scale) {
-    const factor = getBaseScale(imageSize) * scale;
-
-    return {
-        width: imageSize.width * factor,
-        height: imageSize.height * factor,
-        factor,
-    };
-}
-
-function constrainOffset(offset, imageSize, scale) {
-    if (!imageSize) {
-        return offset;
-    }
-
-    const rendered = getRenderedSize(imageSize, scale);
-
-    return {
-        x: clamp(offset.x, VIEWPORT_SIZE - rendered.width, 0),
-        y: clamp(offset.y, VIEWPORT_SIZE - rendered.height, 0),
-    };
-}
-
-function buildCenteredOffset(imageSize, scale) {
-    const rendered = getRenderedSize(imageSize, scale);
-
-    return {
-        x: (VIEWPORT_SIZE - rendered.width) / 2,
-        y: (VIEWPORT_SIZE - rendered.height) / 2,
-    };
-}
-
-function buildCropPayload(imageSize, scale, offset) {
-    const { factor } = getRenderedSize(imageSize, scale);
-    const cropSizePx = VIEWPORT_SIZE / factor;
-    const minDimension = Math.min(imageSize.width, imageSize.height);
-
-    return {
-        x: clamp((-offset.x) / factor / imageSize.width, 0, 1),
-        y: clamp((-offset.y) / factor / imageSize.height, 0, 1),
-        size: clamp(cropSizePx / minDimension, 0, 1),
-    };
-}
 
 function isValidHttpUrl(value) {
     try {
@@ -342,7 +289,7 @@ function ProfileForm() {
 
         setImageSize(nextImageSize);
         setCropScale(1);
-        setCropOffset(buildCenteredOffset(nextImageSize, 1));
+        setCropOffset(buildCenteredOffset(nextImageSize, 1, VIEWPORT_SIZE));
     };
 
     const handleZoomChange = (e) => {
@@ -351,8 +298,8 @@ function ProfileForm() {
         }
 
         const nextScale = clamp(Number(e.target.value), 1, MAX_ZOOM);
-        const previousFactor = getRenderedSize(imageSize, cropScale).factor;
-        const nextFactor = getRenderedSize(imageSize, nextScale).factor;
+        const previousFactor = getRenderedSize(imageSize, cropScale, VIEWPORT_SIZE).factor;
+        const nextFactor = getRenderedSize(imageSize, nextScale, VIEWPORT_SIZE).factor;
         const cropCenterX = (VIEWPORT_SIZE / 2 - cropOffset.x) / previousFactor;
         const cropCenterY = (VIEWPORT_SIZE / 2 - cropOffset.y) / previousFactor;
         const nextOffset = constrainOffset(
@@ -362,6 +309,7 @@ function ProfileForm() {
             },
             imageSize,
             nextScale,
+            VIEWPORT_SIZE,
         );
 
         setCropScale(nextScale);
@@ -398,6 +346,7 @@ function ProfileForm() {
                 },
                 imageSize,
                 cropScale,
+                VIEWPORT_SIZE,
             ),
         );
     };
@@ -420,7 +369,7 @@ function ProfileForm() {
         setIsSavingAvatar(true);
 
         try {
-            const crop = buildCropPayload(imageSize, cropScale, cropOffset);
+            const crop = buildCropPayload(imageSize, cropScale, cropOffset, VIEWPORT_SIZE);
             const initRes = await AssetService.initUpload({
                 filename: selectedFile.name,
                 size_bytes: selectedFile.size,
@@ -708,8 +657,8 @@ function ProfileForm() {
                                         draggable={false}
                                         style={{
                                             transform: `translate(${cropOffset.x}px, ${cropOffset.y}px)`,
-                                            width: `${getRenderedSize(imageSize || { width: VIEWPORT_SIZE, height: VIEWPORT_SIZE }, cropScale).width}px`,
-                                            height: `${getRenderedSize(imageSize || { width: VIEWPORT_SIZE, height: VIEWPORT_SIZE }, cropScale).height}px`,
+                                            width: `${getRenderedSize(imageSize || { width: VIEWPORT_SIZE, height: VIEWPORT_SIZE }, cropScale, VIEWPORT_SIZE).width}px`,
+                                            height: `${getRenderedSize(imageSize || { width: VIEWPORT_SIZE, height: VIEWPORT_SIZE }, cropScale, VIEWPORT_SIZE).height}px`,
                                         }}
                                     />
                                     <div className="avatar-crop-overlay" />
@@ -751,7 +700,7 @@ function ProfileForm() {
                                             return;
                                         }
                                         setCropScale(1);
-                                        setCropOffset(buildCenteredOffset(imageSize, 1));
+                                        setCropOffset(buildCenteredOffset(imageSize, 1, VIEWPORT_SIZE));
                                     }}
                                 >
                                     Reset crop

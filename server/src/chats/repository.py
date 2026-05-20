@@ -77,7 +77,7 @@ class ChatRepository:
         query = (
             select(ChatModel)
             .filter_by(**filters)
-            .options(self._members_load())
+            .options(*self._chat_load_options())
         )
 
         result = await self._session.execute(query)
@@ -90,7 +90,7 @@ class ChatRepository:
         query = (
             select(ChatModel)
             .filter_by(chat_type=ChatType.DIRECT.value, direct_key=direct_key)
-            .options(self._members_load())
+            .options(*self._chat_load_options())
         )
 
         result = await self._session.execute(query)
@@ -258,7 +258,7 @@ class ChatRepository:
         query = (
             select(ChatModel)
             .filter_by(is_private=False, chat_type=ChatType.GROUP.value)
-            .options(self._members_load())
+            .options(*self._chat_load_options())
             .order_by(desc(order) if order_desc else order)
             .offset(offset)
             .limit(limit)
@@ -311,16 +311,13 @@ class ChatRepository:
         chat_id: uuid.UUID,
         data: dict[str, Any],
     ) -> ChatModel:
-        stmt = (
+        await self._session.execute(
             update(ChatModel)
             .values(**data)
             .filter_by(chat_id=chat_id)
-            .returning(ChatModel)
         )
-
-        result = await self._session.execute(stmt)
         await self._session.commit()
-        return result.scalar_one()
+        return await self.get_single(chat_id=chat_id)
 
     async def delete(
         self,
@@ -360,7 +357,7 @@ class ChatRepository:
         query = (
             select(ChatModel)
             .join(subquery, ChatModel.chat_id == subquery.c.chat_id)
-            .options(self._members_load())
+            .options(*self._chat_load_options())
             .order_by(
                 func.similarity(ChatModel.title, q).desc(),
             )
@@ -389,7 +386,7 @@ class ChatRepository:
         query = (
             select(ChatModel)
             .where(ChatModel.chat_id.in_(chat_ids_query))
-            .options(self._members_load())
+            .options(*self._chat_load_options())
             .order_by(desc(order) if order_desc else order)
             .offset(offset)
             .limit(limit)
@@ -425,7 +422,7 @@ class ChatRepository:
                 latest_message_at_query.c.chat_id == ChatModel.chat_id,
             )
             .where(MembershipModel.user_id == user_id)
-            .options(self._members_load())
+            .options(*self._chat_load_options())
             .order_by(
                 desc(latest_message_at_query.c.last_message_at).nulls_last(),
                 ChatModel.chat_id,
@@ -455,6 +452,40 @@ class ChatRepository:
             setattr(chat, "unread_count", unread_counts.get(chat.chat_id, 0))
 
         return chats
+
+    async def set_avatar(
+        self,
+        *,
+        chat_id: uuid.UUID,
+        avatar_asset_id: uuid.UUID,
+        avatar_crop: dict[str, Any],
+    ) -> ChatModel:
+        await self._session.execute(
+            update(ChatModel)
+            .where(ChatModel.chat_id == chat_id)
+            .values(
+                avatar_asset_id=avatar_asset_id,
+                avatar_crop=avatar_crop,
+            )
+        )
+        await self._session.commit()
+        return await self.get_single(chat_id=chat_id)
+
+    async def clear_avatar(
+        self,
+        *,
+        chat_id: uuid.UUID,
+    ) -> ChatModel:
+        await self._session.execute(
+            update(ChatModel)
+            .where(ChatModel.chat_id == chat_id)
+            .values(
+                avatar_asset_id=None,
+                avatar_crop=None,
+            )
+        )
+        await self._session.commit()
+        return await self.get_single(chat_id=chat_id)
 
     async def mark_read(
         self,
@@ -583,6 +614,18 @@ class ChatRepository:
             selectinload(ChatModel.members)
             .selectinload(UserModel.avatar_asset)
             .selectinload(AssetModel.variants)
+        )
+
+    def _chat_avatar_load(self):
+        return (
+            selectinload(ChatModel.avatar_asset)
+            .selectinload(AssetModel.variants)
+        )
+
+    def _chat_load_options(self):
+        return (
+            self._members_load(),
+            self._chat_avatar_load(),
         )
 
     def _message_asset_links_load(self):

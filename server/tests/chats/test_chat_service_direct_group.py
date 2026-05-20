@@ -5,9 +5,10 @@ from types import SimpleNamespace
 import pytest
 
 from src.chats.enums import ChatMemberRole, ChatType
-from src.chats.exceptions import CantAddMembers, InvalidChatHistoryCursor
-from src.chats.schemas import ChatCreate
+from src.chats.exceptions import CantAddMembers, ChatAvatarNotSupported, InvalidChatHistoryCursor
+from src.chats.schemas import ChatAvatarUpdate, ChatCreate
 from src.chats.service import ChatService
+from src.common.exceptions import PermissionDenied
 from src.common.model_registry import import_all_models
 from src.events.models import EventModel
 from src.messages.models import MessageModel
@@ -39,6 +40,8 @@ def _chat(
     is_private: bool = False,
     members=None,
     direct_key: str | None = None,
+    avatar_asset_id: uuid.UUID | None = None,
+    avatar_crop: dict | None = None,
 ):
     return SimpleNamespace(
         chat_id=chat_id,
@@ -48,12 +51,16 @@ def _chat(
         owner_id=owner_id,
         direct_key=direct_key,
         members=members or [],
+        avatar_asset_id=avatar_asset_id,
+        avatar_crop=avatar_crop,
+        avatar_asset=None,
     )
 
 
 class FakeChatRepository:
-    def __init__(self, *, existing_direct=None) -> None:
+    def __init__(self, *, existing_direct=None, single_chat=None) -> None:
         self.existing_direct = existing_direct
+        self.single_chat = single_chat
         self.created_data = None
         self.created_member_roles = None
         self.created_chat_id = uuid.uuid4()
@@ -61,6 +68,8 @@ class FakeChatRepository:
         self.marked_read = None
         self.history_items = []
         self.history_args = None
+        self.last_set_avatar = None
+        self.last_cleared_avatar_chat_id = None
 
     async def get_by_direct_key(self, direct_key: str):
         if self.existing_direct and self.existing_direct.direct_key == direct_key:
@@ -80,6 +89,9 @@ class FakeChatRepository:
         )
 
     async def get_single(self, **filters):
+        if self.single_chat is not None:
+            return self.single_chat
+
         owner_id = self.created_data["owner_id"]
         members = [
             _user(user_id, f"user-{index}")
@@ -94,6 +106,11 @@ class FakeChatRepository:
             direct_key=self.created_data.get("direct_key"),
             members=members,
         )
+
+    async def is_owner_member(self, *, chat_id, user_id):
+        if self.single_chat is not None:
+            return self.single_chat.owner_id == user_id
+        return False
 
     async def get_user_dialogs(self, *, user_id, offset, limit):
         return self.dialogs[offset:offset + limit]
@@ -113,6 +130,41 @@ class FakeChatRepository:
             "after_seq": after_seq,
         }
         return self.history_items
+
+    async def set_avatar(self, *, chat_id, avatar_asset_id, avatar_crop):
+        self.last_set_avatar = {
+            "chat_id": chat_id,
+            "avatar_asset_id": avatar_asset_id,
+            "avatar_crop": avatar_crop,
+        }
+        if self.single_chat is not None:
+            self.single_chat.avatar_asset_id = avatar_asset_id
+            self.single_chat.avatar_crop = avatar_crop
+        return await self.get_single(chat_id=chat_id)
+
+    async def clear_avatar(self, *, chat_id):
+        self.last_cleared_avatar_chat_id = chat_id
+        if self.single_chat is not None:
+            self.single_chat.avatar_asset_id = None
+            self.single_chat.avatar_crop = None
+        return await self.get_single(chat_id=chat_id)
+
+
+class FakeAssetService:
+    def __init__(self) -> None:
+        self.generated_calls = []
+        self.orphaned_calls = []
+
+    async def generate_avatar_variants(self, *, asset_id, owner_id, crop):
+        self.generated_calls.append({
+            "asset_id": asset_id,
+            "owner_id": owner_id,
+            "crop": crop,
+        })
+
+    async def mark_asset_orphaned_if_unreferenced(self, *, asset_id):
+        self.orphaned_calls.append(asset_id)
+        return True
 
 
 @pytest.mark.asyncio
@@ -367,3 +419,140 @@ async def test_chat_history_passes_cursor_to_repository() -> None:
         "before_seq": None,
         "after_seq": 42,
     }
+
+
+@pytest.mark.asyncio
+async def test_owner_can_set_group_chat_avatar() -> None:
+    owner_id = uuid.uuid4()
+    chat_id = uuid.uuid4()
+    asset_id = uuid.uuid4()
+    chat = _chat(
+        chat_id=chat_id,
+        owner_id=owner_id,
+        chat_type=ChatType.GROUP.value,
+        members=[_user(owner_id, "owner")],
+    )
+    repository = FakeChatRepository(single_chat=chat)
+    asset_service = FakeAssetService()
+    service = ChatService(repository, asset_service=asset_service)  # type: ignore[arg-type]
+
+    result = await service.update_chat_avatar(
+        chat_id=chat_id,
+        user_id=owner_id,
+        data=ChatAvatarUpdate(
+            asset_id=asset_id,
+            crop={"x": 0.1, "y": 0.2, "size": 0.5},
+        ),
+    )
+
+    assert result.avatar_asset_id == asset_id
+    assert repository.last_set_avatar == {
+        "chat_id": chat_id,
+        "avatar_asset_id": asset_id,
+        "avatar_crop": {"x": 0.1, "y": 0.2, "size": 0.5},
+    }
+    assert asset_service.generated_calls == [{
+        "asset_id": asset_id,
+        "owner_id": owner_id,
+        "crop": {"x": 0.1, "y": 0.2, "size": 0.5},
+    }]
+
+
+@pytest.mark.asyncio
+async def test_non_owner_cannot_set_group_chat_avatar() -> None:
+    owner_id = uuid.uuid4()
+    another_user_id = uuid.uuid4()
+    chat = _chat(
+        chat_id=uuid.uuid4(),
+        owner_id=owner_id,
+        chat_type=ChatType.GROUP.value,
+        members=[_user(owner_id, "owner"), _user(another_user_id, "member")],
+    )
+    repository = FakeChatRepository(single_chat=chat)
+    service = ChatService(repository, asset_service=FakeAssetService())  # type: ignore[arg-type]
+
+    with pytest.raises(PermissionDenied):
+        await service.update_chat_avatar(
+            chat_id=chat.chat_id,
+            user_id=another_user_id,
+            data=ChatAvatarUpdate(
+                asset_id=uuid.uuid4(),
+                crop={"x": 0.1, "y": 0.1, "size": 0.8},
+            ),
+        )
+
+
+@pytest.mark.asyncio
+async def test_direct_chat_avatar_is_rejected() -> None:
+    owner_id = uuid.uuid4()
+    chat = _chat(
+        chat_id=uuid.uuid4(),
+        owner_id=owner_id,
+        chat_type=ChatType.DIRECT.value,
+        is_private=True,
+        members=[_user(owner_id, "owner")],
+    )
+    repository = FakeChatRepository(single_chat=chat)
+    service = ChatService(repository, asset_service=FakeAssetService())  # type: ignore[arg-type]
+
+    with pytest.raises(ChatAvatarNotSupported):
+        await service.update_chat_avatar(
+            chat_id=chat.chat_id,
+            user_id=owner_id,
+            data=ChatAvatarUpdate(
+                asset_id=uuid.uuid4(),
+                crop={"x": 0.1, "y": 0.1, "size": 0.8},
+            ),
+        )
+
+
+@pytest.mark.asyncio
+async def test_delete_chat_avatar_clears_avatar_fields() -> None:
+    owner_id = uuid.uuid4()
+    previous_asset_id = uuid.uuid4()
+    chat = _chat(
+        chat_id=uuid.uuid4(),
+        owner_id=owner_id,
+        chat_type=ChatType.GROUP.value,
+        members=[_user(owner_id, "owner")],
+        avatar_asset_id=previous_asset_id,
+        avatar_crop={"x": 0.2, "y": 0.2, "size": 0.6},
+    )
+    repository = FakeChatRepository(single_chat=chat)
+    asset_service = FakeAssetService()
+    service = ChatService(repository, asset_service=asset_service)  # type: ignore[arg-type]
+
+    result = await service.delete_chat_avatar(chat_id=chat.chat_id, user_id=owner_id)
+
+    assert result.avatar_asset_id is None
+    assert repository.last_cleared_avatar_chat_id == chat.chat_id
+    assert asset_service.orphaned_calls == [previous_asset_id]
+
+
+@pytest.mark.asyncio
+async def test_replacing_chat_avatar_marks_previous_asset_orphaned() -> None:
+    owner_id = uuid.uuid4()
+    previous_asset_id = uuid.uuid4()
+    next_asset_id = uuid.uuid4()
+    chat = _chat(
+        chat_id=uuid.uuid4(),
+        owner_id=owner_id,
+        chat_type=ChatType.GROUP.value,
+        members=[_user(owner_id, "owner")],
+        avatar_asset_id=previous_asset_id,
+        avatar_crop={"x": 0.2, "y": 0.2, "size": 0.6},
+    )
+    repository = FakeChatRepository(single_chat=chat)
+    asset_service = FakeAssetService()
+    service = ChatService(repository, asset_service=asset_service)  # type: ignore[arg-type]
+
+    await service.update_chat_avatar(
+        chat_id=chat.chat_id,
+        user_id=owner_id,
+        data=ChatAvatarUpdate(
+            asset_id=next_asset_id,
+            crop={"x": 0.1, "y": 0.1, "size": 0.7},
+        ),
+    )
+
+    assert asset_service.orphaned_calls == [previous_asset_id]

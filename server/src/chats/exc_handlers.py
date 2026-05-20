@@ -4,6 +4,7 @@ from src.chats.exceptions import (
     AlreadyInChat,
     CantAddMembers,
     CantRemoveMembers,
+    ChatAvatarNotSupported,
     ChatNotFound,
     FailedToLeaveChat,
     InvalidChatHistoryCursor,
@@ -46,6 +47,13 @@ async def cant_remove_members_handler(request, exc: CantRemoveMembers):
 
 
 async def invalid_chat_history_cursor_handler(request, exc: InvalidChatHistoryCursor):
+    raise HTTPException(
+        status_code=status.HTTP_400_BAD_REQUEST,
+        detail=str(exc),
+    )
+
+
+async def chat_avatar_not_supported_handler(request, exc: ChatAvatarNotSupported):
     raise HTTPException(
         status_code=status.HTTP_400_BAD_REQUEST,
         detail=str(exc),

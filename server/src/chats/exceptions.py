@@ -20,3 +20,7 @@ class CantRemoveMembers(Exception):
 
 class InvalidChatHistoryCursor(Exception):
     """Raised when chat history cursor params are invalid"""
+
+
+class ChatAvatarNotSupported(Exception):
+    """Raised when chat avatar is not supported for selected chat type"""
