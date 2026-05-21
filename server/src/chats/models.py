@@ -1,6 +1,8 @@
 import uuid
+import typing as tp
 
-from sqlalchemy import BigInteger, CheckConstraint, ForeignKey, Index, UniqueConstraint, text
+from sqlalchemy import BigInteger, CheckConstraint, ForeignKey, Index, JSON, UniqueConstraint, text
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.chats.enums import ChatMemberRole, ChatType
@@ -27,6 +29,16 @@ class ChatModel(Base):
     is_private: Mapped[bool] = mapped_column(default=False)
     chat_type: Mapped[str] = mapped_column(default=ChatType.GROUP.value)
     direct_key: Mapped[str | None] = mapped_column(nullable=True)
+    avatar_asset_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("assets.asset_id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    avatar_crop: Mapped[dict[str, tp.Any] | None] = mapped_column(
+        JSON().with_variant(JSONB, "postgresql"),
+        nullable=True,
+        default=None,
+        server_default=text("NULL"),
+    )
     last_timeline_seq: Mapped[int] = mapped_column(
         BigInteger,
         default=0,
@@ -45,6 +57,11 @@ class ChatModel(Base):
         ForeignKey("users.user_id", ondelete="CASCADE")
     )
     owner: Mapped["UserModel"] = relationship(back_populates="created_chats")
+    avatar_asset: Mapped["AssetModel | None"] = relationship(  # type: ignore[name-defined]
+        back_populates="avatar_for_chats",
+        foreign_keys=[avatar_asset_id],
+        passive_deletes=True,
+    )
 
     members: Mapped[list["UserModel"]] = relationship(
         back_populates="joined_chats",

@@ -411,8 +411,11 @@ function ChatDetails() {
     const directMember = chat.chat_type === "direct"
         ? chat.members?.find((member) => member.user_id !== store.user.user_id)
         : null;
-    const chatTitle = directMember?.username || chat.title;
-    const chatImage = directMember ? getAvatarUrl(directMember, "small") : "../../../assets/chat.svg";
+    const chatTitle = directMember?.username || chat.display_title || chat.title;
+    const chatImage = directMember
+        ? getAvatarUrl(directMember, "small")
+        : (chat.avatar?.small_url || chat.avatar?.medium_url || "/assets/chat.svg");
+    const chatImageFallback = directMember ? "/assets/profile.svg" : "/assets/chat.svg";
     const typingIndicatorText = getTypingIndicatorText(typingUsers, chat.chat_type);
     const currentUserAvatarUrl = getAvatarUrl(store.user, "small");
     const currentChatId = params.chatId?.startsWith("@") ? params.chatId.slice(1) : null;
@@ -1508,12 +1511,15 @@ function ChatDetails() {
         handleMessageReaction(selectedMessage, reactionType);
     }
 
-    const setTitle = (newTitle) => {
+    const handleChatSaved = (nextChat) => {
+        if (!nextChat) {
+            return;
+        }
         setChat((prev) => ({
             ...prev,
-            title: newTitle,
-        }))
-    }
+            ...nextChat,
+        }));
+    };
 
     if (isError) {
         return (
@@ -1531,7 +1537,7 @@ function ChatDetails() {
                         src={chatImage}
                         alt=""
                         onError={(event) => {
-                            event.currentTarget.src = "../../../assets/chat.svg";
+                            event.currentTarget.src = chatImageFallback;
                         }}
                     />
                     <h2><span id="ws-id">{chatTitle}</span></h2>
@@ -1871,8 +1877,10 @@ function ChatDetails() {
                 saveChatFunc={ChatService.updateChat}
                 chatId={chat.chat_id}
                 title={chat.title}
-                setTitle={setTitle}
+                avatar={chat.avatar}
+                chatType={chat.chat_type}
                 isPrivate={chat.is_private}
+                onSaved={handleChatSaved}
                 modalHeader={"Edit chat info"}
                 buttonText={"Save"}
             />

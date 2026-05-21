@@ -1,69 +1,222 @@
 #save-chat-form {
-    /* height: 70vh; */
-    width: 30rem;
+    width: min(36rem, 92vw);
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: .5rem;
-    padding: .5rem;
+    gap: 0.65rem;
+    padding: 0.75rem;
 }
 
 #save-chat-form h1 {
     font-size: 2rem;
+    margin: 0;
 }
 
 #save-chat-form button,
 #save-chat-form input {
-    font-size: 1.2rem;
-    margin-top: 1rem;
+    font-size: 1.05rem;
+    margin-top: 0.75rem;
 }
 
 #save-chat-form input {
     border-width: 2px;
 }
 
+.chat-avatar-picker {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.6rem;
+    margin-top: 0.4rem;
+}
+
+.chat-avatar-trigger {
+    width: 100%;
+    max-width: 14rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+    margin: 0;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    border-radius: 0.8rem;
+    padding: 0.8rem;
+}
+
+.chat-avatar-trigger img {
+    width: 5.5rem;
+    height: 5.5rem;
+    object-fit: cover;
+    border-radius: 999px;
+    border: 2px solid rgba(255, 255, 255, 0.2);
+}
+
+.chat-avatar-trigger span {
+    font-size: 0.95rem;
+    line-height: 1.25;
+}
+
+.chat-avatar-file-input {
+    display: none;
+}
+
+.chat-avatar-crop-toolbar {
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.chat-avatar-crop-toolbar button {
+    margin: 0;
+    font-size: 0.95rem;
+    padding: 0.42rem 0.8rem;
+}
+
+.chat-avatar-crop-viewport {
+    --avatar-mask-inset: 0.18rem;
+    width: 100%;
+    max-width: 15rem;
+    aspect-ratio: 1 / 1;
+    position: relative;
+    overflow: hidden;
+    border-radius: 0.8rem;
+    border: 1px solid rgba(255, 255, 255, 0.22);
+    background:
+        linear-gradient(45deg, rgba(255, 255, 255, 0.08) 25%, transparent 25%),
+        linear-gradient(-45deg, rgba(255, 255, 255, 0.08) 25%, transparent 25%),
+        linear-gradient(45deg, transparent 75%, rgba(255, 255, 255, 0.08) 75%),
+        linear-gradient(-45deg, transparent 75%, rgba(255, 255, 255, 0.08) 75%);
+    background-size: 1rem 1rem;
+    background-position: 0 0, 0 0.5rem, 0.5rem -0.5rem, -0.5rem 0;
+    touch-action: none;
+}
+
+.chat-avatar-crop-image {
+    position: absolute;
+    top: 0;
+    left: 0;
+    user-select: none;
+    pointer-events: none;
+    will-change: transform, width, height;
+}
+
+.chat-avatar-crop-overlay {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+}
+
+.chat-avatar-crop-overlay::before {
+    content: "";
+    position: absolute;
+    inset: var(--avatar-mask-inset);
+    border-radius: 999px;
+    box-shadow: 0 0 0 999px rgba(0, 0, 0, 0.45);
+    border: 2px solid rgba(255, 255, 255, 0.72);
+}
+
+.chat-avatar-zoom-control {
+    width: 100%;
+    max-width: 15rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    font-size: 0.95rem;
+}
+
+.chat-avatar-zoom-slider {
+    width: 100%;
+    appearance: none;
+    height: 0.3rem;
+    border-radius: 999px;
+    background: linear-gradient(
+        90deg,
+        #e8e8e8 0,
+        #e8e8e8 var(--zoom-fill, 0%),
+        rgba(255, 255, 255, 0.24) var(--zoom-fill, 0%),
+        rgba(255, 255, 255, 0.24) 100%
+    );
+    outline: none;
+}
+
+.chat-avatar-zoom-slider::-webkit-slider-thumb {
+    appearance: none;
+    width: 0.95rem;
+    height: 0.95rem;
+    border-radius: 50%;
+    background: #ffffff;
+    border: 1px solid rgba(0, 0, 0, 0.2);
+    cursor: pointer;
+}
+
+.chat-avatar-zoom-slider::-moz-range-thumb {
+    width: 0.95rem;
+    height: 0.95rem;
+    border-radius: 50%;
+    background: #ffffff;
+    border: 1px solid rgba(0, 0, 0, 0.2);
+    cursor: pointer;
+}
+
+.chat-avatar-delete {
+    margin-top: 0;
+}
+
+.chat-avatar-error,
+.chat-form-error {
+    width: 100%;
+    margin: 0;
+    color: #ff8f8f;
+    font-size: 0.9rem;
+    text-align: left;
+}
+
 .chat-members-picker {
     width: 100%;
     display: flex;
     flex-direction: column;
-    gap: .5rem;
+    gap: 0.5rem;
 }
 
 .selected-members {
     width: 100%;
     display: flex;
     flex-wrap: wrap;
-    gap: .5rem;
+    gap: 0.5rem;
 }
 
 .selected-member,
 .member-result {
     width: auto;
     margin: 0;
-    border-radius: .5rem;
+    border-radius: 0.5rem;
 }
 
 .selected-member {
-    padding: .4rem .7rem;
-    font-size: .95rem;
+    padding: 0.4rem 0.7rem;
+    font-size: 0.95rem;
 }
 
 .member-results {
     width: 100%;
     display: flex;
     flex-direction: column;
-    gap: .35rem;
+    gap: 0.35rem;
 }
 
 .member-result {
-    padding: .5rem .75rem;
+    padding: 0.5rem 0.75rem;
     text-align: left;
 }
 
 .member-result.muted {
     color: #8a8a8a;
-    font-size: .95rem;
-    padding: .4rem 0;
+    font-size: 0.95rem;
+    padding: 0.4rem 0;
 }
 
 .chat-private {
@@ -74,17 +227,17 @@
     display: flex;
     flex-direction: row;
     align-items: center;
-    font-size: 1.2rem;
+    font-size: 1.1rem;
     width: 100%;
-    padding: 10px 10px;
+    padding: 10px;
     border: 2px solid #fff;
     border-radius: 10px;
-    transition: all .2s linear;
+    transition: all 0.2s linear;
     cursor: pointer;
 }
 
 .chat-private label:hover {
-    opacity: .8;
+    opacity: 0.8;
 }
 
 .chat-private [type="radio"],
@@ -100,18 +253,28 @@
     border: 2px solid #fff;
     margin-right: 15px;
     vertical-align: middle;
-    transition: all .1s ease-in-out;
-    border-radius: .2rem;
+    transition: all 0.1s ease-in-out;
+    border-radius: 0.2rem;
 }
 
-.chat-private [type="checkbox"]:checked+label {
-    border-color: #9D50FF;
-    color: #9D50FF;
-    transition: all .1s ease-in-out;
+.chat-private [type="checkbox"]:checked + label {
+    border-color: #9d50ff;
+    color: #9d50ff;
+    transition: all 0.1s ease-in-out;
 }
 
-.chat-private [type="checkbox"]:checked+label::before {
-    background-color: #9D50FF;
-    border-color: #9D50FF;
-    transition: all .1s ease-in-out;
+.chat-private [type="checkbox"]:checked + label::before {
+    background-color: #9d50ff;
+    border-color: #9d50ff;
+    transition: all 0.1s ease-in-out;
+}
+
+@media (max-width: 640px) {
+    #save-chat-form {
+        width: min(32rem, 95vw);
+    }
+
+    #save-chat-form h1 {
+        font-size: 1.65rem;
+    }
 }

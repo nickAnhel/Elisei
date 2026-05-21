@@ -1,0 +1,298 @@
+{% extends "sqladmin/layout.html" %}
+{% block content %}
+<div class="col-12">
+  <div class="card shadow-sm border-0 mb-4">
+    <div class="card-body">
+      <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+        <div>
+          <h1 class="h3 mb-1">Dashboard</h1>
+          <p class="text-muted mb-0">Operational overview of users, content, moderation and storage</p>
+        </div>
+        <div class="text-muted small">
+          Last updated: {{ last_updated_at.strftime('%Y-%m-%d %H:%M:%S %Z') }}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="col-12">
+  <div class="row g-3">
+    <div class="col-sm-6 col-lg-3">
+      <div class="card h-100 border-0 shadow-sm">
+        <div class="card-body">
+          <div class="text-muted text-uppercase small mb-1">Total users</div>
+          <div class="h3 mb-0">{{ key_metrics.total_users }}</div>
+          <div class="small mt-2"><span class="badge bg-success-lt text-success">Admins: {{ key_metrics.admin_users }}</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="col-sm-6 col-lg-3">
+      <div class="card h-100 border-0 shadow-sm">
+        <div class="card-body">
+          <div class="text-muted text-uppercase small mb-1">Total content</div>
+          <div class="h3 mb-0">{{ key_metrics.total_content }}</div>
+          <div class="small mt-2 d-flex gap-1 flex-wrap">
+            <span class="badge bg-success-lt text-success">Published: {{ key_metrics.published_content }}</span>
+            <span class="badge bg-warning-lt text-warning">Draft: {{ key_metrics.draft_content }}</span>
+            <span class="badge bg-secondary-lt text-secondary">Private: {{ key_metrics.private_content }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-sm-6 col-lg-3">
+      <div class="card h-100 border-0 shadow-sm">
+        <div class="card-body">
+          <div class="text-muted text-uppercase small mb-1">Moderation</div>
+          <div class="h3 mb-0">{{ key_metrics.total_comments }}</div>
+          <div class="small mt-2 d-flex gap-1 flex-wrap">
+            <span class="badge bg-danger-lt text-danger">Deleted comments: {{ key_metrics.deleted_comments }}</span>
+            <span class="badge bg-secondary-lt text-secondary">Reactions: {{ key_metrics.total_reactions }}</span>
+            <span class="badge bg-warning-lt text-warning">Tags: {{ key_metrics.total_tags }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-sm-6 col-lg-3">
+      <div class="card h-100 border-0 shadow-sm">
+        <div class="card-body">
+          <div class="text-muted text-uppercase small mb-1">Storage</div>
+          <div class="h3 mb-0">{{ key_metrics.total_assets }}</div>
+          <div class="small mt-2 d-flex gap-1 flex-wrap">
+            <span class="badge bg-primary-lt text-primary">Variants: {{ key_metrics.total_asset_variants }}</span>
+            <span class="badge bg-info-lt text-info">{{ key_metrics.total_storage_size_human }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="col-12 mt-2">
+  <div class="row g-3">
+    <div class="col-lg-3">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-header"><h3 class="card-title mb-0">Content by status</h3></div>
+        <div class="card-body">
+          {% if compact_overview.content_by_status %}
+            {% for status, count in compact_overview.content_by_status.items() %}
+            <div class="d-flex justify-content-between align-items-center mb-2">
+              <span class="text-muted text-capitalize">{{ status }}</span>
+              {% if status == 'published' %}
+              <span class="badge bg-success-lt text-success">{{ count }}</span>
+              {% elif status == 'draft' %}
+              <span class="badge bg-warning-lt text-warning">{{ count }}</span>
+              {% elif status == 'deleted' %}
+              <span class="badge bg-danger-lt text-danger">{{ count }}</span>
+              {% else %}
+              <span class="badge bg-secondary-lt text-secondary">{{ count }}</span>
+              {% endif %}
+            </div>
+            {% endfor %}
+          {% else %}
+          <div class="text-muted">No content yet</div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <div class="col-lg-3">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-header"><h3 class="card-title mb-0">Content by visibility</h3></div>
+        <div class="card-body">
+          {% if compact_overview.content_by_visibility %}
+            {% for visibility, count in compact_overview.content_by_visibility.items() %}
+            <div class="d-flex justify-content-between align-items-center mb-2">
+              <span class="text-muted text-capitalize">{{ visibility }}</span>
+              {% if visibility == 'public' %}
+              <span class="badge bg-success-lt text-success">{{ count }}</span>
+              {% elif visibility == 'private' %}
+              <span class="badge bg-secondary-lt text-secondary">{{ count }}</span>
+              {% else %}
+              <span class="badge bg-warning-lt text-warning">{{ count }}</span>
+              {% endif %}
+            </div>
+            {% endfor %}
+          {% else %}
+          <div class="text-muted">No content yet</div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <div class="col-lg-3">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-header"><h3 class="card-title mb-0">Comments status</h3></div>
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <span class="text-muted">Total</span>
+            <span class="badge bg-secondary-lt text-secondary">{{ compact_overview.comments_status.total }}</span>
+          </div>
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <span class="text-muted">Active</span>
+            <span class="badge bg-success-lt text-success">{{ compact_overview.comments_status.active }}</span>
+          </div>
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <span class="text-muted">Deleted</span>
+            <span class="badge bg-danger-lt text-danger">{{ compact_overview.comments_status.deleted }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-lg-3">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-header"><h3 class="card-title mb-0">Storage overview</h3></div>
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <span class="text-muted">Assets size</span>
+            <span class="badge bg-info-lt text-info">{{ compact_overview.storage_overview.assets_total_size_human }}</span>
+          </div>
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <span class="text-muted">Variants size</span>
+            <span class="badge bg-primary-lt text-primary">{{ compact_overview.storage_overview.variants_total_size_human }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="col-12 mt-2">
+  <div class="row g-3">
+    <div class="col-xl-4">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-header"><h3 class="card-title mb-0">Latest users</h3></div>
+        <div class="table-responsive">
+          <table class="table table-vcenter card-table mb-0">
+            <thead>
+              <tr>
+                <th>Username</th>
+                <th>Role</th>
+                <th>Created</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% if latest_users %}
+                {% for user in latest_users %}
+                <tr>
+                  <td class="text-truncate" style="max-width: 180px;">{{ user.username }}</td>
+                  <td>
+                    {% if user.is_admin %}
+                    <span class="badge bg-success-lt text-success">admin</span>
+                    {% else %}
+                    <span class="badge bg-secondary-lt text-secondary">user</span>
+                    {% endif %}
+                  </td>
+                  <td class="text-muted small">{{ user.created_at.strftime('%Y-%m-%d %H:%M') if user.created_at else '-' }}</td>
+                </tr>
+                {% endfor %}
+              {% else %}
+              <tr>
+                <td colspan="3" class="text-center text-muted py-4">No users yet</td>
+              </tr>
+              {% endif %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-xl-4">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-header"><h3 class="card-title mb-0">Latest content</h3></div>
+        <div class="table-responsive">
+          <table class="table table-vcenter card-table mb-0">
+            <thead>
+              <tr>
+                <th>Type</th>
+                <th>Status</th>
+                <th>Visibility</th>
+                <th>Created</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% if latest_content %}
+                {% for content in latest_content %}
+                <tr>
+                  <td class="text-capitalize">{{ content.content_type.value if content.content_type else '-' }}</td>
+                  <td>
+                    {% if content.status.value == 'published' %}
+                    <span class="badge bg-success-lt text-success">published</span>
+                    {% elif content.status.value == 'draft' %}
+                    <span class="badge bg-warning-lt text-warning">draft</span>
+                    {% elif content.status.value == 'deleted' %}
+                    <span class="badge bg-danger-lt text-danger">deleted</span>
+                    {% else %}
+                    <span class="badge bg-secondary-lt text-secondary">{{ content.status.value if content.status else '-' }}</span>
+                    {% endif %}
+                  </td>
+                  <td>
+                    {% if content.visibility.value == 'private' %}
+                    <span class="badge bg-secondary-lt text-secondary">private</span>
+                    {% elif content.visibility.value == 'public' %}
+                    <span class="badge bg-success-lt text-success">public</span>
+                    {% else %}
+                    <span class="badge bg-warning-lt text-warning">{{ content.visibility.value if content.visibility else '-' }}</span>
+                    {% endif %}
+                  </td>
+                  <td class="text-muted small">{{ content.created_at.strftime('%Y-%m-%d %H:%M') if content.created_at else '-' }}</td>
+                </tr>
+                {% endfor %}
+              {% else %}
+              <tr>
+                <td colspan="4" class="text-center text-muted py-4">No content yet</td>
+              </tr>
+              {% endif %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-xl-4">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-header"><h3 class="card-title mb-0">Latest comments</h3></div>
+        <div class="table-responsive">
+          <table class="table table-vcenter card-table mb-0">
+            <thead>
+              <tr>
+                <th>Comment</th>
+                <th>Status</th>
+                <th>Created</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% if latest_comments %}
+                {% for comment in latest_comments %}
+                <tr>
+                  <td class="text-truncate" style="max-width: 180px;">{{ comment.comment_id }}</td>
+                  <td>
+                    {% if comment.deleted_at %}
+                    <span class="badge bg-danger-lt text-danger">deleted</span>
+                    {% else %}
+                    <span class="badge bg-success-lt text-success">active</span>
+                    {% endif %}
+                  </td>
+                  <td class="text-muted small">{{ comment.created_at.strftime('%Y-%m-%d %H:%M') if comment.created_at else '-' }}</td>
+                </tr>
+                {% endfor %}
+              {% else %}
+              <tr>
+                <td colspan="3" class="text-center text-muted py-4">No comments yet</td>
+              </tr>
+              {% endif %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% if key_metrics.total_assets == 0 %}
+<div class="col-12 mt-2">
+  <div class="alert alert-light border text-muted mb-0">No assets yet</div>
+</div>
+{% endif %}
+{% endblock %}

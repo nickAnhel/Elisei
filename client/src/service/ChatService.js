@@ -18,6 +18,14 @@ export default class ChatService {
         return api.patch(`/chats/${chatId}`, data);
     }
 
+    static async updateChatAvatar(chatId, data) {
+        return api.put(`/chats/${chatId}/avatar`, data);
+    }
+
+    static async deleteChatAvatar(chatId) {
+        return api.delete(`/chats/${chatId}/avatar`);
+    }
+
     static async joinChat(chatId) {
         return api.post(`/chats/${chatId}/join`);
     }
