@@ -1,0 +1,171 @@
+services:
+  loadtest_db_prepare:
+    container_name: loadtest_db_prepare
+    image: postgres:17
+    restart: "no"
+    environment:
+      DB_HOST: db
+      DB_PORT: "5432"
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      DEMO_DB_NAME: ${DEMO_DB_NAME:-postgres}
+      LOADTEST_DB_NAME: ${LOADTEST_DB_NAME:-nerdex_loadtest}
+    volumes:
+      - ./server/src/demo_seed/output:/seed-output:ro
+      - ./load-tests/k6/data:/k6-data
+      - ./load-tests/scripts:/runner:ro
+    command: ["/runner/loadtest-db-prepare.sh"]
+    depends_on:
+      db:
+        condition: service_healthy
+
+  migrate_loadtest:
+    container_name: migrate_loadtest
+    restart: "no"
+    command: bash -c "alembic upgrade head"
+    build:
+      context: ./server
+      dockerfile: ./Dockerfile
+    env_file:
+      - ./server/.env
+    environment:
+      DB_NAME: ${LOADTEST_DB_NAME:-nerdex_loadtest}
+    depends_on:
+      loadtest_db_prepare:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+
+  server_loadtest:
+    container_name: server_loadtest
+    restart: on-failure
+    command: uvicorn src.main:app --host 0.0.0.0 --port 8000 --workers 4
+    build:
+      context: ./server
+      dockerfile: ./Dockerfile
+    ports:
+      - "8001:8000"
+    env_file:
+      - ./server/.env
+    environment:
+      DB_NAME: ${LOADTEST_DB_NAME:-nerdex_loadtest}
+    depends_on:
+      migrate_loadtest:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+      neo4j:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/docs')"]
+      interval: 10s
+      timeout: 5s
+      retries: 15
+
+  postgres_exporter_loadtest:
+    container_name: postgres_exporter_loadtest
+    image: prometheuscommunity/postgres-exporter:v0.16.0
+    restart: on-failure
+    environment:
+      DATA_SOURCE_NAME: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${LOADTEST_DB_NAME:-nerdex_loadtest}?sslmode=disable
+    depends_on:
+      db:
+        condition: service_healthy
+
+  redis_exporter_loadtest:
+    container_name: redis_exporter_loadtest
+    image: oliver006/redis_exporter:v1.67.0
+    restart: on-failure
+    command:
+      - --redis.addr=redis://redis:6379
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  cadvisor_loadtest:
+    container_name: cadvisor_loadtest
+    image: gcr.io/cadvisor/cadvisor:v0.49.1
+    restart: on-failure
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+    ports:
+      - "8081:8080"
+
+  prometheus_loadtest:
+    container_name: prometheus_loadtest
+    image: prom/prometheus:v2.53.0
+    restart: on-failure
+    ports:
+      - "9092:9090"
+    command:
+      - --web.enable-remote-write-receiver
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+    volumes:
+      - ./load-tests/observability/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_loadtest_data:/prometheus
+    depends_on:
+      server_loadtest:
+        condition: service_healthy
+      postgres_exporter_loadtest:
+        condition: service_started
+      redis_exporter_loadtest:
+        condition: service_started
+      cadvisor_loadtest:
+        condition: service_started
+
+  grafana_loadtest:
+    container_name: grafana_loadtest
+    image: grafana/grafana:11.0.0
+    restart: on-failure
+    ports:
+      - "3002:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Admin
+    volumes:
+      - ./load-tests/observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./load-tests/observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana_loadtest_data:/var/lib/grafana
+    depends_on:
+      prometheus_loadtest:
+        condition: service_started
+
+  k6_suite:
+    container_name: k6_suite
+    image: grafana/k6:0.52.0
+    user: "${UID:-1000}:${GID:-1000}"
+    restart: "no"
+    depends_on:
+      server_loadtest:
+        condition: service_healthy
+      prometheus_loadtest:
+        condition: service_started
+      grafana_loadtest:
+        condition: service_started
+    environment:
+      BASE_URL: http://server_loadtest:8000
+      DEMO_PASSWORD: ${DEMO_PASSWORD:-Demo123456!}
+      K6_PROMETHEUS_RW_SERVER_URL: http://prometheus_loadtest:9090/api/v1/write
+      K6_PROMETHEUS_RW_TREND_STATS: p(90),p(95),p(99),min,max,avg
+      K6_WEB_DASHBOARD: "true"
+      K6_WEB_DASHBOARD_HOST: 0.0.0.0
+      K6_WEB_DASHBOARD_PORT: "5665"
+      K6_WEB_DASHBOARD_PERIOD: 5s
+      K6_NO_USAGE_REPORT: "true"
+    volumes:
+      - ./load-tests/k6:/scripts:ro
+      - ./load-tests/results:/results
+      - ./load-tests/scripts:/runner:ro
+    ports:
+      - "5665:5665"
+    entrypoint: ["/bin/sh", "/runner/k6-suite-entrypoint.sh"]
+
+volumes:
+  prometheus_loadtest_data:
+  grafana_loadtest_data:
