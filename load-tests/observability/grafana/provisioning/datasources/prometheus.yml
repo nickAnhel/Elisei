@@ -1,0 +1,10 @@
+apiVersion: 1
+
+datasources:
+  - name: Prometheus Loadtest
+    uid: prometheus-loadtest
+    type: prometheus
+    access: proxy
+    url: http://prometheus_loadtest:9090
+    isDefault: true
+    editable: false

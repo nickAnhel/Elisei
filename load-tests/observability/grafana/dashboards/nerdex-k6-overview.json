@@ -1,0 +1,66 @@
+{
+  "title": "Nerdex k6 Overview",
+  "uid": "nerdex-k6-overview",
+  "schemaVersion": 39,
+  "version": 1,
+  "editable": true,
+  "time": {
+    "from": "now-30m",
+    "to": "now"
+  },
+  "templating": {
+    "list": [
+      {
+        "name": "testid",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "prometheus-loadtest"
+        },
+        "query": "label_values(k6_http_reqs_total, testid)",
+        "multi": true,
+        "includeAll": true,
+        "allValue": ".*",
+        "refresh": 2
+      }
+    ]
+  },
+  "panels": [
+    {
+      "type": "timeseries",
+      "title": "HTTP requests per second",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus-loadtest" },
+      "targets": [
+        { "refId": "A", "expr": "sum(rate(k6_http_reqs_total{testid=~\"$testid\"}[1m]))" }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Error rate",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus-loadtest" },
+      "targets": [
+        { "refId": "A", "expr": "avg(k6_http_req_failed_rate{testid=~\"$testid\"})" }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "p95 duration by endpoint (ms)",
+      "gridPos": { "h": 9, "w": 12, "x": 0, "y": 8 },
+      "datasource": { "type": "prometheus", "uid": "prometheus-loadtest" },
+      "targets": [
+        { "refId": "A", "expr": "avg(k6_http_req_duration_p95{testid=~\"$testid\",endpoint!~\"\"}) * 1000", "legendFormat": "{{endpoint}}" }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Active VUs",
+      "gridPos": { "h": 9, "w": 12, "x": 12, "y": 8 },
+      "datasource": { "type": "prometheus", "uid": "prometheus-loadtest" },
+      "targets": [
+        { "refId": "A", "expr": "max(k6_vus{testid=~\"$testid\"})" }
+      ]
+    }
+  ]
+}

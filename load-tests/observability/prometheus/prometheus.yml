@@ -1,0 +1,25 @@
+global:
+  scrape_interval: 5s
+  evaluation_interval: 5s
+
+scrape_configs:
+  - job_name: prometheus_loadtest
+    static_configs:
+      - targets: ["prometheus_loadtest:9090"]
+
+  - job_name: server_loadtest
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["server_loadtest:8000"]
+
+  - job_name: postgres_exporter_loadtest
+    static_configs:
+      - targets: ["postgres_exporter_loadtest:9187"]
+
+  - job_name: redis_exporter_loadtest
+    static_configs:
+      - targets: ["redis_exporter_loadtest:9121"]
+
+  - job_name: cadvisor_loadtest
+    static_configs:
+      - targets: ["cadvisor_loadtest:8080"]
