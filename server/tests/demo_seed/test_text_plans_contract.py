@@ -6,9 +6,11 @@ from src.demo_seed.loaders.topics_loader import load_topics
 from src.demo_seed.planning.random_state import SeedRandom
 from src.demo_seed.planning.text_plans import build_article_text, build_video_text
 
+DATA_DIR = Path(__file__).resolve().parents[2] / "src" / "demo_seed" / "data"
+
 
 def test_article_toc_uses_text_key() -> None:
-    topics = load_topics(Path("src/demo_seed/data/topics.yaml"))
+    topics = load_topics(DATA_DIR / "topics.yaml")
     topic = topics.topics["backend"]
 
     _, _, _, _, _, toc, _ = build_article_text(
@@ -24,7 +26,7 @@ def test_article_toc_uses_text_key() -> None:
 
 
 def test_video_chapters_use_starts_at_seconds_key() -> None:
-    topics = load_topics(Path("src/demo_seed/data/topics.yaml"))
+    topics = load_topics(DATA_DIR / "topics.yaml")
     topic = topics.topics["backend"]
 
     _, _, _, chapters = build_video_text(

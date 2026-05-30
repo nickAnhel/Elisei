@@ -31,6 +31,8 @@ class _User:
     avatar = None
     avatar_crop = None
     username = "alice"
+    display_name = None
+    bio = None
     subscribers_count = 0
     is_admin = False
     subscribers = []
