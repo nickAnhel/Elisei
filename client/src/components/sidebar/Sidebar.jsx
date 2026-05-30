@@ -16,12 +16,21 @@ import SearchIcon from "../icons/SearchIcon";
 import VideoIcon from "../icons/VideoIcon";
 import { getAvatarRenderKey, getAvatarUrl } from "../../utils/avatar";
 import NotificationBell from "../notification-bell/NotificationBell";
+import { useTheme } from "../../theme/ThemeProvider";
+import { IconButton, Tooltip } from "../ui";
 
 
 function Sidebar() {
     const { store } = useContext(StoreContext);
+    const { themeMode, setThemeMode, modes } = useTheme();
     const avatarSrc = getAvatarUrl(store.user, "small");
     const avatarRenderKey = getAvatarRenderKey(store.user, "small");
+
+    const themeLabels = {
+        system: "System",
+        dark: "Dark",
+        light: "Light",
+    };
 
     return (
         <div id="sidebar">
@@ -87,6 +96,22 @@ function Sidebar() {
                             <LoginIcon />
                         </Link>
                 }
+                <div className="sidebar-theme-switch" aria-label="Theme mode switcher">
+                    {modes.map((mode) => (
+                        <Tooltip key={mode} content={themeLabels[mode]} side="right">
+                            <IconButton
+                                size="sm"
+                                variant={themeMode === mode ? "active" : "ghost"}
+                                className="sidebar-theme-button"
+                                aria-label={`Set ${themeLabels[mode]} theme`}
+                                title={themeLabels[mode]}
+                                onClick={() => setThemeMode(mode)}
+                            >
+                                {mode.slice(0, 1).toUpperCase()}
+                            </IconButton>
+                        </Tooltip>
+                    ))}
+                </div>
             </div>
         </div>
     );
