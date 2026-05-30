@@ -13,6 +13,7 @@ import DislikeIcon from "../icons/DislikeIcon";
 import LikeIcon from "../icons/LikeIcon";
 import { getAvatarUrl } from "../../utils/avatar";
 import { stripArticleFormatting } from "../../utils/articleMarkdown";
+import { getUserDisplayName } from "../../utils/userDisplay";
 
 
 const ArticleCard = forwardRef(({ article }, ref) => {
@@ -66,7 +67,7 @@ const ArticleCard = forwardRef(({ article }, ref) => {
                         alt={`${card.user.username} profile`}
                         onError={() => setAvatarSrc("/assets/profile.svg")}
                     />
-                    <span>{card.user.username}</span>
+                    <span>{getUserDisplayName(card.user, card.user.username)}</span>
                 </Link>
                 <div className="article-card-meta-inline">
                     <span>{publishedDate}</span>

@@ -11,6 +11,7 @@ import DislikeIcon from "../icons/DislikeIcon";
 import LikeIcon from "../icons/LikeIcon";
 import TagChip from "../tag-chip/TagChip";
 import { getAvatarUrl } from "../../utils/avatar";
+import { getUserDisplayName } from "../../utils/userDisplay";
 
 
 export function formatDuration(seconds) {
@@ -77,7 +78,7 @@ const VideoCard = forwardRef(({ video }, ref) => {
                         alt={`${card.user.username} profile`}
                         onError={() => setAvatarSrc("/assets/profile.svg")}
                     />
-                    <span>{card.user.username}</span>
+                    <span>{getUserDisplayName(card.user, card.user.username)}</span>
                 </Link>
                 <span>{new Date(card.published_at || card.created_at).toLocaleDateString()}</span>
             </div>

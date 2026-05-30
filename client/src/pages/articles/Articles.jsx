@@ -9,6 +9,7 @@ import ContentService from "../../service/ContentService";
 import ContentList from "../../components/content-list/ContentList";
 import ArticleCard from "../../components/article-card/ArticleCard";
 import GlobalSearchInput from "../../components/global-search-input/GlobalSearchInput";
+import { Button, Card, Tabs, TabsList, TabsTrigger } from "../../components/ui";
 
 const ARTICLE_TABS = {
     recommendations: "recommendations",
@@ -57,7 +58,7 @@ function Articles() {
 
     return (
         <div id="articles-page">
-            <div className="articles-page-header">
+            <Card className="articles-page-header" variant="raised">
                 <div>
                     <span className="articles-page-kicker">Long-form publishing</span>
                     <h1>Articles</h1>
@@ -65,15 +66,15 @@ function Articles() {
                 </div>
                 {
                     store.isAuthenticated &&
-                    <button
+                    <Button
                         type="button"
-                        className="btn btn-primary"
+                        variant="primary"
                         onClick={() => navigate("/articles/new")}
                     >
                         Write article
-                    </button>
+                    </Button>
                 }
-            </div>
+            </Card>
 
             <GlobalSearchInput
                 value={searchQuery}
@@ -82,25 +83,19 @@ function Articles() {
                 placeholder="Search articles and creators"
             />
 
-            <div className="articles-page-sections" role="tablist" aria-label="Article sections">
-                <button
-                    type="button"
-                    className={activeTab === ARTICLE_TABS.recommendations ? "active" : ""}
-                    onClick={() => setTab(ARTICLE_TABS.recommendations)}
-                >
-                    Recommendations
-                </button>
-                {
-                    store.isAuthenticated &&
-                    <button
-                        type="button"
-                        className={activeTab === ARTICLE_TABS.subscriptions ? "active" : ""}
-                        onClick={() => setTab(ARTICLE_TABS.subscriptions)}
-                    >
-                        Subscriptions
-                    </button>
-                }
-            </div>
+            <Tabs value={activeTab} onValueChange={setTab}>
+                <TabsList className="articles-page-sections" aria-label="Article sections">
+                    <TabsTrigger value={ARTICLE_TABS.recommendations}>
+                        Recommendations
+                    </TabsTrigger>
+                    {
+                        store.isAuthenticated &&
+                        <TabsTrigger value={ARTICLE_TABS.subscriptions}>
+                            Subscriptions
+                        </TabsTrigger>
+                    }
+                </TabsList>
+            </Tabs>
 
             <ContentList
                 key={`articles-${activeTab}`}

@@ -39,13 +39,13 @@ function Sidebar() {
                     <PeopleIcon />
                     People
                 </NavLink>
-                <NavLink to="/feed" className="sidebar-item">
-                    <FeedIcon />
-                    Feed
-                </NavLink>
                 <NavLink to="/search?type=all" className="sidebar-item">
                     <SearchIcon />
                     Search
+                </NavLink>
+                <NavLink to="/feed" className="sidebar-item">
+                    <FeedIcon />
+                    Feed
                 </NavLink>
                 <NavLink to="/articles" className="sidebar-item">
                     <ArticleIcon />

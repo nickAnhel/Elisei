@@ -22,6 +22,7 @@ import ContentShareButton from "../content-share-button/ContentShareButton";
 import DislikeIcon from "../icons/DislikeIcon";
 import LikeIcon from "../icons/LikeIcon";
 import { getAvatarUrl } from "../../utils/avatar";
+import { getUserDisplayName } from "../../utils/userDisplay";
 
 
 const PostListItem = forwardRef((props, ref) => {
@@ -143,7 +144,7 @@ const PostListItem = forwardRef((props, ref) => {
                             alt={`${post.user.username} profile photo`}
                         />
                         <p>
-                            {post.user.username}
+                            {getUserDisplayName(post.user, post.user.username)}
                         </p>
                     </Link>
                     <div className="post-badges">

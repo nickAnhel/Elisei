@@ -254,25 +254,28 @@ function UserDetails() {
             </div>
 
             <div className="user-info">
-                <div className="tabs">
-                    <div
+                <div className="tabs" role="tablist" aria-label="Profile sections">
+                    <button
+                        type="button"
                         className={tab === "publications" ? "tab active" : "tab"}
                         onClick={() => setTab("publications")}
                     >
                         Publications
-                    </div>
-                    <div
+                    </button>
+                    <button
+                        type="button"
                         className={tab === "gallery" ? "tab active" : "tab"}
                         onClick={() => setTab("gallery")}
                     >
                         Gallery
-                    </div>
-                    <div
+                    </button>
+                    <button
+                        type="button"
                         className={tab === "subscriptions" ? "tab active" : "tab"}
                         onClick={() => setTab("subscriptions")}
                     >
                         Subscriptions
-                    </div>
+                    </button>
                 </div>
 
                 {tab === "publications" && user.user_id ? (

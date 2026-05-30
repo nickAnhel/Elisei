@@ -2,17 +2,19 @@ import { useEffect, useState } from "react";
 
 import "./SimilarContentBlock.css";
 
-import FeedContentCard from "../feed-content-card/FeedContentCard";
 import Loader from "../loader/Loader";
 import ContentService from "../../service/ContentService";
+import SimilarPublicationItem from "./SimilarPublicationItem";
 
 
 function SimilarContentBlock({
     contentId,
     contentType = null,
     limit = 4,
-    title = "Похожие публикации",
+    title = "Similar publications",
     hideOnError = true,
+    compact = false,
+    className = "",
 }) {
     const [items, setItems] = useState([]);
     const [isLoading, setIsLoading] = useState(false);
@@ -69,8 +71,14 @@ function SimilarContentBlock({
         return null;
     }
 
+    const classes = [
+        "similar-content-block",
+        compact ? "similar-content-block--compact" : "",
+        className,
+    ].filter(Boolean).join(" ");
+
     return (
-        <section className="similar-content-block" aria-label={title}>
+        <section className={classes} aria-label={title}>
             <h3>{title}</h3>
 
             {
@@ -101,11 +109,7 @@ function SimilarContentBlock({
                         <div className="similar-content-list">
                             {
                                 items.map((item) => (
-                                    <FeedContentCard
-                                        key={item.content_id}
-                                        item={item}
-                                        removeItem={() => {}}
-                                    />
+                                    <SimilarPublicationItem key={item.content_id} item={item} />
                                 ))
                             }
                         </div>

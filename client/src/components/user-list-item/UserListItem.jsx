@@ -5,6 +5,7 @@ import "./UserListItem.css"
 import { StoreContext } from "../..";
 import UserService from "../../service/UserService";
 import { getAvatarUrl } from "../../utils/avatar";
+import { getUserDisplayName } from "../../utils/userDisplay";
 
 import Loader from "../loader/Loader";
 
@@ -85,8 +86,8 @@ const UserListItem = forwardRef((props, ref) => {
                     alt={`${props.user.username} profile photo`}
                 />
                 <div className="info">
-                    <div className="username">{props.user.username}</div>
-                    <div className="subs">{subsCount.toLocaleString()} subscriber{subsCount == 1 ? "" : "s"}</div>
+                    <div className="username">{getUserDisplayName(props.user, props.user.username)}</div>
+                    <div className="subs">{subsCount.toLocaleString()} subscriber{subsCount === 1 ? "" : "s"}</div>
                 </div>
             </div>
             <div className="right">
@@ -110,7 +111,7 @@ const UserListItem = forwardRef((props, ref) => {
                                 e.preventDefault();
                                 handleSubscribe();
                             }}
-                            disabled={!store.isAuthenticated || store.user.user_id == props.user.user_id}
+                            disabled={!store.isAuthenticated || store.user.user_id === props.user.user_id}
                         >
                             {isLoadingSubscribe ? <Loader /> : "Subscribe"}
                         </button>

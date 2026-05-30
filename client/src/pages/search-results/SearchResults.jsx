@@ -9,6 +9,7 @@ import FeedContentCard from "../../components/feed-content-card/FeedContentCard"
 import Loader from "../../components/loader/Loader";
 import UserListItem from "../../components/user-list-item/UserListItem";
 import SearchService from "../../service/SearchService";
+import { Button, Card, EmptyState } from "../../components/ui";
 
 
 const CONTENT_TYPES = [
@@ -170,6 +171,7 @@ function SearchResults() {
             keys: [isSearchMode, rawQuery, type, sort, period, offset, limit],
         }
     );
+
     const {
         isLoading: isPopularAuthorsLoading,
         isError: isPopularAuthorsError,
@@ -209,83 +211,99 @@ function SearchResults() {
         [availableTypes, type]
     );
 
-    const resultsBody = (
-        <section className="search-results-body">
-            {
-                isError &&
-                <div className="search-results-state error">
-                    {errorMessage}
-                </div>
-            }
-            {
-                isLoading &&
+    const resetOffset = () => {
+        updateSearchParams((params) => {
+            params.set("offset", "0");
+        });
+    };
+
+    const loadMore = () => {
+        updateSearchParams((params) => {
+            params.set("offset", String(offset + limit));
+        });
+    };
+
+    const renderResults = () => {
+        if (isLoading) {
+            return (
                 <div className="search-results-loader">
                     <Loader />
                 </div>
-            }
-            {
-                !isLoading && !isError && items.length === 0 &&
-                <div className="search-results-state">
-                    {
+            );
+        }
+
+        if (isError) {
+            return (
+                <EmptyState
+                    className="search-results-state"
+                    title="Couldn\'t load results"
+                    description={errorMessage}
+                    action={<Button type="button" variant="secondary" onClick={resetOffset}>Retry</Button>}
+                />
+            );
+        }
+
+        if (items.length === 0) {
+            return (
+                <EmptyState
+                    className="search-results-state"
+                    title="Nothing found"
+                    description={
                         isSearchMode
-                            ? `No results found for "${rawQuery}" in ${activeTypeLabel}.`
-                            : `No popular content found for ${activeTypeLabel} in this period.`
+                            ? `No results for "${rawQuery}" in ${activeTypeLabel}.`
+                            : `No popular content for ${activeTypeLabel} in this period.`
+                    }
+                />
+            );
+        }
+
+        return (
+            <>
+                <div className="search-results-list">
+                    {
+                        items.map((item, index) => {
+                            if (item.result_type === "content" && item.content) {
+                                return (
+                                    <FeedContentCard
+                                        key={`content-${item.content.content_id}-${index}`}
+                                        item={item.content}
+                                        removeItem={() => {}}
+                                    />
+                                );
+                            }
+
+                            if (item.result_type === "author" && item.author) {
+                                return (
+                                    <div className="search-author-result" key={`author-${item.author.user_id}-${index}`}>
+                                        <UserListItem user={item.author} />
+                                    </div>
+                                );
+                            }
+
+                            return null;
+                        })
                     }
                 </div>
-            }
-            {
-                !isLoading && !isError && items.length > 0 &&
-                <>
-                    <div className="search-results-list">
-                        {
-                            items.map((item, index) => {
-                                if (item.result_type === "content" && item.content) {
-                                    return (
-                                        <FeedContentCard
-                                            key={`content-${item.content.content_id}-${index}`}
-                                            item={item.content}
-                                            removeItem={() => {}}
-                                        />
-                                    );
-                                }
 
-                                if (item.result_type === "author" && item.author) {
-                                    return (
-                                        <div className="search-author-result" key={`author-${item.author.user_id}-${index}`}>
-                                            <UserListItem user={item.author} />
-                                        </div>
-                                    );
-                                }
-
-                                return null;
-                            })
-                        }
+                {
+                    hasMore &&
+                    <div className="search-results-pagination">
+                        <Button
+                            type="button"
+                            variant="secondary"
+                            onClick={loadMore}
+                        >
+                            Load more
+                        </Button>
                     </div>
-
-                    {
-                        hasMore &&
-                        <div className="search-results-pagination">
-                            <button
-                                type="button"
-                                className="btn btn-secondary"
-                                onClick={() => {
-                                    updateSearchParams((params) => {
-                                        params.set("offset", String(offset + limit));
-                                    });
-                                }}
-                            >
-                                Load more
-                            </button>
-                        </div>
-                    }
-                </>
-            }
-        </section>
-    );
+                }
+            </>
+        );
+    };
 
     return (
         <main id="search-results-page">
-            <section className="search-results-header">
+            <Card className="search-results-header" variant="raised">
                 <h1>{isSearchMode ? "Search" : "Popular"}</h1>
                 <p>
                     {
@@ -307,7 +325,7 @@ function SearchResults() {
                     placeholder="Search by title, tags, text, or author"
                     autoFocus
                 />
-            </section>
+            </Card>
 
             <section className="search-results-controls">
                 <div className="search-type-filters" role="tablist" aria-label="Search filters">
@@ -388,10 +406,10 @@ function SearchResults() {
 
             {
                 isSearchMode
-                    ? resultsBody
+                    ? <section className="search-results-body">{renderResults()}</section>
                     : (
                         <section className="search-discovery-layout">
-                            {resultsBody}
+                            <section className="search-results-body">{renderResults()}</section>
                             <aside className="popular-authors-column">
                                 <h2>Popular authors</h2>
                                 {
@@ -402,15 +420,19 @@ function SearchResults() {
                                 }
                                 {
                                     !isPopularAuthorsLoading && isPopularAuthorsError &&
-                                    <div className="search-results-state error">
-                                        {popularAuthorsError?.response?.data?.detail || "Failed to load popular authors"}
-                                    </div>
+                                    <EmptyState
+                                        className="search-results-state"
+                                        title="Couldn\'t load authors"
+                                        description={popularAuthorsError?.response?.data?.detail || "Failed to load popular authors"}
+                                    />
                                 }
                                 {
                                     !isPopularAuthorsLoading && !isPopularAuthorsError && popularAuthorItems.length === 0 &&
-                                    <div className="search-results-state">
-                                        No popular authors found for this period.
-                                    </div>
+                                    <EmptyState
+                                        className="search-results-state"
+                                        title="No authors yet"
+                                        description="No popular authors found for this period."
+                                    />
                                 }
                                 {
                                     !isPopularAuthorsLoading && !isPopularAuthorsError && popularAuthorItems.length > 0 &&

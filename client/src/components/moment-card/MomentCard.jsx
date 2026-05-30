@@ -17,6 +17,7 @@ import LikeIcon from "../icons/LikeIcon";
 import MomentsIcon from "../icons/MomentsIcon";
 import OptionsIcon from "../icons/OptionsIcon";
 import TagChip from "../tag-chip/TagChip";
+import { getUserDisplayName } from "../../utils/userDisplay";
 
 
 const MomentCard = forwardRef(({ moment, removeItem }, ref) => {
@@ -95,7 +96,7 @@ const MomentCard = forwardRef(({ moment, removeItem }, ref) => {
                         alt={`${card.user.username} profile`}
                         onError={() => setAvatarSrc("/assets/profile.svg")}
                     />
-                    <span>{card.user.username}</span>
+                    <span>{getUserDisplayName(card.user, card.user.username)}</span>
                 </Link>
                 <div className="moment-card-header-actions">
                     <span>{new Date(card.published_at || card.created_at).toLocaleDateString()}</span>

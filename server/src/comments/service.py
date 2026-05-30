@@ -510,12 +510,14 @@ class CommentService:
                 author = {
                     "user_id": serialized_author.user_id,
                     "username": serialized_author.username,
+                    "display_name": serialized_author.display_name,
                     "avatar": serialized_author.avatar,
                 }
             else:
                 author = {
                     "user_id": comment.author.user_id,
                     "username": comment.author.username,
+                    "display_name": comment.author.display_name,
                     "avatar": None,
                 }
 
@@ -539,6 +541,7 @@ class CommentService:
             is_deleted=comment.is_deleted,
             reply_to_comment_depth=comment.reply_to_comment_depth,
             reply_to_username=comment.reply_to_username,
+            reply_to_display_name=comment.reply_to_display_name,
             reply_to_comment_ref=comment.reply_to_comment_ref,
         )
 

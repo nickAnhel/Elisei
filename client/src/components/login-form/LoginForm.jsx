@@ -1,10 +1,10 @@
-import { useState, useContext, useRef, useEffect } from "react"
+import { useState, useContext } from "react";
 import { observer } from "mobx-react-lite";
 import { Link, useNavigate } from "react-router-dom";
-import "./LoginForm.css"
+import "./LoginForm.css";
 
-import { StoreContext } from "../../"
-import Loader from "../loader/Loader";
+import { StoreContext } from "../../";
+import { Button, Card, Input } from "../ui";
 
 
 const LoginForm = () => {
@@ -15,14 +15,6 @@ const LoginForm = () => {
     const [username, setUsername] = useState("");
     const [password, setPassword] = useState("");
 
-    const usernameInputRef = useRef(null);
-
-    useEffect(() => {
-        if (username === "") {
-            usernameInputRef?.current?.focus();
-        }
-    }, [username])
-
     const handleSubmit = async (e) => {
         setIsLoading(true);
         e.preventDefault();
@@ -30,51 +22,54 @@ const LoginForm = () => {
         try {
             await store.login(username, password);
             navigate("/");
-        } catch (e) {
-            console.log(e);
-            console.log(e?.response?.data?.detail);
+        } catch (error) {
+            console.log(error);
+            console.log(error?.response?.data?.detail);
         }
 
         setIsLoading(false);
-    }
+    };
 
     return (
-        <div className="login-form">
+        <Card className="login-form" variant="raised" padding="lg">
             <h1>Sign In</h1>
 
             <form onSubmit={(e) => { handleSubmit(e); }}>
-
-                <input
-                    ref={usernameInputRef}
+                <Input
                     id="username"
                     type="text"
+                    label="Username"
                     placeholder="Username"
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
                     required
+                    autoFocus
+                    fullWidth
                 />
 
-
-                <input
+                <Input
                     id="password"
                     type="password"
+                    label="Password"
                     placeholder="Password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     required
+                    fullWidth
                 />
 
-                <button
-                    className="btn btn-primary btn-block"
+                <Button
                     type="submit"
-                    disabled={isLoading}
+                    variant="primary"
+                    fullWidth
+                    loading={isLoading}
                 >
-                    { isLoading ? <Loader /> : "Sign In"}
-                </button>
-                <div className="hint">Don't have an account? <Link to="/signup">Sign Up</Link></div>
+                    Sign In
+                </Button>
+                <div className="hint">Don\'t have an account? <Link to="/signup">Sign Up</Link></div>
             </form>
-        </div>
-    )
-}
+        </Card>
+    );
+};
 
 export default observer(LoginForm);

@@ -51,21 +51,6 @@
     transition: color var(--duration-fast) var(--ease-standard), background-color var(--duration-fast) var(--ease-standard), border-color var(--duration-fast) var(--ease-standard);
 }
 
-.sidebar-item::before,
-.notification-bell-trigger::before {
-    content: "";
-    position: absolute;
-    left: -0.6rem;
-    top: 50%;
-    width: 0.2rem;
-    height: 1.4rem;
-    border-radius: var(--radius-pill);
-    background: var(--color-accent);
-    transform: translateY(-50%) scaleY(0.2);
-    opacity: 0;
-    transition: opacity var(--duration-fast) var(--ease-standard), transform var(--duration-fast) var(--ease-standard);
-}
-
 .sidebar-item:hover,
 .notification-bell-trigger:hover {
     color: var(--color-text);
@@ -78,12 +63,6 @@
     color: var(--color-accent);
     background: var(--color-accent-surface);
     border-color: color-mix(in srgb, var(--color-accent) 36%, var(--color-border));
-}
-
-.sidebar-item.active::before,
-.notification-bell-trigger.active::before {
-    opacity: 1;
-    transform: translateY(-50%) scaleY(1);
 }
 
 .sidebar-item:focus-visible,

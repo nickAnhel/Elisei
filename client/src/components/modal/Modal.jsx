@@ -1,10 +1,15 @@
 import "./Modal.css"
 
 
-function Modal({ active, setActive, children }) {
+function Modal({ active, setActive, children, contentClassName = "" }) {
+    const contentClasses = [
+        active ? "modal-content active" : "modal-content",
+        contentClassName,
+    ].filter(Boolean).join(" ");
+
     return (
         <div className={active ? "modal active" : "modal"} onClick={() => setActive(false)}>
-            <div className={active ? "modal-content active" : "modal-content"} onClick={e => e.stopPropagation()}>
+            <div className={contentClasses} onClick={e => e.stopPropagation()}>
                 {children}
             </div>
         </div>

@@ -39,3 +39,15 @@
     opacity: 1;
     transform: translateY(0);
 }
+
+.post-details-modal-content {
+    width: min(64rem, calc(100vw - var(--space-6)));
+    max-width: 100%;
+    overflow-y: hidden;
+}
+
+@media (max-width: 900px) {
+    .post-details-modal-content {
+        width: min(64rem, calc(100vw - var(--space-4)));
+    }
+}

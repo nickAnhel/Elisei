@@ -8,6 +8,7 @@ import ContentService from "../../service/ContentService";
 
 import ContentList from "../../components/content-list/ContentList";
 import FeedContentCard from "../../components/feed-content-card/FeedContentCard";
+import { Tabs, TabsList, TabsTrigger } from "../../components/ui";
 
 
 const FEED_TABS = {
@@ -143,18 +144,15 @@ function GlobalFeed() {
     return (
         <main id="global-feed">
             <header className="global-feed-header">
-                <div className="global-feed-tabs" role="tablist" aria-label="Feed tabs">
-                    {availableTabs.map((tab) => (
-                        <button
-                            key={tab.id}
-                            type="button"
-                            className={activeTab === tab.id ? "active" : ""}
-                            onClick={() => setTab(tab.id)}
-                        >
-                            {tab.label}
-                        </button>
-                    ))}
-                </div>
+                <Tabs value={activeTab} onValueChange={setTab}>
+                    <TabsList className="global-feed-tabs" aria-label="Feed tabs">
+                        {availableTabs.map((tab) => (
+                            <TabsTrigger key={tab.id} value={tab.id}>
+                                {tab.label}
+                            </TabsTrigger>
+                        ))}
+                    </TabsList>
+                </Tabs>
 
                 <div className="global-feed-controls">
                     <div className="global-feed-types" role="tablist" aria-label="Content type filters">
@@ -171,7 +169,7 @@ function GlobalFeed() {
                     </div>
 
                     <label className="global-feed-sort" htmlFor="global-feed-sort-select">
-                        Sort
+                        <span>Sort</span>
                         <select
                             id="global-feed-sort-select"
                             value={activeSort}
