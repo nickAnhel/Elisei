@@ -9,6 +9,7 @@ import ContentService from "../../service/ContentService";
 
 import Loader from "../../components/loader/Loader";
 import Modal from "../../components/modal/Modal";
+import MediaViewer from "../../components/media-viewer";
 import CommentSection from "../../components/comment-section/CommentSection";
 import ArticleRenderer from "../../components/article-renderer/ArticleRenderer";
 import SimilarContentBlock from "../../components/similar-content-block/SimilarContentBlock";
@@ -46,6 +47,9 @@ function ArticleDetails() {
     const [isDeleteModalActive, setIsDeleteModalActive] = useState(false);
     const [isShareModalActive, setIsShareModalActive] = useState(false);
     const [copyState, setCopyState] = useState("Copy link");
+    const [mediaViewerItems, setMediaViewerItems] = useState([]);
+    const [mediaViewerIndex, setMediaViewerIndex] = useState(0);
+    const [isMediaViewerOpen, setIsMediaViewerOpen] = useState(false);
 
     useEffect(() => {
         if (!articleId) {
@@ -319,6 +323,19 @@ function ArticleDetails() {
         ));
     };
 
+    const handleArticleMediaOpen = useCallback(({ item, items = [] }) => {
+        if (!item) {
+            return;
+        }
+
+        const nextItems = items.length > 0 ? items : [item];
+        const nextIndex = Math.max(nextItems.findIndex((entry) => entry.id === item.id), 0);
+
+        setMediaViewerItems(nextItems);
+        setMediaViewerIndex(nextIndex);
+        setIsMediaViewerOpen(true);
+    }, []);
+
     const handleDelete = async () => {
         if (!article || isDeleting) {
             return;
@@ -420,7 +437,11 @@ function ArticleDetails() {
                     </header>
 
                     <section className="article-body">
-                        <ArticleRenderer bodyMarkdown={article.body_markdown} article={article} />
+                        <ArticleRenderer
+                            bodyMarkdown={article.body_markdown}
+                            article={article}
+                            onMediaOpen={handleArticleMediaOpen}
+                        />
                     </section>
 
                     <section className="article-feedback">
@@ -552,6 +573,16 @@ function ArticleDetails() {
                     </div>
                 </div>
             </Modal>
+
+            <MediaViewer
+                open={isMediaViewerOpen}
+                items={mediaViewerItems}
+                activeIndex={mediaViewerIndex}
+                onClose={() => setIsMediaViewerOpen(false)}
+                onIndexChange={setMediaViewerIndex}
+                ariaLabel="Article media"
+                videoSkin="article"
+            />
         </div>
     );
 }

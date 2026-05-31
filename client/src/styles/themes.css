@@ -19,6 +19,7 @@
     --color-accent-hover: #9b77ff;
     --color-accent-muted: #ad96f7;
     --color-accent-surface: rgba(140, 101, 243, 0.2);
+    --color-on-accent: #ffffff;
 
     --color-success: #37c788;
     --color-warning: #f4b348;
@@ -50,6 +51,7 @@
     --color-accent-hover: #5f4ccd;
     --color-accent-muted: #8174d8;
     --color-accent-surface: rgba(105, 85, 217, 0.14);
+    --color-on-accent: #ffffff;
 
     --color-success: #148a62;
     --color-warning: #bc7a14;

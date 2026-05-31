@@ -34,6 +34,10 @@ import {
     formatAttachmentSize,
     resolveAssetTypeForFile,
 } from "../../utils/postAttachments";
+import MediaViewer, {
+    findMediaViewerIndexByAttachment,
+    normalizeAttachmentListToMediaViewerItems,
+} from "../media-viewer";
 import {
     buildSearchSnippet,
     splitHighlightedText,
@@ -409,6 +413,9 @@ function ChatDetails() {
     const [searchError, setSearchError] = useState("");
     const [focusedSearchMessageId, setFocusedSearchMessageId] = useState(null);
     const [jumpingToSearchMessageId, setJumpingToSearchMessageId] = useState(null);
+    const [mediaViewerItems, setMediaViewerItems] = useState([]);
+    const [mediaViewerIndex, setMediaViewerIndex] = useState(0);
+    const [isMediaViewerOpen, setIsMediaViewerOpen] = useState(false);
 
     const socket = useRef(null);
     const messagesEndRef = useRef(null);
@@ -715,6 +722,9 @@ function ChatDetails() {
             setIsSearchPanelOpen(false);
             setIsOptionsOpen(false);
             setMessageMenu(null);
+            setIsMediaViewerOpen(false);
+            setMediaViewerItems([]);
+            setMediaViewerIndex(0);
             const nextParams = new URLSearchParams(searchParams);
             nextParams.delete("messageSearch");
             nextParams.delete("messageSearchOffset");
@@ -1602,6 +1612,17 @@ function ChatDetails() {
         handleMessageReaction(selectedMessage, reactionType);
     }
 
+    const handleAttachmentOpen = useCallback((attachment, attachmentList = []) => {
+        const items = normalizeAttachmentListToMediaViewerItems(attachmentList);
+        if (items.length === 0) {
+            return;
+        }
+
+        setMediaViewerItems(items);
+        setMediaViewerIndex(findMediaViewerIndexByAttachment(items, attachment));
+        setIsMediaViewerOpen(true);
+    }, []);
+
     const handleChatSaved = (nextChat) => {
         if (!nextChat) {
             return;
@@ -1841,6 +1862,7 @@ function ChatDetails() {
                                     reactions={item.reactions}
                                     isHighlighted={focusedSearchMessageId === item.messageId}
                                     showUsername={isGroupChat}
+                                    onAttachmentOpen={handleAttachmentOpen}
                                     onContextMenu={(event) => openMessageMenu(event, item)}
                                     onReplyPreviewClick={scrollToMessage}
                                     onRetry={() => retryMessage(item.clientMessageId)}
@@ -2031,6 +2053,7 @@ function ChatDetails() {
                             type="button"
                             variant="primary"
                             className="chat-send-button"
+                            aria-label={editingMessage ? "Save message" : "Send message"}
                             onClick={sendMessage}
                             disabled={!canSendMessage}
                         >
@@ -2045,6 +2068,16 @@ function ChatDetails() {
                     </button>
                 )
             )}
+
+            <MediaViewer
+                open={isMediaViewerOpen}
+                items={mediaViewerItems}
+                activeIndex={mediaViewerIndex}
+                onClose={() => setIsMediaViewerOpen(false)}
+                onIndexChange={setMediaViewerIndex}
+                ariaLabel="Chat media"
+                videoSkin="chat"
+            />
 
             <ChatModal
                 key={"edit"}

@@ -51,7 +51,7 @@
 
 .ui-button--primary {
     background: linear-gradient(160deg, var(--color-accent), var(--color-accent-hover));
-    color: #fff;
+    color: var(--color-on-accent);
     box-shadow: 0 10px 24px color-mix(in srgb, var(--color-accent) 34%, transparent);
 }
 

@@ -10,9 +10,12 @@ import AssetService from "../../service/AssetService";
 import Unauthorized from "../../components/unauthorized/Unauthorized";
 import Loader from "../../components/loader/Loader";
 import Modal from "../../components/modal/Modal";
+import MediaViewer from "../../components/media-viewer";
+import MarkdownToolbar from "../../components/markdown-toolbar";
 import TagInput from "../../components/tag-input/TagInput";
 import ArticleRenderer from "../../components/article-renderer/ArticleRenderer";
 import AddIcon from "../../components/icons/AddIcon";
+import { Button } from "../../components/ui";
 import { buildComposerAttachmentFromAsset, resolveAssetTypeForFile } from "../../utils/postAttachments";
 import { MarkdownIcon, PreviewIcon, SplitViewIcon } from "../../components/icons/ArticleUiIcons";
 import {
@@ -72,6 +75,9 @@ function ArticleEditor() {
     const [isMermaidModalActive, setIsMermaidModalActive] = useState(false);
     const [mermaidDraft, setMermaidDraft] = useState(DEFAULT_MERMAID_CODE);
     const [editingMermaidBlockIndex, setEditingMermaidBlockIndex] = useState(null);
+    const [mediaViewerItems, setMediaViewerItems] = useState([]);
+    const [mediaViewerIndex, setMediaViewerIndex] = useState(0);
+    const [isMediaViewerOpen, setIsMediaViewerOpen] = useState(false);
 
     useEffect(() => {
         const nextArticleId = routeArticleId || null;
@@ -409,6 +415,12 @@ function ArticleEditor() {
             return;
         }
 
+        if (event.altKey && !event.shiftKey && key === "1") {
+            event.preventDefault();
+            prefixMarkdownLines("# ", "Main heading");
+            return;
+        }
+
         if (event.altKey && !event.shiftKey && key === "3") {
             event.preventDefault();
             prefixMarkdownLines("### ", "Subsection heading");
@@ -475,6 +487,74 @@ function ArticleEditor() {
         }
     };
 
+    const handleToolbarApply = (action) => {
+        switch (action.id) {
+        case "bold":
+            wrapMarkdownSelection("**", "**", "bold text");
+            break;
+        case "italic":
+            wrapMarkdownSelection("*", "*", "italic text");
+            break;
+        case "inline_code":
+            wrapMarkdownSelection("`", "`", "code");
+            break;
+        case "quote":
+            prefixMarkdownLines("> ", "Quoted text");
+            break;
+        case "list":
+            prefixMarkdownLines("- ", "List item");
+            break;
+        case "code_block":
+            wrapMarkdownSelection("```js\n", "\n```", "console.log('Hello')");
+            break;
+        case "h1":
+            prefixMarkdownLines("# ", "Main heading");
+            break;
+        case "h2":
+            prefixMarkdownLines("## ", "Section heading");
+            break;
+        case "h3":
+            prefixMarkdownLines("### ", "Subsection heading");
+            break;
+        case "h4":
+            prefixMarkdownLines("#### ", "Minor heading");
+            break;
+        case "table":
+            insertMarkdown("| Column | Value |\n| --- | --- |\n| $SELECTION$ |  |\n", "Item");
+            break;
+        case "spoiler":
+            wrapMarkdownSelection(":::spoiler[Context]\n", "\n:::", "Hidden details");
+            break;
+        case "youtube":
+            insertMarkdown('::youtube{id="dQw4w9WgXcQ" title="Video"}\n');
+            break;
+        case "link":
+            insertMarkdown("[$SELECTION$](https://example.com)", "link text");
+            break;
+        case "upload_image":
+            imageInputRef.current?.click();
+            break;
+        case "upload_video":
+            videoInputRef.current?.click();
+            break;
+        default:
+            break;
+        }
+    };
+
+    const handleArticleMediaOpen = ({ item, items = [] }) => {
+        if (!item) {
+            return;
+        }
+
+        const nextItems = items.length > 0 ? items : [item];
+        const nextIndex = Math.max(nextItems.findIndex((entry) => entry.id === item.id), 0);
+
+        setMediaViewerItems(nextItems);
+        setMediaViewerIndex(nextIndex);
+        setIsMediaViewerOpen(true);
+    };
+
     if (!store.isAuthenticated) {
         return (
             <div id="article-editor-page">
@@ -497,43 +577,12 @@ function ArticleEditor() {
                 <section className="article-editor-panel">
                     <div className="article-editor-header">
                         <div>
-                            <span className="article-editor-kicker">Markdown-first editor</span>
                             <h1>{articleId ? "Edit article" : "New article"}</h1>
                         </div>
                         <div className="article-editor-status">
                             <span>{saveState}</span>
                             {isSaving && <Loader />}
                         </div>
-                    </div>
-
-                    <div className="article-editor-view-toggle" role="tablist" aria-label="Editor view mode">
-                        <button
-                            type="button"
-                            className={editorViewMode === "source" ? "active" : ""}
-                            onClick={() => setEditorViewMode("source")}
-                            title="Markdown mode"
-                        >
-                            <MarkdownIcon />
-                            <span>Markdown</span>
-                        </button>
-                        <button
-                            type="button"
-                            className={editorViewMode === "split" ? "active" : ""}
-                            onClick={() => setEditorViewMode("split")}
-                            title="Split mode"
-                        >
-                            <SplitViewIcon />
-                            <span>Split</span>
-                        </button>
-                        <button
-                            type="button"
-                            className={editorViewMode === "preview" ? "active" : ""}
-                            onClick={() => setEditorViewMode("preview")}
-                            title="Rendered preview"
-                        >
-                            <PreviewIcon />
-                            <span>Preview</span>
-                        </button>
                     </div>
 
                     <div className="article-editor-meta-grid">
@@ -619,50 +668,44 @@ function ArticleEditor() {
                         onInputStateChange={setTagInputState}
                     />
 
-                    <div className="article-editor-toolbar">
-                        <ToolbarIconButton label="Bold" title="Bold (Ctrl/Cmd+B)" onClick={() => wrapMarkdownSelection("**", "**", "bold text")}>
-                            B
-                        </ToolbarIconButton>
-                        <ToolbarIconButton label="Italic" title="Italic (Ctrl/Cmd+I)" onClick={() => wrapMarkdownSelection("*", "*", "italic text")}>
-                            I
-                        </ToolbarIconButton>
-                        <ToolbarIconButton label="Heading 2" title="Heading 2 (Ctrl/Cmd+Alt+2)" onClick={() => prefixMarkdownLines("## ", "Section heading")}>
-                            H2
-                        </ToolbarIconButton>
-                        <ToolbarIconButton label="Heading 3" title="Heading 3 (Ctrl/Cmd+Alt+3)" onClick={() => prefixMarkdownLines("### ", "Subsection heading")}>
-                            H3
-                        </ToolbarIconButton>
-                        <ToolbarIconButton label="Heading 4" title="Heading 4 (Ctrl/Cmd+Alt+4)" onClick={() => prefixMarkdownLines("#### ", "Minor heading")}>
-                            H4
-                        </ToolbarIconButton>
-                        <ToolbarIconButton label="Quote" title="Quote (Ctrl/Cmd+Shift+Q)" onClick={() => prefixMarkdownLines("> ", "Quoted text")}>
-                            {">"}
-                        </ToolbarIconButton>
-                        <ToolbarIconButton label="List" title="List (Ctrl/Cmd+Shift+L)" onClick={() => prefixMarkdownLines("- ", "List item")}>
-                            L
-                        </ToolbarIconButton>
-                        <ToolbarIconButton label="Code block" title="Code block (Ctrl/Cmd+Alt+C)" onClick={() => wrapMarkdownSelection("```js\n", "\n```", "console.log('Hello')")}>
-                            {"</>"}
-                        </ToolbarIconButton>
-                        <ToolbarIconButton label="Spoiler" title="Spoiler (Ctrl/Cmd+Alt+S)" onClick={() => wrapMarkdownSelection(":::spoiler[Context]\n", "\n:::", "Hidden details")}>
-                            ...
-                        </ToolbarIconButton>
-                        <ToolbarIconButton label="Table" title="Table (Ctrl/Cmd+Alt+T)" onClick={() => insertMarkdown("| Column | Value |\n| --- | --- |\n| $SELECTION$ |  |\n", "Item")}>
-                            #|
-                        </ToolbarIconButton>
-                        <ToolbarIconButton label="Mermaid diagram" title="Mermaid diagram (Ctrl/Cmd+Alt+M)" onClick={() => openMermaidEditor()}>
-                            M
-                        </ToolbarIconButton>
-                        <ToolbarIconButton label="YouTube embed" title="YouTube embed (Ctrl/Cmd+Alt+Y)" onClick={() => insertMarkdown('::youtube{id="dQw4w9WgXcQ" title="Video"}\n')}>
-                            YT
-                        </ToolbarIconButton>
-                        <ToolbarIconButton label="Upload image" title="Upload image (Ctrl/Cmd+Shift+I)" onClick={() => imageInputRef.current?.click()}>
-                            Img
-                        </ToolbarIconButton>
-                        <ToolbarIconButton label="Upload video" title="Upload video (Ctrl/Cmd+Alt+V)" onClick={() => videoInputRef.current?.click()}>
-                            Vid
-                        </ToolbarIconButton>
+                    <div className="article-editor-view-toggle" role="tablist" aria-label="Editor view mode">
+                        <button
+                            type="button"
+                            className={editorViewMode === "source" ? "active" : ""}
+                            onClick={() => setEditorViewMode("source")}
+                            title="Markdown mode"
+                        >
+                            <MarkdownIcon />
+                            <span>Markdown</span>
+                        </button>
+                        <button
+                            type="button"
+                            className={editorViewMode === "split" ? "active" : ""}
+                            onClick={() => setEditorViewMode("split")}
+                            title="Split mode"
+                        >
+                            <SplitViewIcon />
+                            <span>Split</span>
+                        </button>
+                        <button
+                            type="button"
+                            className={editorViewMode === "preview" ? "active" : ""}
+                            onClick={() => setEditorViewMode("preview")}
+                            title="Rendered preview"
+                        >
+                            <PreviewIcon />
+                            <span>Preview</span>
+                        </button>
                     </div>
+
+                    <MarkdownToolbar
+                        id="article-markdown-toolbar"
+                        className="article-editor-toolbar"
+                        preset="article"
+                        textareaRef={textareaRef}
+                        disabled={isSaving}
+                        onApply={handleToolbarApply}
+                    />
 
                     <input
                         ref={imageInputRef}
@@ -707,6 +750,7 @@ function ArticleEditor() {
                                     extraAssets={Object.values(buildArticleAssetLookup(previewArticle))}
                                     renderMode="editor"
                                     onEditMermaid={openMermaidEditor}
+                                    onMediaOpen={handleArticleMediaOpen}
                                 />
                             </div>
                         </div>
@@ -715,16 +759,16 @@ function ArticleEditor() {
                     {(saveError || assetError) && <div className="article-editor-error">{saveError || assetError}</div>}
 
                     <div className="article-editor-actions">
-                        <button type="button" className="btn btn-secondary" onClick={() => persistArticle()}>
+                        <Button type="button" variant="secondary" onClick={() => persistArticle()}>
                             Save now
-                        </button>
-                        <button
+                        </Button>
+                        <Button
                             type="button"
-                            className="btn btn-primary"
+                            variant="primary"
                             onClick={() => persistArticle({ publish: form.status === "published" })}
                         >
                             {form.status === "published" ? "Publish / Update" : "Save draft"}
-                        </button>
+                        </Button>
                     </div>
                 </section>
             </div>
@@ -747,15 +791,25 @@ function ArticleEditor() {
                         <pre>{mermaidDraft}</pre>
                     </div>
                     <div className="article-mermaid-modal-actions">
-                        <button type="button" className="btn btn-secondary" onClick={() => setIsMermaidModalActive(false)}>
+                        <Button type="button" variant="secondary" onClick={() => setIsMermaidModalActive(false)}>
                             Cancel
-                        </button>
-                        <button type="button" className="btn btn-primary" onClick={saveMermaidDiagram}>
+                        </Button>
+                        <Button type="button" variant="primary" onClick={saveMermaidDiagram}>
                             {editingMermaidBlockIndex !== null ? "Update diagram" : "Insert diagram"}
-                        </button>
+                        </Button>
                     </div>
                 </div>
             </Modal>
+
+            <MediaViewer
+                open={isMediaViewerOpen}
+                items={mediaViewerItems}
+                activeIndex={mediaViewerIndex}
+                onClose={() => setIsMediaViewerOpen(false)}
+                onIndexChange={setMediaViewerIndex}
+                ariaLabel="Article editor media preview"
+                videoSkin="article"
+            />
         </div>
     );
 }
@@ -814,19 +868,6 @@ function mergeEditorAssets({
     });
 
     return Array.from(mergedAssets.values()).filter((asset) => referencedAssetIds.has(asset.asset_id));
-}
-
-function ToolbarIconButton({
-    label,
-    title,
-    onClick,
-    children,
-}) {
-    return (
-        <button type="button" className="article-toolbar-icon-button" onClick={onClick} aria-label={label} title={title}>
-            <span className="article-toolbar-glyph" aria-hidden="true">{children}</span>
-        </button>
-    );
 }
 
 export default ArticleEditor;

@@ -49,8 +49,19 @@
     overflow-x: hidden;
 }
 
+.post-modal-content {
+    width: min(44.2rem, calc(100vw - var(--space-6)));
+    max-width: 100%;
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+
 @media (max-width: 900px) {
     .post-details-modal-content {
         width: min(64rem, calc(100vw - var(--space-4)));
+    }
+
+    .post-modal-content {
+        width: min(44.2rem, calc(100vw - var(--space-4)));
     }
 }

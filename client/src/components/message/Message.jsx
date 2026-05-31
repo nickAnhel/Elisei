@@ -201,6 +201,12 @@ function resolveContentTypeLabel(contentType) {
 }
 
 function MessageAttachments({ attachments = [], onAttachmentOpen }) {
+    const mediaAttachments = attachments.filter((attachment) => {
+        const isImage = attachment.asset_type === "image" || attachment.file_kind === "image";
+        const isVideo = attachment.asset_type === "video" || attachment.file_kind === "video";
+        return isImage || isVideo;
+    });
+
     return (
         <div className="msg-attachments">
             {attachments.map((attachment) => {
@@ -216,19 +222,19 @@ function MessageAttachments({ attachments = [], onAttachmentOpen }) {
 
                 if (isImage && mediaUrl) {
                     return (
-                        <a
+                        <button
                             key={key}
+                            type="button"
                             className="msg-attachment-media"
-                            href={attachment.original_url || mediaUrl}
-                            target="_blank"
-                            rel="noreferrer"
                             onClick={(event) => {
+                                event.preventDefault();
                                 event.stopPropagation();
-                                onAttachmentOpen?.(attachment, attachments);
+                                onAttachmentOpen?.(attachment, mediaAttachments);
                             }}
+                            aria-label={`Open ${attachment.original_filename || "image"} in media viewer`}
                         >
                             <img src={mediaUrl} alt={attachment.original_filename || "Image attachment"} />
-                        </a>
+                        </button>
                     );
                 }
 
@@ -248,6 +254,16 @@ function MessageAttachments({ attachments = [], onAttachmentOpen }) {
                                     },
                                 ]}
                             />
+                            <button
+                                type="button"
+                                className="msg-attachment-open-media"
+                                onClick={(event) => {
+                                    event.stopPropagation();
+                                    onAttachmentOpen?.(attachment, mediaAttachments);
+                                }}
+                            >
+                                Open in viewer
+                            </button>
                         </div>
                     );
                 }

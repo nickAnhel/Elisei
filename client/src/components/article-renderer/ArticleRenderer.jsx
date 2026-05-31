@@ -6,6 +6,7 @@ import { oneDark } from "react-syntax-highlighter/dist/esm/styles/prism";
 import "./ArticleRenderer.css";
 
 import { buildArticleAssetLookup, buildMermaidPreviewUrl, parseArticleMarkdown, slugifyHeading } from "../../utils/articleMarkdown";
+import { normalizeAttachmentToMediaViewerItem } from "../media-viewer";
 import VideoPlayer from "../video-player";
 
 
@@ -44,6 +45,20 @@ function MarkdownBlock({ content }) {
                         </code>
                     );
                 },
+                a({ href, children, ...props }) {
+                    const normalizedHref = String(href || "").trim();
+                    const isExternal = /^(https?:)?\/\//i.test(normalizedHref);
+                    return (
+                        <a
+                            href={normalizedHref || "#"}
+                            target={isExternal ? "_blank" : undefined}
+                            rel={isExternal ? "noreferrer" : undefined}
+                            {...props}
+                        >
+                            {children}
+                        </a>
+                    );
+                },
             }}
         >
             {content}
@@ -66,15 +81,27 @@ function buildVideoSources(asset) {
     }];
 }
 
+function buildArticleMediaItems(assetLookup) {
+    return Object.values(assetLookup)
+        .filter((asset) => (
+            asset
+            && (asset.asset_type === "image" || asset.asset_type === "video" || asset.file_kind === "image" || asset.file_kind === "video")
+            && (asset.original_url || asset.preview_url || asset.stream_url)
+        ))
+        .map((asset) => normalizeAttachmentToMediaViewerItem(asset));
+}
+
 function ArticleRenderer({
     bodyMarkdown,
     article = null,
     extraAssets = [],
     renderMode = "default",
     onEditMermaid = null,
+    onMediaOpen = null,
 }) {
     const blocks = parseArticleMarkdown(bodyMarkdown || "");
     const assetLookup = buildArticleAssetLookup(article, extraAssets);
+    const mediaViewerItems = buildArticleMediaItems(assetLookup);
     let mermaidIndex = -1;
 
     return (
@@ -95,6 +122,7 @@ function ArticleRenderer({
                                     extraAssets={extraAssets}
                                     renderMode={renderMode}
                                     onEditMermaid={onEditMermaid}
+                                    onMediaOpen={onMediaOpen}
                                 />
                             </details>
                         );
@@ -115,10 +143,30 @@ function ArticleRenderer({
 
                         return (
                             <figure className={`article-figure ${block.attrs.size || "wide"}`} key={`image-${index}`}>
-                                <img
-                                    src={asset.original_url || asset.preview_url}
-                                    alt={block.attrs.caption || asset.original_filename || "Article image"}
-                                />
+                                {
+                                    onMediaOpen
+                                        ? (
+                                            <button
+                                                type="button"
+                                                className="article-media-open-button"
+                                                onClick={() => onMediaOpen({
+                                                    item: normalizeAttachmentToMediaViewerItem(asset),
+                                                    items: mediaViewerItems,
+                                                })}
+                                                aria-label={`Open ${block.attrs.caption || asset.original_filename || "article image"} in viewer`}
+                                            >
+                                                <img
+                                                    src={asset.original_url || asset.preview_url}
+                                                    alt={block.attrs.caption || asset.original_filename || "Article image"}
+                                                />
+                                            </button>
+                                        ) : (
+                                            <img
+                                                src={asset.original_url || asset.preview_url}
+                                                alt={block.attrs.caption || asset.original_filename || "Article image"}
+                                            />
+                                        )
+                                }
                                 {block.attrs.caption && <figcaption>{block.attrs.caption}</figcaption>}
                             </figure>
                         );
@@ -146,6 +194,19 @@ function ArticleRenderer({
                                     title={block.attrs.caption || asset.original_filename || "Article video"}
                                     preload="metadata"
                                 />
+                                {
+                                    onMediaOpen &&
+                                    <button
+                                        type="button"
+                                        className="article-video-open-button"
+                                        onClick={() => onMediaOpen({
+                                            item: normalizeAttachmentToMediaViewerItem(asset),
+                                            items: mediaViewerItems,
+                                        })}
+                                    >
+                                        Open in viewer
+                                    </button>
+                                }
                                 {block.attrs.caption && <figcaption>{block.attrs.caption}</figcaption>}
                             </figure>
                         );

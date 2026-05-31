@@ -11,6 +11,7 @@ import DislikeIcon from "../icons/DislikeIcon";
 import LikeIcon from "../icons/LikeIcon";
 import ReplyIcon from "../icons/ReplyIcon";
 import CommentReplies from "../comment-replies/CommentReplies";
+import MarkdownRenderer from "../markdown-renderer";
 import Modal from "../modal/Modal";
 import { getAvatarUrl } from "../../utils/avatar";
 import { getUserDisplayName } from "../../utils/userDisplay";
@@ -393,7 +394,9 @@ function CommentListItem({
 
                     {
                         !comment.is_deleted && !isEditing &&
-                        <p className="comment-body">{comment.body_text}</p>
+                        <div className="comment-body">
+                            <MarkdownRenderer preset="comment" value={comment.body_text} />
+                        </div>
                     }
 
                     {
