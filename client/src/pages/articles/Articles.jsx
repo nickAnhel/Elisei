@@ -16,6 +16,25 @@ const ARTICLE_TABS = {
     subscriptions: "subscriptions",
 };
 
+const RECOMMENDATION_SORTS = [
+    { id: "relevance", label: "Relevance" },
+    { id: "newest", label: "Newest" },
+    { id: "oldest", label: "Oldest" },
+];
+
+const SUBSCRIPTION_SORTS = [
+    { id: "newest", label: "Newest" },
+    { id: "oldest", label: "Oldest" },
+];
+
+function normalizeSort(tab, sort) {
+    const allowedSorts = tab === ARTICLE_TABS.subscriptions
+        ? SUBSCRIPTION_SORTS
+        : RECOMMENDATION_SORTS;
+    const fallback = allowedSorts[0].id;
+    return allowedSorts.some((option) => option.id === sort) ? sort : fallback;
+}
+
 
 function Articles() {
     const { store } = useContext(StoreContext);
@@ -23,21 +42,40 @@ function Articles() {
     const [searchParams, setSearchParams] = useSearchParams();
     const [searchQuery, setSearchQuery] = useState("");
     const requestedTab = searchParams.get("tab") || ARTICLE_TABS.recommendations;
+    const requestedSort = searchParams.get("sort") || "relevance";
     const activeTab = (
         requestedTab === ARTICLE_TABS.subscriptions && store.isAuthenticated
             ? ARTICLE_TABS.subscriptions
             : ARTICLE_TABS.recommendations
     );
+    const activeSort = normalizeSort(activeTab, requestedSort);
 
     useEffect(() => {
-        if (requestedTab !== activeTab) {
-            setSearchParams({ tab: activeTab }, { replace: true });
+        if (requestedTab !== activeTab || requestedSort !== activeSort) {
+            setSearchParams({
+                tab: activeTab,
+                sort: activeSort,
+            }, { replace: true });
         }
-    }, [activeTab, requestedTab, setSearchParams]);
+    }, [activeSort, activeTab, requestedSort, requestedTab, setSearchParams]);
 
     const setTab = (tab) => {
-        setSearchParams({ tab });
+        setSearchParams({
+            tab,
+            sort: normalizeSort(tab, activeSort),
+        });
     };
+
+    const setSort = (sort) => {
+        setSearchParams({
+            tab: activeTab,
+            sort,
+        });
+    };
+
+    const availableSorts = activeTab === ARTICLE_TABS.subscriptions
+        ? SUBSCRIPTION_SORTS
+        : RECOMMENDATION_SORTS;
 
     const fetchItems = activeTab === ARTICLE_TABS.subscriptions
         ? ContentService.getSubscriptionsFeed
@@ -46,11 +84,11 @@ function Articles() {
         ? {
             content_type: "article",
             order: "published_at",
-            desc: true,
+            desc: activeSort !== "oldest",
         }
         : {
             content_type: "article",
-            sort: "relevance",
+            sort: activeSort,
         };
     const emptyText = activeTab === ARTICLE_TABS.subscriptions
         ? "No articles from subscriptions"
@@ -60,9 +98,7 @@ function Articles() {
         <div id="articles-page">
             <Card className="articles-page-header" variant="raised">
                 <div>
-                    <span className="articles-page-kicker">Long-form publishing</span>
                     <h1>Articles</h1>
-                    <p>Editorial-style writing, deep dives, diagrams, code blocks, and threaded discussion.</p>
                 </div>
                 {
                     store.isAuthenticated &&
@@ -83,26 +119,43 @@ function Articles() {
                 placeholder="Search articles and creators"
             />
 
-            <Tabs value={activeTab} onValueChange={setTab}>
-                <TabsList className="articles-page-sections" aria-label="Article sections">
-                    <TabsTrigger value={ARTICLE_TABS.recommendations}>
-                        Recommendations
-                    </TabsTrigger>
-                    {
-                        store.isAuthenticated &&
-                        <TabsTrigger value={ARTICLE_TABS.subscriptions}>
-                            Subscriptions
+            <div className="articles-page-toolbar">
+                <Tabs value={activeTab} onValueChange={setTab}>
+                    <TabsList className="articles-page-sections" aria-label="Article sections">
+                        <TabsTrigger value={ARTICLE_TABS.recommendations}>
+                            Recommendations
                         </TabsTrigger>
-                    }
-                </TabsList>
-            </Tabs>
+                        {
+                            store.isAuthenticated &&
+                            <TabsTrigger value={ARTICLE_TABS.subscriptions}>
+                                Subscriptions
+                            </TabsTrigger>
+                        }
+                    </TabsList>
+                </Tabs>
+
+                <label className="articles-page-sort" htmlFor="articles-sort-select">
+                    <span>Sort</span>
+                    <select
+                        id="articles-sort-select"
+                        value={activeSort}
+                        onChange={(event) => setSort(event.target.value)}
+                    >
+                        {availableSorts.map((sortOption) => (
+                            <option key={sortOption.id} value={sortOption.id}>
+                                {sortOption.label}
+                            </option>
+                        ))}
+                    </select>
+                </label>
+            </div>
 
             <ContentList
-                key={`articles-${activeTab}`}
+                key={`articles-${activeTab}-${activeSort}`}
                 fetchItems={fetchItems}
                 filters={filters}
                 pageSize={activeTab === ARTICLE_TABS.recommendations ? 10 : 5}
-                refresh={`${store.isRefreshPosts}-${activeTab}`}
+                refresh={`${store.isRefreshPosts}-${activeTab}-${activeSort}`}
                 emptyText={emptyText}
                 renderItem={({ item, removeItem, ref }) => (
                     <ArticleCard

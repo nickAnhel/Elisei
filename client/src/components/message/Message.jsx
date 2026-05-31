@@ -9,11 +9,14 @@ import FileTypeIcon from "../icons/FileTypeIcon";
 import { getAvatarUrl } from "../../utils/avatar";
 import { formatAttachmentSize } from "../../utils/postAttachments";
 import { getMessageReactionMeta } from "./messageReactions";
+import { getUserDisplayName } from "../../utils/userDisplay";
+import VideoPlayer from "../video-player";
 
 
 function Message({
     messageId,
     username,
+    profileUsername = null,
     content,
     createdAt,
     avatarUrl = null,
@@ -25,6 +28,8 @@ function Message({
     sharedContent = null,
     reactions = [],
     isHighlighted = false,
+    showUsername = true,
+    onAttachmentOpen,
     onContextMenu,
     onReplyPreviewClick,
     onRetry,
@@ -44,18 +49,22 @@ function Message({
         );
     }, [avatarUrl, store.user, username]);
 
+    const isOwnMessage = username === "You";
     const isDeleted = Boolean(deletedAt);
     const visibleContent = isDeleted ? "Message deleted" : content;
     const visibleReactions = reactions.filter((reaction) => reaction.count > 0 || reaction.reactedByMe);
+    const profilePath = isOwnMessage
+        ? `/people/@${store.user.username}`
+        : (profileUsername ? `/people/@${profileUsername}` : "/people");
 
     return (
         <>
             <div
                 id={messageId ? `message-${messageId}` : undefined}
-                className={`${username === "You" ? "msg you" : "msg"} ${status !== "sent" ? `msg-${status}` : ""} ${isDeleted ? "msg-deleted" : ""} ${isHighlighted ? "msg-highlighted" : ""}`}
+                className={`${isOwnMessage ? "msg you" : "msg"} ${status !== "sent" ? `msg-${status}` : ""} ${isDeleted ? "msg-deleted" : ""} ${isHighlighted ? "msg-highlighted" : ""}`}
                 onContextMenu={onContextMenu}
             >
-                <Link to={`/people/@${username === "You" ? store.user.username : username}`}>
+                <Link className="msg-avatar-link" to={profilePath}>
                     <img
                         src={userProfilePhotoSrc}
                         onError={() => { setUserProfilePhotoSrc("/assets/profile.svg") }}
@@ -64,9 +73,11 @@ function Message({
                 </Link>
                 <div className="msg-info">
                     <div className="msg-label">
-                        <div className="username">{username}</div>
-                        <div>
-                            {status === "pending" ? "Sending" : createdAtTimeLocal}
+                        <div className="username">
+                            {showUsername && !isOwnMessage ? username : ""}
+                        </div>
+                        <div className="msg-time-meta">
+                            {status === "pending" ? "Sending" : status === "failed" ? "Failed" : createdAtTimeLocal}
                             {!isDeleted && editedAt && " edited"}
                         </div>
                     </div>
@@ -83,7 +94,7 @@ function Message({
                     }
                     {visibleContent && <div className="msg-text">{visibleContent}</div>}
                     {!isDeleted && attachments.length > 0 && (
-                        <MessageAttachments attachments={attachments} />
+                        <MessageAttachments attachments={attachments} onAttachmentOpen={onAttachmentOpen} />
                     )}
                     {!isDeleted && sharedContent && (
                         <MessageSharedContentPreview content={sharedContent} />
@@ -143,8 +154,8 @@ function MessageSharedContentPreview({ content }) {
                 <span className="msg-shared-content-type">{resolveContentTypeLabel(content.content_type)}</span>
                 <span className="msg-shared-content-title">{title}</span>
                 {body && <span className="msg-shared-content-excerpt">{body}</span>}
-                {content.user?.username && (
-                    <span className="msg-shared-content-author">@{content.user.username}</span>
+                {content.user && (
+                    <span className="msg-shared-content-author">{getUserDisplayName(content.user, "Unknown")}</span>
                 )}
             </span>
         </Link>
@@ -189,7 +200,7 @@ function resolveContentTypeLabel(contentType) {
     return labels[contentType] || "Content";
 }
 
-function MessageAttachments({ attachments = [] }) {
+function MessageAttachments({ attachments = [], onAttachmentOpen }) {
     return (
         <div className="msg-attachments">
             {attachments.map((attachment) => {
@@ -197,6 +208,7 @@ function MessageAttachments({ attachments = [] }) {
                 const isImage = attachment.asset_type === "image" || attachment.file_kind === "image";
                 const isVideo = attachment.asset_type === "video" || attachment.file_kind === "video";
                 const mediaUrl = attachment.preview_url || attachment.original_url || attachment.stream_url;
+                const videoSource = attachment.stream_url || attachment.original_url || mediaUrl;
                 const metaParts = [
                     attachment.file_kind?.toUpperCase() || "FILE",
                     formatAttachmentSize(attachment.size_bytes),
@@ -210,23 +222,33 @@ function MessageAttachments({ attachments = [] }) {
                             href={attachment.original_url || mediaUrl}
                             target="_blank"
                             rel="noreferrer"
-                            onClick={(event) => event.stopPropagation()}
+                            onClick={(event) => {
+                                event.stopPropagation();
+                                onAttachmentOpen?.(attachment, attachments);
+                            }}
                         >
                             <img src={mediaUrl} alt={attachment.original_filename || "Image attachment"} />
                         </a>
                     );
                 }
 
-                if (isVideo && mediaUrl) {
+                if (isVideo && videoSource) {
                     return (
-                        <video
-                            key={key}
-                            className="msg-attachment-video"
-                            src={attachment.stream_url || attachment.original_url || mediaUrl}
-                            poster={attachment.poster_url || undefined}
-                            controls
-                            preload="metadata"
-                        />
+                        <div key={key} className="msg-attachment-video">
+                            <VideoPlayer
+                                skin="chat"
+                                title={attachment.original_filename || "Video attachment"}
+                                posterUrl={attachment.poster_url || undefined}
+                                sources={[
+                                    {
+                                        id: attachment.asset_id || key,
+                                        label: "Source",
+                                        src: videoSource,
+                                        mimeType: attachment.mime_type || undefined,
+                                    },
+                                ]}
+                            />
+                        </div>
                     );
                 }
 

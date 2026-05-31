@@ -1,6 +1,6 @@
 import { useContext, useEffect, useRef, useState } from "react";
 import { observer } from "mobx-react-lite";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
 import "./ProfileForm.css";
 
@@ -422,53 +422,62 @@ function ProfileForm() {
 
     return (
         <div className="profile-form">
-            <section className="profile-card profile-avatar-card">
-                <h2>Avatar</h2>
-                <button
-                    type="button"
-                    className="avatar-trigger"
-                    onClick={() => {
-                        resetAvatarModal();
-                        setIsPhotoModalActive(true);
-                    }}
-                >
-                    <img
-                        key={avatarRenderKey}
-                        src={avatarSrc}
-                        onError={(e) => { e.currentTarget.src = "/assets/profile.svg"; }}
-                        alt="Profile avatar"
-                    />
-                    <span>Change avatar</span>
-                </button>
-            </section>
-
             <section className="profile-card">
-                <h2>Public profile</h2>
+                <div className="profile-public-heading">
+                    <h2>Public profile</h2>
+                    {
+                        store.user.username &&
+                        <Link className="profile-public-page-link" to={`/people/@${store.user.username}`}>
+                            View my profile page
+                        </Link>
+                    }
+                </div>
                 <form onSubmit={handleSaveProfile} className="profile-section-form">
-                    <div className="profile-field-group">
-                        <label htmlFor="profile-username" className="profile-field-label">Username</label>
-                        <input
-                            id="profile-username"
-                            type="text"
-                            placeholder="Username"
-                            value={username}
-                            onChange={(e) => setUsername(e.target.value)}
-                            maxLength={32}
-                            pattern="[A-Za-z0-9._-]{1,32}"
-                            required
-                        />
-                    </div>
+                    <div className="profile-public-top">
+                        <button
+                            type="button"
+                            className="avatar-trigger"
+                            onClick={() => {
+                                resetAvatarModal();
+                                setIsPhotoModalActive(true);
+                            }}
+                        >
+                            <img
+                                key={avatarRenderKey}
+                                src={avatarSrc}
+                                onError={(e) => { e.currentTarget.src = "/assets/profile.svg"; }}
+                                alt="Profile avatar"
+                            />
+                            <span>Change avatar</span>
+                        </button>
 
-                    <div className="profile-field-group">
-                        <label htmlFor="profile-display-name" className="profile-field-label">Display name</label>
-                        <input
-                            id="profile-display-name"
-                            type="text"
-                            placeholder="Display name"
-                            value={displayName}
-                            onChange={(e) => setDisplayName(e.target.value)}
-                            maxLength={64}
-                        />
+                        <div className="profile-public-primary-fields">
+                            <div className="profile-field-group">
+                                <label htmlFor="profile-username" className="profile-field-label">Username</label>
+                                <input
+                                    id="profile-username"
+                                    type="text"
+                                    placeholder="Username"
+                                    value={username}
+                                    onChange={(e) => setUsername(e.target.value)}
+                                    maxLength={32}
+                                    pattern="[A-Za-z0-9._-]{1,32}"
+                                    required
+                                />
+                            </div>
+
+                            <div className="profile-field-group">
+                                <label htmlFor="profile-display-name" className="profile-field-label">Display name</label>
+                                <input
+                                    id="profile-display-name"
+                                    type="text"
+                                    placeholder="Display name"
+                                    value={displayName}
+                                    onChange={(e) => setDisplayName(e.target.value)}
+                                    maxLength={64}
+                                />
+                            </div>
+                        </div>
                     </div>
 
                     <div className="profile-field-group">

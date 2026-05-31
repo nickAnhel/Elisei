@@ -382,13 +382,12 @@ function UserDetails() {
                                             ) : (
                                                 <img
                                                     src={item.attachment.preview_url || item.attachment.original_url || "/assets/profile.svg"}
-                                                    alt={item.excerpt || "Gallery item"}
+                                                    alt="Gallery item"
                                                     onError={(e) => { e.currentTarget.src = "/assets/profile.svg"; }}
                                                 />
                                             )}
                                             {item.attachment.file_kind === "video" ? <span className="gallery-video-badge">Video</span> : null}
                                         </div>
-                                        <div className="gallery-item-meta">{item.excerpt || "Open media"}</div>
                                     </button>
                                 )}
                             />

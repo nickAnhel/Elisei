@@ -1,13 +1,14 @@
 import { useContext, useEffect, useState } from "react";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 
 import "./Moments.css";
 
 import { StoreContext } from "../..";
-import AddIcon from "../../components/icons/AddIcon";
 import GlobalSearchInput from "../../components/global-search-input/GlobalSearchInput";
-import MomentsIcon from "../../components/icons/MomentsIcon";
+import AddIcon from "../../components/icons/AddIcon";
+import SearchIcon from "../../components/icons/SearchIcon";
 import MomentsViewer from "../videos/MomentsViewer";
+import { Button, Card, IconButton } from "../../components/ui";
 
 
 function Moments() {
@@ -35,22 +36,47 @@ function Moments() {
 
     return (
         <main className="moments-page">
-            <header className="moments-page-header">
-                <div className="moments-page-title">
-                    <span aria-hidden="true"><MomentsIcon /></span>
-                    <div>
-                        <h1>Moments</h1>
-                        <p>Recommendations: short vertical videos from the community.</p>
-                    </div>
+            <div className="moments-mobile-actions" aria-label="Moment quick actions">
+                {
+                    store.isAuthenticated &&
+                    <IconButton
+                        type="button"
+                        variant="default"
+                        size="md"
+                        className="moments-mobile-action-btn"
+                        aria-label="Create moment"
+                        onClick={() => navigate("/moments/new")}
+                    >
+                        <AddIcon />
+                    </IconButton>
+                }
+                <IconButton
+                    type="button"
+                    variant="default"
+                    size="md"
+                    className="moments-mobile-action-btn"
+                    aria-label="Search moments"
+                    onClick={() => navigate("/search?type=moment")}
+                >
+                    <SearchIcon />
+                </IconButton>
+            </div>
+
+            <Card className="moments-page-header" variant="raised">
+                <div>
+                    <h1>Moments</h1>
                 </div>
                 {
                     store.isAuthenticated &&
-                    <Link to="/moments/new" className="moments-page-new">
-                        <AddIcon />
-                        <span>New Moment</span>
-                    </Link>
+                    <Button
+                        type="button"
+                        variant="primary"
+                        onClick={() => navigate("/moments/new")}
+                    >
+                        New moment
+                    </Button>
                 }
-            </header>
+            </Card>
             <div className="moments-page-search">
                 <GlobalSearchInput
                     value={searchQuery}

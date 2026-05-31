@@ -1,12 +1,11 @@
 #post-details {
     width: 100%;
-    max-height: calc(100dvh - var(--space-8));
     display: flex;
     flex-direction: column;
     gap: var(--space-4);
-    overflow-y: auto;
-    overflow-x: hidden;
+    min-width: 0;
     padding-right: var(--space-1);
+    padding-bottom: var(--space-3);
 }
 
 #post-details .loader-wrapper {
@@ -39,7 +38,6 @@
 
 @media (max-width: 900px) {
     #post-details {
-        max-height: calc(100dvh - var(--space-6));
         padding-right: 0;
     }
 }

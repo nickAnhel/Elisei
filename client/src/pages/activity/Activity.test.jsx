@@ -131,7 +131,7 @@ test("filters call API with correct params", async () => {
 test("empty state works", async () => {
     render(<Activity />);
 
-    await waitFor(() => expect(screen.getByText("No activity matches these filters")).not.toBeNull());
+    await waitFor(() => expect(screen.getByText("No activity matches these filters.")).not.toBeNull());
 });
 
 

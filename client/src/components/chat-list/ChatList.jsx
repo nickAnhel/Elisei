@@ -2,10 +2,11 @@ import { useCallback, useState, useRef, useEffect, useContext } from "react";
 import { useQuery } from "@siberiacancode/reactuse";
 import { useParams } from "react-router-dom";
 import { io } from "socket.io-client";
-import "./ChatList.css"
+import "./ChatList.css";
 
 import { StoreContext } from "../..";
 import Loader from "../loader/Loader";
+import { Button, EmptyState, Skeleton } from "../ui";
 
 import ChatListItem from "../chat-list-item/ChatListItem";
 
@@ -56,6 +57,8 @@ function ChatList({ fetchChats, filters, refresh, enableRealtime = true }) {
 
     const [chats, setChats] = useState([]);
     const [offset, setOffset] = useState(0);
+    const [hasMore, setHasMore] = useState(true);
+    const [retryTick, setRetryTick] = useState(0);
     const currentChatId = params.chatId?.startsWith("@")
         ? params.chatId.slice(1)
         : null;
@@ -64,6 +67,7 @@ function ChatList({ fetchChats, filters, refresh, enableRealtime = true }) {
     useEffect(() => {
         setOffset(0);
         setChats([]);
+        setHasMore(true);
     }, [refresh]);
 
     useEffect(() => {
@@ -89,10 +93,11 @@ function ChatList({ fetchChats, filters, refresh, enableRealtime = true }) {
             return res.data;
         },
         {
-            keys: [offset, refresh],
+            keys: [offset, refresh, retryTick],
             onSuccess: (fetchedChats) => {
                 setChats((prevChats) => mergeChats(prevChats, fetchedChats));
-            }
+                setHasMore(fetchedChats.length >= CHATS_IN_PORTION);
+            },
 
         }
     );
@@ -158,10 +163,16 @@ function ChatList({ fetchChats, filters, refresh, enableRealtime = true }) {
     }, [enableRealtime, chatIds, currentChatId, store.user.user_id]);
 
     const actionInSight = useCallback((entries) => {
-        if (entries[0].isIntersecting && offset < CHATS_IN_PORTION * 10) {
+        if (
+            entries[0].isIntersecting
+            && offset < CHATS_IN_PORTION * 10
+            && hasMore
+            && !isLoading
+            && !isError
+        ) {
             setOffset((prev) => prev + CHATS_IN_PORTION);
         }
-    }, [offset]);
+    }, [hasMore, isError, isLoading, offset]);
 
     useEffect(() => {
         if (observerLoader.current) {
@@ -175,14 +186,51 @@ function ChatList({ fetchChats, filters, refresh, enableRealtime = true }) {
         }
     }, [actionInSight, chats]);
 
-    if (isError) {
-        console.log(error);
-        return;
+    const showInitialSkeleton = isLoading && chats.length === 0;
+    const showPaginationLoader = isLoading && chats.length > 0;
+
+    if (isError && chats.length === 0) {
+        return (
+            <div className="chat-list chat-list--state">
+                <EmptyState
+                    title="Failed to load chats"
+                    description={error?.response?.data?.detail || "Try again in a few seconds."}
+                    action={(
+                        <Button
+                            type="button"
+                            variant="secondary"
+                            size="sm"
+                            onClick={() => {
+                                setOffset(0);
+                                setChats([]);
+                                setHasMore(true);
+                                setRetryTick((value) => value + 1);
+                            }}
+                        >
+                            Retry
+                        </Button>
+                    )}
+                />
+            </div>
+        );
     }
 
 
     return (
         <div className="chat-list">
+            {showInitialSkeleton && (
+                <div className="chat-list__skeletons" aria-hidden="true">
+                    {[0, 1, 2, 3, 4].map((item) => (
+                        <div className="chat-list__skeleton-item" key={item}>
+                            <Skeleton variant="circle" width="2.75rem" height="2.75rem" />
+                            <div className="chat-list__skeleton-lines">
+                                <Skeleton width="70%" height="0.9rem" />
+                                <Skeleton width="45%" height="0.75rem" />
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            )}
 
             <div className="chats">
                 {
@@ -194,18 +242,27 @@ function ChatList({ fetchChats, filters, refresh, enableRealtime = true }) {
                     })
                 }
                 {
-                    (!isLoading && chats.length === 0) ? <div className="hint">No chats</div> : ""
+                    (!isLoading && chats.length === 0) && (
+                        <EmptyState
+                            title="No chats yet"
+                            description="Start a new conversation to see it here."
+                            className="chat-list__empty-state"
+                        />
+                    )
                 }
             </div>
 
             {
-                isLoading &&
-                <div className="loader"><Loader /></div>
+                showPaginationLoader &&
+                <div className="loader">
+                    <Loader />
+                    <span className="chat-list__loading-more">Loading more chats...</span>
+                </div>
             }
 
 
         </div>
-    )
+    );
 }
 
 export default ChatList;

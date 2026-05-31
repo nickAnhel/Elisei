@@ -1,5 +1,5 @@
 #feed-sidebar {
-    width: clamp(14rem, 22vw, 18rem);
+    width: clamp(16rem, 25vw, 20rem);
     min-width: 0;
     height: fit-content;
     padding: var(--space-4);
@@ -10,12 +10,28 @@
     flex-direction: column;
     gap: var(--space-3);
     position: sticky;
-    top: var(--space-4);
     box-shadow: var(--shadow-card);
 }
 
 #feed-sidebar .global-search-input {
     margin-bottom: 0;
+}
+
+#feed-sidebar .feed-sidebar-tabs {
+    box-sizing: border-box;
+    width: 100%;
+    max-width: 100%;
+    overflow: hidden;
+}
+
+#feed-sidebar .feed-sidebar-tabs .ui-tabs-trigger {
+    flex: 1 1 0;
+    min-width: 0;
+    padding: 0 var(--space-2);
+    text-align: center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 #feed-sidebar hr {
@@ -67,7 +83,7 @@
 
 @media (max-width: 1024px) {
     #feed-sidebar {
-        width: clamp(11rem, 26vw, 15rem);
+        width: clamp(14rem, 30vw, 18rem);
         padding: var(--space-3);
     }
 }

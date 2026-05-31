@@ -137,7 +137,7 @@ function ContentList({
             <div className="content-list">
                 <EmptyState
                     className="content-list-empty-state"
-                    title="Couldn\'t load content"
+                    title="Couldn't load content"
                     description={errorMessage}
                     action={(
                         <Button type="button" variant="secondary" onClick={retryFetch}>

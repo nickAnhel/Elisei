@@ -4,7 +4,7 @@
     width: 100%;
     min-height: 100dvh;
     background-color: rgba(7, 10, 19, 0.62);
-    z-index: var(--z-modal);
+    z-index: calc(var(--z-modal) + 10);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -21,10 +21,12 @@
 
 .modal-content {
     position: relative;
-    z-index: calc(var(--z-modal) + 1);
+    z-index: calc(var(--z-modal) + 11);
     width: min(34rem, 100%);
     max-height: calc(100dvh - var(--space-8));
+    box-sizing: border-box;
     overflow-y: auto;
+    overflow-x: hidden;
     padding: var(--space-4);
     border-radius: var(--radius-xl);
     border: 1px solid var(--color-border);
@@ -43,7 +45,8 @@
 .post-details-modal-content {
     width: min(64rem, calc(100vw - var(--space-6)));
     max-width: 100%;
-    overflow-y: hidden;
+    overflow-y: auto;
+    overflow-x: hidden;
 }
 
 @media (max-width: 900px) {

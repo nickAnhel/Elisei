@@ -1,3 +1,5 @@
+import { createPortal } from "react-dom";
+
 import "./Modal.css"
 
 
@@ -7,13 +9,19 @@ function Modal({ active, setActive, children, contentClassName = "" }) {
         contentClassName,
     ].filter(Boolean).join(" ");
 
-    return (
+    const modalNode = (
         <div className={active ? "modal active" : "modal"} onClick={() => setActive(false)}>
             <div className={contentClasses} onClick={e => e.stopPropagation()}>
                 {children}
             </div>
         </div>
-    )
+    );
+
+    if (typeof document === "undefined") {
+        return null;
+    }
+
+    return createPortal(modalNode, document.body);
 }
 
 export default Modal;

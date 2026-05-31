@@ -17,6 +17,7 @@ import PostFileBlock from "../post-file-block/PostFileBlock";
 import PostGalleryViewer from "../post-gallery-viewer/PostGalleryViewer";
 import PostMediaBlock from "../post-media-block/PostMediaBlock";
 import TagChip from "../tag-chip/TagChip";
+import { EditIcon, TrashIcon } from "../icons/ArticleUiIcons";
 import CommentIcon from "../icons/CommentIcon";
 import ContentShareButton from "../content-share-button/ContentShareButton";
 import DislikeIcon from "../icons/DislikeIcon";
@@ -227,19 +228,26 @@ const PostListItem = forwardRef((props, ref) => {
             }
             <div className="actions">
                 {
-                    post.is_owner &&
-                    <>
-                        <img
-                            onClick={() => { setIsDeletePostModalActive(true); }}
-                            src="../../../assets/delete.svg"
-                            alt="Delete post"
-                        />
-                        <img
+                    post.is_owner && isDetailView &&
+                    <div className="post-owner-actions">
+                        <button
+                            type="button"
                             onClick={() => { setIsEditPostModalActive(true); }}
-                            src="../../../assets/edit.svg"
-                            alt="Edit post"
-                        />
-                    </>
+                            aria-label="Edit post"
+                        >
+                            <EditIcon />
+                            <span>Edit</span>
+                        </button>
+                        <button
+                            type="button"
+                            className="danger"
+                            onClick={() => { setIsDeletePostModalActive(true); }}
+                            aria-label="Delete post"
+                        >
+                            <TrashIcon />
+                            <span>Delete</span>
+                        </button>
+                    </div>
                 }
 
                 <button

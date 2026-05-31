@@ -181,10 +181,11 @@ test("/search without q loads popular mode and hides authors filter", async () =
         })
     ));
 
-    expect(screen.getByRole("heading", { name: "Popular" })).not.toBeNull();
+    expect(screen.getByRole("heading", { name: "Search" })).not.toBeNull();
     expect(screen.queryByRole("button", { name: "Authors" })).toBeNull();
     expect(screen.queryByText("Sort")).toBeNull();
     expect(screen.getByText("Period")).not.toBeNull();
+    expect(screen.getByText("Popular publications")).not.toBeNull();
     expect(screen.getByText("Content card: popular-content")).not.toBeNull();
     expect(screen.getByText("Popular authors")).not.toBeNull();
     expect(screen.getByText("User item: popular-creator")).not.toBeNull();

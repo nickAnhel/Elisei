@@ -22,7 +22,6 @@
     padding: var(--space-4);
     border-radius: var(--radius-2xl);
     position: sticky;
-    top: var(--space-4);
     display: flex;
     flex-direction: column;
     gap: var(--space-3);
@@ -67,6 +66,12 @@
     display: flex;
     flex-wrap: wrap;
     gap: var(--space-2);
+}
+
+#user-details .user-data {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
 }
 
 #user-details .user-link-item {
@@ -180,7 +185,7 @@
 #user-details .gallery-media-wrap {
     position: relative;
     width: 100%;
-    aspect-ratio: 16 / 9;
+    aspect-ratio: 1 / 1;
     background: var(--color-surface-muted);
 }
 
@@ -202,15 +207,6 @@
     padding: 0.24rem 0.5rem;
     border-radius: var(--radius-md);
     font-size: var(--font-size-2xs);
-}
-
-#user-details .gallery-item-meta {
-    padding: var(--space-2) var(--space-3);
-    color: var(--color-text-muted);
-    font-size: var(--font-size-sm);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
 }
 
 #user-details .post-list-item .author:hover {

@@ -6,9 +6,9 @@ function Event({ action, username, addedUserUsername }) {
     return (
         <>
             <div className="event">
-                <span className="username">{username} </span>
+                <span className="event-user">{username} </span>
                 {action}
-                <span className={addedUserUsername ? "username" : ""}> { addedUserUsername ? addedUserUsername : "chat"}</span>
+                <span className={addedUserUsername ? "event-user" : ""}> { addedUserUsername ? addedUserUsername : "chat"}</span>
             </div>
         </>
     )

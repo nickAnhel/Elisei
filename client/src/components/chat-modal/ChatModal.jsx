@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import "./ChatModal.css";
 
 import Modal from "../modal/Modal";
+import ChatAvatar from "../chat-avatar/ChatAvatar";
 import Loader from "../loader/Loader";
 import UserService from "../../service/UserService";
 import AssetService from "../../service/AssetService";
@@ -14,6 +15,7 @@ import {
     constrainOffset,
     getRenderedSize,
 } from "../../utils/avatarCrop";
+import { getUserDisplayName } from "../../utils/userDisplay";
 
 
 const CHAT_AVATAR_VIEWPORT_SIZE = 240;
@@ -422,7 +424,7 @@ function ChatModal({
     const avatarPreviewSrc = avatarPreview
         || effectiveAvatar?.medium_url
         || effectiveAvatar?.small_url
-        || "/assets/chat.svg";
+        || null;
 
     return (
         <Modal active={active} setActive={closeModal}>
@@ -437,14 +439,13 @@ function ChatModal({
                         onClick={() => fileInputRef.current?.click()}
                         disabled={isLoadingSaveChat || isAvatarActionLoading}
                     >
-                        <img
+                        <ChatAvatar
+                            className="chat-avatar-preview"
                             src={avatarPreviewSrc}
-                            alt="Chat avatar preview"
-                            onError={(event) => {
-                                event.currentTarget.src = "/assets/chat.svg";
-                            }}
+                            title={chatTitle || "Chat"}
+                            seed={effectiveChatId || chatTitle || "chat"}
                         />
-                        <span>{selectedAvatarFile ? "Image selected" : "Choose avatar"}</span>
+                        <span className="chat-avatar-trigger-label">{selectedAvatarFile ? "Image selected" : "Choose avatar"}</span>
                     </button>
 
                     <input
@@ -563,7 +564,7 @@ function ChatModal({
                                         className="selected-member"
                                         onClick={() => removeMember(member.user_id)}
                                     >
-                                        {member.username}
+                                        {getUserDisplayName(member, member.username)}
                                     </button>
                                 ))}
                             </div>
@@ -580,7 +581,7 @@ function ChatModal({
                                         onClick={() => addMember(user)}
                                         disabled={selectedMembers.some((member) => member.user_id === user.user_id)}
                                     >
-                                        {user.username}
+                                        {getUserDisplayName(user, user.username)}
                                     </button>
                                 ))}
                             </div>

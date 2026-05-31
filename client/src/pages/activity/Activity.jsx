@@ -122,15 +122,11 @@ function Activity() {
         <div id="activity-page">
             <div className="activity-shell">
                 <header className="activity-header">
-                    <h1>Activity</h1>
-                    <Button
-                        type="button"
-                        variant="outline"
-                        className="activity-retry"
-                        onClick={() => setReloadKey((value) => value + 1)}
-                    >
-                        Retry
-                    </Button>
+                    <Card className="activity-header-card" variant="raised">
+                        <div>
+                            <h1>Activity</h1>
+                        </div>
+                    </Card>
                 </header>
 
                 <Card className="activity-filters-panel" variant="raised">

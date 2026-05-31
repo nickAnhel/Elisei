@@ -7,61 +7,90 @@ import ChatService from "../../service/ChatService";
 import ChatModal from "../chat-modal/ChatModal";
 
 import ChatList from "../../components/chat-list/ChatList";
+import SearchIcon from "../icons/SearchIcon";
+import CloseIcon from "../icons/CloseIcon";
+import { Button, IconButton, Input } from "../ui";
 
 
-function Chats() {
+function ChatSidebar() {
     const [isCreateChatActive, setIsCreateChatActive] = useState(false);
 
-    const [query, setQuery] = useState();
-    const [isSearch, setIsSearch] = useState(false);
+    const [query, setQuery] = useState("");
     const [refreshChats, setRefreshChats] = useState(0);
+    const isSearch = query.trim().length > 0;
 
     const handleClear = () => {
         setQuery("");
-        setIsSearch(false);
-    }
+    };
 
     return (
-        <div id="chat-sidebar">
-            <div id="search">
-                <div className={"search-bar" + (isSearch ? " active" : "")}>
-                    <input
-                        id="search-input"
-                        type="text"
-                        placeholder="Search"
-                        value={query}
-                        maxLength={50}
-                        onFocus={() => setIsSearch(true)}
-                        onChange={(e) => setQuery(e.target.value)}
-                    />
-                    <div className="search-actions">
-                        <button
-                            className={query || isSearch ? "show search-btn" : "search-btn hidden"}
+        <section id="chat-sidebar">
+            <header className="chat-sidebar__header">
+                <div className="chat-sidebar__title">Chats</div>
+                <Button
+                    variant="primary"
+                    size="sm"
+                    onClick={() => setIsCreateChatActive(true)}
+                >
+                    Create chat
+                </Button>
+            </header>
+
+            <div className="chat-sidebar__search">
+                <Input
+                    id="chat-sidebar-search"
+                    type="search"
+                    placeholder="Search chats"
+                    value={query}
+                    maxLength={50}
+                    onChange={(event) => setQuery(event.target.value)}
+                    fullWidth
+                    leftIcon={<SearchIcon />}
+                    rightSlot={(
+                        <IconButton
+                            size="sm"
+                            variant="ghost"
+                            className={`chat-sidebar__search-clear${query ? " is-visible" : ""}`}
+                            aria-label="Clear chat search"
                             onClick={handleClear}
+                            disabled={!query}
                         >
-                            <img
-                                className="close"
-                                src="../../../assets/clear.svg"
-                                alt="Clear"
-                            />
-                        </button>
-                    </div>
-                </div>
+                            <CloseIcon />
+                        </IconButton>
+                    )}
+                />
             </div>
 
-            <button
-                className="create-chat"
-                onClick={() => setIsCreateChatActive(true)}
-            >
-                Create chat
-            </button>
+            <div className="chat-sidebar__list">
+                {
+                    isSearch
+                        ? (
+                            <ChatList
+                                fetchChats={ChatService.searchChats}
+                                filters={{ query: query.trim() }}
+                                refresh={`search-${query.trim()}`}
+                                enableRealtime={false}
+                            />
+                        )
+                        : (
+                            <ChatList
+                                fetchChats={ChatService.getUserJoinedChats}
+                                refresh={`list-${refreshChats}`}
+                            />
+                        )
+                }
+            </div>
 
-            {
-                isSearch ?
-                    <ChatList fetchChats={ChatService.searchChats} filters={{ query: query }} refresh={query} enableRealtime={false} />
-                    :
-                    <ChatList fetchChats={ChatService.getUserJoinedChats} refresh={`${isSearch}-${refreshChats}`} />
-            }
+            <div className="chat-sidebar__footer">
+                <Button
+                    variant="secondary"
+                    size="sm"
+                    fullWidth
+                    onClick={() => setIsCreateChatActive(true)}
+                >
+                    New chat
+                </Button>
+            </div>
 
             <ChatModal
                 key={"create"}
@@ -72,8 +101,8 @@ function Chats() {
                 modalHeader={"Create new chat"}
                 buttonText={"Create chat"}
             />
-        </div>
-    )
+        </section>
+    );
 }
 
-export default Chats;
+export default ChatSidebar;

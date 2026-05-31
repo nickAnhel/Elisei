@@ -1,7 +1,6 @@
 .profile-form {
     width: min(58rem, 100%);
     margin: 0 auto;
-    padding: var(--space-2);
     display: flex;
     flex-direction: column;
     gap: var(--space-4);
@@ -22,6 +21,26 @@
 .profile-card h2 {
     font-size: var(--font-size-lg);
     margin: 0;
+}
+
+.profile-public-heading {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--space-2);
+    flex-wrap: wrap;
+}
+
+.profile-public-page-link {
+    font-size: var(--font-size-sm);
+    color: var(--color-accent);
+    text-decoration: none;
+    white-space: nowrap;
+}
+
+.profile-public-page-link:hover,
+.profile-public-page-link:focus {
+    text-decoration: underline;
 }
 
 .profile-section-form {
@@ -77,8 +96,18 @@
     font-size: var(--font-size-sm);
 }
 
-.profile-avatar-card {
+.profile-public-top {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
     align-items: flex-start;
+    gap: var(--space-4);
+}
+
+.profile-public-primary-fields {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
 }
 
 .avatar-trigger {
@@ -93,7 +122,7 @@
 }
 
 .avatar-trigger img {
-    width: 10rem;
+    width: 8.5rem;
     aspect-ratio: 1 / 1;
     border-radius: var(--radius-pill);
     cursor: pointer;
@@ -144,19 +173,26 @@
     align-self: flex-start;
 }
 
-.profile-form .image-form {
+.image-form {
     padding: var(--space-5);
     display: flex;
     flex-direction: column;
     align-items: center;
     gap: var(--space-4);
     width: min(100%, 26rem);
+    margin: 0 auto;
+}
+
+.image-form .btn,
+.image-form .avatar-file-picker,
+.image-form .avatar-file-picker-secondary {
+    width: 100%;
 }
 
 .avatar-preview-shell {
     width: 18rem;
     aspect-ratio: 1 / 1;
-    border-radius: var(--radius-2xl);
+    border-radius: var(--radius-pill);
     overflow: hidden;
     border: 0.15rem solid var(--color-border);
     background: var(--color-surface-muted);
@@ -318,6 +354,21 @@
 @media (max-width: 860px) {
     .profile-form {
         padding: 0;
+    }
+
+    .profile-public-top {
+        grid-template-columns: 1fr;
+        gap: var(--space-3);
+    }
+
+    .profile-public-heading {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: var(--space-1);
+    }
+
+    .avatar-trigger {
+        align-items: flex-start;
     }
 
     .profile-form-actions {

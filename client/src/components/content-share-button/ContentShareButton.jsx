@@ -7,7 +7,9 @@ import ContentService from "../../service/ContentService";
 import Modal from "../modal/Modal";
 import Loader from "../loader/Loader";
 import { ShareIcon } from "../icons/ArticleUiIcons";
+import ChatAvatar from "../chat-avatar/ChatAvatar";
 import { getAvatarUrl } from "../../utils/avatar";
+import { getUserDisplayName } from "../../utils/userDisplay";
 
 
 function ContentShareButton({ contentId, contentTitle = "content", className = "" }) {
@@ -19,6 +21,7 @@ function ContentShareButton({ contentId, contentTitle = "content", className = "
     const [isSharing, setIsSharing] = useState(false);
     const [error, setError] = useState("");
     const [success, setSuccess] = useState("");
+    const [chatSearchQuery, setChatSearchQuery] = useState("");
 
     useEffect(() => {
         if (!isModalActive || !store.isAuthenticated) {
@@ -39,7 +42,7 @@ function ContentShareButton({ contentId, contentTitle = "content", className = "
             } catch (e) {
                 console.log(e);
                 if (isMounted) {
-                    setError("Не удалось загрузить чаты");
+                    setError("Failed to load chats");
                 }
             } finally {
                 if (isMounted) {
@@ -55,7 +58,17 @@ function ContentShareButton({ contentId, contentTitle = "content", className = "
     }, [isModalActive, store.isAuthenticated]);
 
     const selectedCount = selectedChatIds.length;
-    const modalTitle = useMemo(() => `Поделиться: ${contentTitle || "контент"}`, [contentTitle]);
+    const modalTitle = useMemo(() => `Share: ${contentTitle || "content"}`, [contentTitle]);
+    const normalizedChatSearch = chatSearchQuery.trim().toLowerCase();
+    const filteredChats = useMemo(() => {
+        if (!normalizedChatSearch) {
+            return chats;
+        }
+
+        return chats.filter((chat) => (
+            getChatDisplayTitle(chat, store.user.user_id).toLowerCase().includes(normalizedChatSearch)
+        ));
+    }, [chats, normalizedChatSearch, store.user.user_id]);
 
     const toggleChat = (chatId) => {
         setSelectedChatIds((items) => (
@@ -73,13 +86,14 @@ function ContentShareButton({ contentId, contentTitle = "content", className = "
         }
         setIsModalActive(false);
         setSelectedChatIds([]);
+        setChatSearchQuery("");
         setError("");
         setSuccess("");
     };
 
     const shareContent = async () => {
         if (selectedChatIds.length === 0) {
-            setError("Выберите хотя бы один чат");
+            setError("Select at least one chat");
             return;
         }
 
@@ -88,11 +102,11 @@ function ContentShareButton({ contentId, contentTitle = "content", className = "
         setSuccess("");
         try {
             await ContentService.shareToChats(contentId, selectedChatIds);
-            setSuccess("Отправлено");
+            setSuccess("Sent");
             setSelectedChatIds([]);
         } catch (e) {
             console.log(e);
-            setError(e?.response?.data?.detail || "Не удалось отправить");
+            setError(e?.response?.data?.detail || "Failed to send");
         } finally {
             setIsSharing(false);
         }
@@ -110,7 +124,7 @@ function ContentShareButton({ contentId, contentTitle = "content", className = "
                 onClick={() => setIsModalActive(true)}
             >
                 <ShareIcon />
-                <span>Поделиться</span>
+                <span>Share</span>
             </button>
 
             <Modal active={isModalActive} setActive={closeModal}>
@@ -119,12 +133,25 @@ function ContentShareButton({ contentId, contentTitle = "content", className = "
                         <h2>{modalTitle}</h2>
                     </div>
 
+                    <div className="content-share-search">
+                        <input
+                            type="text"
+                            value={chatSearchQuery}
+                            onChange={(event) => setChatSearchQuery(event.target.value)}
+                            placeholder="Search chats"
+                            maxLength={80}
+                        />
+                    </div>
+
                     <div className="content-share-chat-list">
                         {isLoadingChats && <Loader />}
                         {!isLoadingChats && chats.length === 0 && (
-                            <p className="content-share-empty">Нет доступных чатов</p>
+                            <p className="content-share-empty">No available chats</p>
                         )}
-                        {!isLoadingChats && chats.map((chat) => (
+                        {!isLoadingChats && chats.length > 0 && filteredChats.length === 0 && (
+                            <p className="content-share-empty">No chats found</p>
+                        )}
+                        {!isLoadingChats && filteredChats.map((chat) => (
                             <ShareChatOption
                                 key={chat.chat_id}
                                 chat={chat}
@@ -140,7 +167,7 @@ function ContentShareButton({ contentId, contentTitle = "content", className = "
 
                     <div className="content-share-actions">
                         <button type="button" className="btn btn-secondary" onClick={closeModal} disabled={isSharing}>
-                            Закрыть
+                            Close
                         </button>
                         <button
                             type="button"
@@ -148,7 +175,7 @@ function ContentShareButton({ contentId, contentTitle = "content", className = "
                             onClick={shareContent}
                             disabled={isSharing || selectedCount === 0}
                         >
-                            {isSharing ? <Loader /> : `Отправить${selectedCount ? ` (${selectedCount})` : ""}`}
+                            {isSharing ? <Loader /> : `Send${selectedCount ? ` (${selectedCount})` : ""}`}
                         </button>
                     </div>
                 </div>
@@ -161,26 +188,52 @@ function ShareChatOption({ chat, currentUserId, selected, onToggle }) {
     const directMember = chat.chat_type === "direct"
         ? chat.members?.find((member) => member.user_id !== currentUserId)
         : null;
-    const title = chat.display_title || directMember?.username || chat.title;
-    const imageSrc = chat.display_avatar?.small_url || (directMember ? getAvatarUrl(directMember, "small") : "../../../assets/chat.svg");
+    const title = getChatDisplayTitle(chat, currentUserId);
+    const directAvatarSrc = chat.display_avatar?.small_url || getAvatarUrl(directMember, "small");
+    const groupAvatarSrc = chat.display_avatar?.small_url || chat.avatar?.small_url || null;
 
     return (
         <button
             type="button"
             className={`content-share-chat-option${selected ? " selected" : ""}`}
             onClick={onToggle}
+            aria-pressed={selected}
         >
-            <img
-                src={imageSrc}
-                alt={title}
-                onError={(event) => {
-                    event.currentTarget.src = "../../../assets/chat.svg";
-                }}
-            />
+            {
+                directMember
+                    ? (
+                        <img
+                            className="content-share-chat-option-avatar"
+                            src={directAvatarSrc}
+                            alt={title}
+                            onError={(event) => {
+                                event.currentTarget.src = "/assets/profile.svg";
+                            }}
+                        />
+                    )
+                    : (
+                        <ChatAvatar
+                            className="content-share-chat-option-avatar"
+                            src={groupAvatarSrc}
+                            title={title}
+                            seed={chat.chat_id || title}
+                        />
+                    )
+            }
             <span>{title}</span>
-            <span className="content-share-check" aria-hidden="true">{selected ? "✓" : ""}</span>
+            <span className="content-share-checkbox" aria-hidden="true" />
         </button>
     );
+}
+
+function getChatDisplayTitle(chat, currentUserId) {
+    const directMember = chat.chat_type === "direct"
+        ? chat.members?.find((member) => member.user_id !== currentUserId)
+        : null;
+    return chat.display_title
+        || (directMember ? getUserDisplayName(directMember, directMember?.username || "Untitled chat") : null)
+        || chat.title
+        || "Untitled chat";
 }
 
 export default ContentShareButton;

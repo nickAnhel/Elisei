@@ -196,16 +196,13 @@
 
 .video-details-sidebar {
     position: sticky;
-    top: var(--space-6);
     align-self: start;
 }
 
 .video-details-similar {
-    padding: var(--space-4);
-    border-radius: var(--radius-2xl);
-    border: 1px solid var(--color-border);
-    background: var(--color-surface-raised);
-    box-shadow: var(--shadow-card);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
 }
 
 .video-details-comments {

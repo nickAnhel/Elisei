@@ -1,15 +1,24 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 
 const mockNavigate = jest.fn();
+let mockLocationSearch = "";
 
 jest.mock("react-router-dom", () => ({
-    NavLink: ({ children, to, className }) => (
-        <a href={to} className={typeof className === "function" ? className({}) : className}>
-            {children}
-        </a>
-    ),
     useNavigate: () => mockNavigate,
-    useLocation: () => ({ search: "" }),
+    useSearchParams: () => {
+        const React = require("react");
+        const [params, setParams] = React.useState(() => new URLSearchParams(mockLocationSearch));
+
+        const setSearchParams = (nextParams) => {
+            if (nextParams instanceof URLSearchParams) {
+                setParams(new URLSearchParams(nextParams));
+                return;
+            }
+            setParams(new URLSearchParams(nextParams));
+        };
+
+        return [params, setSearchParams];
+    },
 }), { virtual: true });
 
 jest.mock("../..", () => {
@@ -51,6 +60,7 @@ import { StoreContext } from "../..";
 
 beforeEach(() => {
     jest.clearAllMocks();
+    mockLocationSearch = "";
 });
 
 

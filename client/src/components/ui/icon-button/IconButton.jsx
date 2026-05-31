@@ -1,6 +1,8 @@
+import { forwardRef } from "react";
+
 import "./IconButton.css";
 
-function IconButton({
+const IconButton = forwardRef(function IconButton({
     type = "button",
     variant = "default",
     size = "md",
@@ -8,7 +10,7 @@ function IconButton({
     children,
     "aria-label": ariaLabel,
     ...props
-}) {
+}, ref) {
     const classes = [
         "ui-icon-button",
         `ui-icon-button--${variant}`,
@@ -17,10 +19,10 @@ function IconButton({
     ].filter(Boolean).join(" ");
 
     return (
-        <button type={type} aria-label={ariaLabel} className={classes} {...props}>
+        <button ref={ref} type={type} aria-label={ariaLabel} className={classes} {...props}>
             {children}
         </button>
     );
-}
+});
 
 export default IconButton;

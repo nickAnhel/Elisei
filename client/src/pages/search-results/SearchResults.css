@@ -11,6 +11,8 @@
 }
 
 .search-results-header {
+    width: min(76rem, 100%);
+    margin: 0 auto;
     display: flex;
     flex-direction: column;
     gap: var(--space-3);
@@ -28,6 +30,7 @@
 }
 
 .search-results-controls {
+    width: 100%;
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -88,16 +91,38 @@
     min-width: 0;
 }
 
-.search-discovery-layout {
+.search-results-layout-shell {
+    width: min(76rem, 100%);
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+}
+
+.search-results-single-column {
+    width: min(56rem, 100%);
+    margin: 0 auto;
+}
+
+.search-popular-columns {
     width: 100%;
     display: grid;
-    grid-template-columns: minmax(0, 1fr) clamp(24rem, 40vw, 30rem);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: var(--space-4);
     align-items: start;
 }
 
-.search-discovery-layout > * {
+.search-popular-column {
     min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+}
+
+.search-popular-column h2 {
+    margin: 0;
+    font-size: var(--font-size-xl);
+    line-height: 1.2;
 }
 
 .search-results-loader {
@@ -115,6 +140,7 @@
     width: 100%;
     display: flex;
     flex-direction: column;
+    align-items: center;
     gap: var(--space-4);
 }
 
@@ -137,54 +163,15 @@
     padding-top: var(--space-2);
 }
 
-.popular-authors-column {
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-xl);
-    padding: var(--space-4);
-    background: var(--color-surface-raised);
-    box-shadow: var(--shadow-card);
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-3);
-    position: sticky;
-    top: var(--space-4);
-    min-width: 0;
-    width: 100%;
-    box-sizing: border-box;
-}
-
-.popular-authors-column h2 {
-    margin: 0;
-    font-size: var(--font-size-lg);
-}
-
-.popular-authors-list {
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-2);
-}
-
-.popular-authors-list .search-author-result {
-    width: 100%;
-}
-
-.popular-authors-list .search-author-result .user-list-item {
-    width: 100%;
-    min-width: 0;
-}
-
 @media (max-width: 900px) {
-    .search-discovery-layout {
+    .search-popular-columns {
         grid-template-columns: minmax(0, 1fr);
-    }
-
-    .popular-authors-column {
-        position: static;
     }
 }
 
 @media (max-width: 760px) {
     #search-results-page {
+        min-height: 100%;
         padding: var(--space-3);
         gap: var(--space-3);
     }

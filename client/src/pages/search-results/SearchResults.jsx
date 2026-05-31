@@ -223,7 +223,7 @@ function SearchResults() {
         });
     };
 
-    const renderResults = () => {
+    const renderPublicationResults = ({ emptyDescription }) => {
         if (isLoading) {
             return (
                 <div className="search-results-loader">
@@ -236,7 +236,7 @@ function SearchResults() {
             return (
                 <EmptyState
                     className="search-results-state"
-                    title="Couldn\'t load results"
+                    title="Couldn't load results"
                     description={errorMessage}
                     action={<Button type="button" variant="secondary" onClick={resetOffset}>Retry</Button>}
                 />
@@ -248,11 +248,7 @@ function SearchResults() {
                 <EmptyState
                     className="search-results-state"
                     title="Nothing found"
-                    description={
-                        isSearchMode
-                            ? `No results for "${rawQuery}" in ${activeTypeLabel}.`
-                            : `No popular content for ${activeTypeLabel} in this period.`
-                    }
+                    description={emptyDescription}
                 />
             );
         }
@@ -301,16 +297,59 @@ function SearchResults() {
         );
     };
 
+    const renderPopularAuthors = () => {
+        if (isPopularAuthorsLoading) {
+            return (
+                <div className="search-results-loader">
+                    <Loader />
+                </div>
+            );
+        }
+
+        if (isPopularAuthorsError) {
+            return (
+                <EmptyState
+                    className="search-results-state"
+                    title="Couldn't load authors"
+                    description={popularAuthorsError?.response?.data?.detail || "Failed to load popular authors"}
+                />
+            );
+        }
+
+        if (popularAuthorItems.length === 0) {
+            return (
+                <EmptyState
+                    className="search-results-state"
+                    title="No authors yet"
+                    description="No popular authors found for this period."
+                />
+            );
+        }
+
+        return (
+            <div className="search-results-list">
+                {
+                    popularAuthorItems.map((item, index) => {
+                        if (!item.author) {
+                            return null;
+                        }
+                        return (
+                            <div className="search-author-result" key={`popular-author-${item.author.user_id}-${index}`}>
+                                <UserListItem user={item.author} />
+                            </div>
+                        );
+                    })
+                }
+            </div>
+        );
+    };
+
     return (
         <main id="search-results-page">
             <Card className="search-results-header" variant="raised">
-                <h1>{isSearchMode ? "Search" : "Popular"}</h1>
+                <h1>Search</h1>
                 <p>
-                    {
-                        isSearchMode
-                            ? "Discover posts, articles, videos, moments, and creators."
-                            : "Discover trending public content by period and type."
-                    }
+                    Discover posts, articles, videos, moments, and creators.
                 </p>
                 <GlobalSearchInput
                     value={inputValue}
@@ -327,134 +366,116 @@ function SearchResults() {
                 />
             </Card>
 
-            <section className="search-results-controls">
-                <div className="search-type-filters" role="tablist" aria-label="Search filters">
+            <div className={`search-results-layout-shell ${isSearchMode ? "search-mode" : "popular-mode"}`}>
+                <section className="search-results-controls">
+                    <div className="search-type-filters" role="tablist" aria-label="Search filters">
+                        {
+                            availableTypes.map((item) => (
+                                <button
+                                    key={item.value}
+                                    type="button"
+                                    className={type === item.value ? "active" : ""}
+                                    onClick={() => {
+                                        if (type === item.value) {
+                                            return;
+                                        }
+                                        updateSearchParams((params) => {
+                                            params.set("type", item.value);
+                                            params.set("offset", "0");
+                                        });
+                                    }}
+                                >
+                                    {item.label}
+                                </button>
+                            ))
+                        }
+                    </div>
+
                     {
-                        availableTypes.map((item) => (
-                            <button
-                                key={item.value}
-                                type="button"
-                                className={type === item.value ? "active" : ""}
-                                onClick={() => {
-                                    if (type === item.value) {
-                                        return;
-                                    }
+                        isSearchMode &&
+                        <label className="search-sort-control" htmlFor="search-sort-select">
+                            <span>Sort</span>
+                            <select
+                                id="search-sort-select"
+                                value={sort}
+                                onChange={(event) => {
+                                    const nextSort = event.target.value;
                                     updateSearchParams((params) => {
-                                        params.set("type", item.value);
+                                        params.set("sort", nextSort);
                                         params.set("offset", "0");
                                     });
                                 }}
                             >
-                                {item.label}
-                            </button>
-                        ))
+                                {
+                                    SEARCH_SORTS.map((item) => (
+                                        <option key={item.value} value={item.value}>
+                                            {item.label}
+                                        </option>
+                                    ))
+                                }
+                            </select>
+                        </label>
                     }
-                </div>
+
+                    {
+                        !isSearchMode &&
+                        <label className="search-sort-control" htmlFor="search-period-select">
+                            <span>Period</span>
+                            <select
+                                id="search-period-select"
+                                value={period}
+                                onChange={(event) => {
+                                    const nextPeriod = event.target.value;
+                                    updateSearchParams((params) => {
+                                        params.set("period", nextPeriod);
+                                        params.set("offset", "0");
+                                    });
+                                }}
+                            >
+                                {
+                                    POPULAR_PERIODS.map((item) => (
+                                        <option key={item.value} value={item.value}>
+                                            {item.label}
+                                        </option>
+                                    ))
+                                }
+                            </select>
+                        </label>
+                    }
+                </section>
 
                 {
-                    isSearchMode &&
-                    <label className="search-sort-control" htmlFor="search-sort-select">
-                        <span>Sort</span>
-                        <select
-                            id="search-sort-select"
-                            value={sort}
-                            onChange={(event) => {
-                                const nextSort = event.target.value;
-                                updateSearchParams((params) => {
-                                    params.set("sort", nextSort);
-                                    params.set("offset", "0");
-                                });
-                            }}
-                        >
-                            {
-                                SEARCH_SORTS.map((item) => (
-                                    <option key={item.value} value={item.value}>
-                                        {item.label}
-                                    </option>
-                                ))
-                            }
-                        </select>
-                    </label>
-                }
+                    isSearchMode
+                        ? (
+                            <section className="search-results-single-column">
+                                <section className="search-results-body">
+                                    {renderPublicationResults({
+                                        emptyDescription: `No results for "${rawQuery}" in ${activeTypeLabel}.`,
+                                    })}
+                                </section>
+                            </section>
+                        )
+                        : (
+                            <section className="search-popular-columns">
+                                <section className="search-popular-column search-popular-publications">
+                                    <h2>Popular publications</h2>
+                                    <section className="search-results-body">
+                                        {renderPublicationResults({
+                                            emptyDescription: `No popular content for ${activeTypeLabel} in this period.`,
+                                        })}
+                                    </section>
+                                </section>
 
-                {
-                    !isSearchMode &&
-                    <label className="search-sort-control" htmlFor="search-period-select">
-                        <span>Period</span>
-                        <select
-                            id="search-period-select"
-                            value={period}
-                            onChange={(event) => {
-                                const nextPeriod = event.target.value;
-                                updateSearchParams((params) => {
-                                    params.set("period", nextPeriod);
-                                    params.set("offset", "0");
-                                });
-                            }}
-                        >
-                            {
-                                POPULAR_PERIODS.map((item) => (
-                                    <option key={item.value} value={item.value}>
-                                        {item.label}
-                                    </option>
-                                ))
-                            }
-                        </select>
-                    </label>
+                                <section className="search-popular-column search-popular-authors">
+                                    <h2>Popular authors</h2>
+                                    <section className="search-results-body">
+                                        {renderPopularAuthors()}
+                                    </section>
+                                </section>
+                            </section>
+                        )
                 }
-            </section>
-
-            {
-                isSearchMode
-                    ? <section className="search-results-body">{renderResults()}</section>
-                    : (
-                        <section className="search-discovery-layout">
-                            <section className="search-results-body">{renderResults()}</section>
-                            <aside className="popular-authors-column">
-                                <h2>Popular authors</h2>
-                                {
-                                    isPopularAuthorsLoading &&
-                                    <div className="search-results-loader">
-                                        <Loader />
-                                    </div>
-                                }
-                                {
-                                    !isPopularAuthorsLoading && isPopularAuthorsError &&
-                                    <EmptyState
-                                        className="search-results-state"
-                                        title="Couldn\'t load authors"
-                                        description={popularAuthorsError?.response?.data?.detail || "Failed to load popular authors"}
-                                    />
-                                }
-                                {
-                                    !isPopularAuthorsLoading && !isPopularAuthorsError && popularAuthorItems.length === 0 &&
-                                    <EmptyState
-                                        className="search-results-state"
-                                        title="No authors yet"
-                                        description="No popular authors found for this period."
-                                    />
-                                }
-                                {
-                                    !isPopularAuthorsLoading && !isPopularAuthorsError && popularAuthorItems.length > 0 &&
-                                    <div className="popular-authors-list">
-                                        {
-                                            popularAuthorItems.map((item, index) => {
-                                                if (!item.author) {
-                                                    return null;
-                                                }
-                                                return (
-                                                    <div className="search-author-result" key={`popular-author-${item.author.user_id}-${index}`}>
-                                                        <UserListItem user={item.author} />
-                                                    </div>
-                                                );
-                                            })
-                                        }
-                                    </div>
-                                }
-                            </aside>
-                        </section>
-                    )
-            }
+            </div>
         </main>
     );
 }

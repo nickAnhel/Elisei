@@ -37,7 +37,8 @@
     background: transparent;
 }
 
-.global-search-input-field input:focus {
+.global-search-input .global-search-input-field input:focus {
+    outline: none;
     box-shadow: none;
     border: 0;
 }

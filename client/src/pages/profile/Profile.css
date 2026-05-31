@@ -27,7 +27,6 @@
     padding: var(--space-2);
     height: fit-content;
     position: sticky;
-    top: var(--space-4);
     box-shadow: var(--shadow-card);
 }
 
@@ -61,6 +60,7 @@
 
 @media (max-width: 860px) {
     #profile {
+        min-height: 100%;
         padding: var(--space-3);
     }
 

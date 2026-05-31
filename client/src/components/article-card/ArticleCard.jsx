@@ -16,7 +16,7 @@ import { stripArticleFormatting } from "../../utils/articleMarkdown";
 import { getUserDisplayName } from "../../utils/userDisplay";
 
 
-const ArticleCard = forwardRef(({ article }, ref) => {
+const ArticleCard = forwardRef(({ article, showExcerpt = true }, ref) => {
     const { store } = useContext(StoreContext);
     const navigate = useNavigate();
 
@@ -102,7 +102,7 @@ const ArticleCard = forwardRef(({ article }, ref) => {
                     {card.title}
                 </Link>
                 {
-                    card.excerpt &&
+                    showExcerpt && card.excerpt &&
                     <p className="article-card-excerpt">{stripArticleFormatting(card.excerpt)}</p>
                 }
 

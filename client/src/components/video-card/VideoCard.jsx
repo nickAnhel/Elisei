@@ -28,7 +28,7 @@ export function formatDuration(seconds) {
     return `${mins}:${String(secs).padStart(2, "0")}`;
 }
 
-const VideoCard = forwardRef(({ video }, ref) => {
+const VideoCard = forwardRef(({ video, showExcerpt = true }, ref) => {
     const { store } = useContext(StoreContext);
     const navigate = useNavigate();
     const [card, setCard] = useState(video);
@@ -120,7 +120,7 @@ const VideoCard = forwardRef(({ video }, ref) => {
                     {card.title || "Untitled video"}
                 </Link>
                 {
-                    card.excerpt &&
+                    showExcerpt && card.excerpt &&
                     <p className="video-card-description">{card.excerpt}</p>
                 }
                 {

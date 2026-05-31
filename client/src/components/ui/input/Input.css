@@ -41,8 +41,10 @@
     color: inherit;
 }
 
-.ui-input__control input:focus {
+.ui-input .ui-input__control input:focus {
     outline: none;
+    border: 0;
+    box-shadow: none;
 }
 
 .ui-input__left,

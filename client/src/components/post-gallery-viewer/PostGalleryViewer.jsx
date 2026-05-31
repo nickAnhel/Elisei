@@ -45,7 +45,11 @@ function PostGalleryViewer({ attachments = [], activeIndex, onClose, onChange })
     };
 
     return (
-        <Modal active={isActive} setActive={() => onClose()}>
+        <Modal
+            active={isActive}
+            setActive={() => onClose()}
+            contentClassName="post-gallery-modal-content"
+        >
             <div className="post-gallery-viewer">
                 <div className="post-gallery-toolbar">
                     <span>{activeIndex + 1} / {attachments.length}</span>
