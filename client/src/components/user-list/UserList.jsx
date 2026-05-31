@@ -21,7 +21,7 @@ function UserList({ fetchUsers, filters, refresh }) {
         setUsers([]);
     }, [refresh]);
 
-    const { isLoading, isError, isSuccess, error } = useQuery(
+    const { isLoading, isError, error } = useQuery(
         async () => {
             const params = {
                 ...filters,
@@ -60,7 +60,7 @@ function UserList({ fetchUsers, filters, refresh }) {
 
     if (isError) {
         console.log(error);
-        return;
+        return null;
     }
 
     return (
@@ -68,14 +68,14 @@ function UserList({ fetchUsers, filters, refresh }) {
             <div className="users">
                 {
                     users.map((user, index) => {
-                        if (index + 1 == users.length) {
+                        if (index + 1 === users.length) {
                             return <UserListItem key={user.user_id} user={user} ref={lastItem}/>
                         }
                         return <UserListItem key={user.user_id} user={user} />
                     })
                 }
                 {
-                    (!isLoading && users.length == 0) ? <div className="hint">No users</div> : ""
+                    (!isLoading && users.length === 0) ? <div className="hint">No users</div> : ""
                 }
             </div>
 

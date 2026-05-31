@@ -17,6 +17,7 @@ MAX_COMMENTS_LIMIT = 100
 class CommentAuthorGet(BaseSchema):
     user_id: uuid.UUID
     username: Username
+    display_name: str = ""
     avatar: UserAvatarGet | None = None
 
 
@@ -53,6 +54,7 @@ class CommentGet(BaseSchema):
     is_deleted: bool
     reply_to_comment_depth: int | None = Field(default=None, ge=0, le=2)
     reply_to_username: str | None = None
+    reply_to_display_name: str | None = None
     reply_to_comment_ref: CommentRefGet | None = None
 
 

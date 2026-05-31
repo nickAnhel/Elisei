@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import "./ProfileNotificationsSettings.css";
 
 import NotificationService from "../../service/NotificationService";
+import ChatAvatar from "../chat-avatar/ChatAvatar";
 import Loader from "../loader/Loader";
 
 const CHAT_SETTING_UPDATED_EVENT = "notifications:chat-setting-updated";
@@ -257,6 +258,7 @@ function ProfileNotificationsSettings() {
                             </span>
                             <input
                                 type="checkbox"
+                                className="notification-setting-checkbox"
                                 checked={enabled}
                                 disabled={isSaving}
                                 onChange={(event) => toggleAuthorDraft(author.author_id, event.target.checked)}
@@ -272,9 +274,10 @@ function ProfileNotificationsSettings() {
                 {draftChats.map((chat) => {
                     const enabled = !chat.is_muted;
                     const isDirect = chat.chat_type === "direct";
+                    const title = chat.display_title || chat.title || "Chat";
                     const avatarSrc = isDirect
                         ? chat.avatar_small_url || "/assets/profile.svg"
-                        : "/assets/chat.svg";
+                        : chat.avatar_small_url || chat.display_avatar?.small_url || null;
 
                     return (
                         <label
@@ -282,21 +285,35 @@ function ProfileNotificationsSettings() {
                             className={`notification-setting-row${isSaving ? " disabled" : ""}`}
                         >
                             <span className="notification-setting-main">
-                                <img
-                                    className="notification-setting-avatar"
-                                    src={avatarSrc}
-                                    alt=""
-                                    onError={(event) => {
-                                        event.currentTarget.src = isDirect ? "/assets/profile.svg" : "/assets/chat.svg";
-                                    }}
-                                />
+                                {
+                                    isDirect
+                                        ? (
+                                            <img
+                                                className="notification-setting-avatar"
+                                                src={avatarSrc}
+                                                alt=""
+                                                onError={(event) => {
+                                                    event.currentTarget.src = "/assets/profile.svg";
+                                                }}
+                                            />
+                                        )
+                                        : (
+                                            <ChatAvatar
+                                                className="notification-setting-avatar"
+                                                src={avatarSrc}
+                                                title={title}
+                                                seed={chat.chat_id || title}
+                                            />
+                                        )
+                                }
                                 <span className="notification-setting-text">
-                                    <span className="notification-setting-title">{chat.display_title || chat.title}</span>
+                                    <span className="notification-setting-title">{title}</span>
                                     <span className="notification-setting-subtitle">{isDirect ? "Direct" : "Group"}</span>
                                 </span>
                             </span>
                             <input
                                 type="checkbox"
+                                className="notification-setting-checkbox"
                                 checked={enabled}
                                 disabled={isSaving}
                                 onChange={(event) => toggleChatDraft(chat.chat_id, event.target.checked)}

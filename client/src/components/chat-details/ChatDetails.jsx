@@ -20,13 +20,24 @@ import {
 } from "./messageReactionState";
 
 import ChatModal from "../chat-modal/ChatModal";
+import ChatAvatar from "../chat-avatar/ChatAvatar";
 import Modal from "../modal/Modal";
+import ChevronIcon from "../icons/ChevronIcon";
+import CloseIcon from "../icons/CloseIcon";
+import OptionsIcon from "../icons/OptionsIcon";
+import SearchIcon from "../icons/SearchIcon";
+import { Button, IconButton } from "../ui";
 import { getAvatarUrl } from "../../utils/avatar";
+import { getUserDisplayName } from "../../utils/userDisplay";
 import {
     buildComposerAttachmentFromAsset,
     formatAttachmentSize,
     resolveAssetTypeForFile,
 } from "../../utils/postAttachments";
+import MediaViewer, {
+    findMediaViewerIndexByAttachment,
+    normalizeAttachmentListToMediaViewerItems,
+} from "../media-viewer";
 import {
     buildSearchSnippet,
     splitHighlightedText,
@@ -86,7 +97,8 @@ function normalizeTimelineItem(item, currentUserId) {
             deletedBy: item.deleted_by,
             replyToMessageId: item.reply_to_message_id,
             replyPreview: normalizeReplyPreview(item.reply_preview),
-            username: item.user_id === currentUserId ? "You" : item.user.username,
+            username: item.user_id === currentUserId ? "You" : getUserDisplayName(item.user, item.user?.username || "Unknown"),
+            profileUsername: item.user?.username || null,
             createdAt: item.created_at,
             avatarUrl: item.user?.avatar?.small_url || null,
             attachments: normalizeMessageAttachments(item.attachments),
@@ -103,8 +115,10 @@ function normalizeTimelineItem(item, currentUserId) {
             chatSeq: item.chat_seq,
             eventId: item.event_id,
             action: item.event_type,
-            username: item.user.username,
-            addedUserUsername: item.altered_user?.username || null,
+            username: getUserDisplayName(item.user, item.user?.username || "Unknown"),
+            addedUserUsername: item.altered_user
+                ? getUserDisplayName(item.altered_user, item.altered_user?.username || "Unknown")
+                : null,
         };
     }
 
@@ -196,7 +210,10 @@ function normalizeMessagePayload(msgData, currentUserId) {
         deletedBy: msgData.deleted_by,
         replyToMessageId: msgData.reply_to_message_id,
         replyPreview: normalizeReplyPreview(msgData.reply_preview),
-        username: msgData.user_id === currentUserId ? "You" : msgData.username,
+        username: msgData.user_id === currentUserId
+            ? "You"
+            : (msgData.display_name || msgData.username || "Unknown"),
+        profileUsername: msgData.username || null,
         createdAt: msgData.created_at,
         avatarUrl: msgData.avatar_small_url || null,
         attachments: normalizeMessageAttachments(msgData.attachments),
@@ -258,11 +275,14 @@ function buildReplyPreviewFromMessage(messageItem) {
 }
 
 function normalizeSearchResult(item, currentUserId) {
+    const isOwn = item.user_id === currentUserId;
     return {
         messageId: item.message_id,
         chatSeq: item.chat_seq,
         userId: item.user_id,
-        username: item.user_id === currentUserId ? "You" : item.user?.username || "Unknown",
+        username: isOwn ? "You" : getUserDisplayName(item.user, item.user?.username || "Unknown"),
+        profileUsername: item.user?.username || null,
+        isOwn,
         content: item.content,
         editedAt: item.edited_at,
         deletedAt: item.deleted_at,
@@ -286,7 +306,7 @@ function MessageSearchNavigator({
         ? new Date(item.createdAt).toLocaleString()
         : "";
     const avatarSrc = item?.avatarUrl
-        || (item?.username === "You" ? currentUserAvatarUrl || "/assets/profile.svg" : "/assets/profile.svg");
+        || (item?.isOwn ? currentUserAvatarUrl || "/assets/profile.svg" : "/assets/profile.svg");
     const snippet = buildSearchSnippet(item?.content, query);
     const currentIndex = total > 0 ? Math.min(offset + 1, total) : 0;
     const hasNewer = offset > 0;
@@ -376,6 +396,8 @@ function ChatDetails() {
     const [editingMessage, setEditingMessage] = useState(null);
     const [replyingToMessage, setReplyingToMessage] = useState(null);
     const [messageMenu, setMessageMenu] = useState(null);
+    const [isOptionsOpen, setIsOptionsOpen] = useState(false);
+    const [isJoinedChat, setIsJoinedChat] = useState(false);
     const [deleteMessageCandidate, setDeleteMessageCandidate] = useState(null);
     const [isDeletingMessage, setIsDeletingMessage] = useState(false);
     const [oldestSeq, setOldestSeq] = useState(null);
@@ -391,12 +413,17 @@ function ChatDetails() {
     const [searchError, setSearchError] = useState("");
     const [focusedSearchMessageId, setFocusedSearchMessageId] = useState(null);
     const [jumpingToSearchMessageId, setJumpingToSearchMessageId] = useState(null);
+    const [mediaViewerItems, setMediaViewerItems] = useState([]);
+    const [mediaViewerIndex, setMediaViewerIndex] = useState(0);
+    const [isMediaViewerOpen, setIsMediaViewerOpen] = useState(false);
 
     const socket = useRef(null);
     const messagesEndRef = useRef(null);
     const textareaRef = useRef(null);
     const fileInputRef = useRef(null);
     const searchInputRef = useRef(null);
+    const optionsMenuRef = useRef(null);
+    const optionsTriggerRef = useRef(null);
     const latestSeqRef = useRef(null);
     const previousChatIdRef = useRef(null);
     const searchRequestIdRef = useRef(0);
@@ -411,14 +438,21 @@ function ChatDetails() {
     const directMember = chat.chat_type === "direct"
         ? chat.members?.find((member) => member.user_id !== store.user.user_id)
         : null;
-    const chatTitle = directMember?.username || chat.display_title || chat.title;
-    const chatImage = directMember
-        ? getAvatarUrl(directMember, "small")
-        : (chat.avatar?.small_url || chat.avatar?.medium_url || "/assets/chat.svg");
-    const chatImageFallback = directMember ? "/assets/profile.svg" : "/assets/chat.svg";
+    const chatTitle = directMember
+        ? getUserDisplayName(directMember, directMember?.username || "Direct chat")
+        : (chat.display_title || chat.title);
+    const directChatImage = getAvatarUrl(directMember, "small");
+    const groupChatImage = chat.avatar?.small_url || chat.avatar?.medium_url || null;
     const typingIndicatorText = getTypingIndicatorText(typingUsers, chat.chat_type);
     const currentUserAvatarUrl = getAvatarUrl(store.user, "small");
     const currentChatId = params.chatId?.startsWith("@") ? params.chatId.slice(1) : null;
+    const hasReadyAttachments = attachments.some((attachment) => (
+        attachment.uploadState === "ready" && attachment.asset_id
+    ));
+    const hasUploadingAttachments = attachments.some((attachment) => attachment.uploadState === "uploading");
+    const canSendMessage = editingMessage
+        ? message.trim() !== ""
+        : (message.trim() !== "" || hasReadyAttachments) && !hasUploadingAttachments;
 
     const markCurrentChatRead = useCallback(async (chatId) => {
         try {
@@ -654,7 +688,7 @@ function ChatDetails() {
 
         setTypingUsers((users) => upsertTypingUser(users, {
             userId: typingData.user_id,
-            username: typingData.username,
+            displayName: typingData.display_name || typingData.username || "Someone",
         }));
         scheduleTypingTimeout(typingData.user_id, typingData.expires_in_seconds);
     }, [chat.chat_id, scheduleTypingTimeout, store.user.user_id]);
@@ -686,6 +720,11 @@ function ChatDetails() {
             clearSearchState();
             setSearchInput("");
             setIsSearchPanelOpen(false);
+            setIsOptionsOpen(false);
+            setMessageMenu(null);
+            setIsMediaViewerOpen(false);
+            setMediaViewerItems([]);
+            setMediaViewerIndex(0);
             const nextParams = new URLSearchParams(searchParams);
             nextParams.delete("messageSearch");
             nextParams.delete("messageSearchOffset");
@@ -784,6 +823,71 @@ function ChatDetails() {
         }
     }, [isSearchPanelOpen]);
 
+    useEffect(() => {
+        if (!isOptionsOpen) {
+            return undefined;
+        }
+
+        const handlePointerDown = (event) => {
+            if (
+                optionsMenuRef.current?.contains(event.target)
+                || optionsTriggerRef.current?.contains(event.target)
+            ) {
+                return;
+            }
+            setIsOptionsOpen(false);
+        };
+
+        document.addEventListener("mousedown", handlePointerDown);
+        return () => {
+            document.removeEventListener("mousedown", handlePointerDown);
+        };
+    }, [isOptionsOpen]);
+
+    useEffect(() => {
+        const handleEscape = (event) => {
+            if (event.key !== "Escape") {
+                return;
+            }
+
+            if (messageMenu) {
+                setMessageMenu(null);
+                return;
+            }
+
+            if (isOptionsOpen) {
+                setIsOptionsOpen(false);
+                return;
+            }
+
+            if (isSearchPanelOpen) {
+                setIsSearchPanelOpen(false);
+                return;
+            }
+
+            if (deleteMessageCandidate || isEditChatModalActive) {
+                return;
+            }
+
+            if (currentChatId) {
+                navigate("/chats");
+            }
+        };
+
+        document.addEventListener("keydown", handleEscape);
+        return () => {
+            document.removeEventListener("keydown", handleEscape);
+        };
+    }, [
+        currentChatId,
+        deleteMessageCandidate,
+        isEditChatModalActive,
+        isOptionsOpen,
+        isSearchPanelOpen,
+        messageMenu,
+        navigate,
+    ]);
+
     const emitTypingStart = useCallback((value) => {
         if (!socket.current?.connected || !chat.chat_id || editingMessage) {
             return;
@@ -857,6 +961,7 @@ function ChatDetails() {
                 const res = await ChatService.getChatById(chatId);
 
                 setChat(res.data);
+                setIsJoinedChat(res.data.chat_type === "direct");
                 try {
                     const settings = await NotificationService.getSettings();
                     const chatSetting = (settings.data?.chats || []).find((item) => item.chat_id === chatId);
@@ -895,16 +1000,7 @@ function ChatDetails() {
 
                 const joined = await ChatService.getUserJoinedChats({ user_id: store.user.user_id });
                 const isJoined = joined.data.some((ch) => ch.chat_id === chatId);
-                const chatFooter = document.getElementById("chat-footer");
-                const joinButton = document.getElementById("join-btn");
-
-                if (isJoined || chat.chat_type === "direct") {
-                    chatFooter?.classList.remove("hidden");
-                    joinButton?.classList.add("hidden");
-                } else {
-                    chatFooter?.classList.add("hidden");
-                    joinButton?.classList.remove("hidden");
-                }
+                setIsJoinedChat(Boolean(isJoined || chat.chat_type === "direct"));
             } catch (e) {
                 console.log(e);
                 setIsError(true);
@@ -912,7 +1008,7 @@ function ChatDetails() {
         }
 
         checkJoinedWrapper();
-    }, [params.chatId, store.user, chat])
+    }, [chat.chat_type, params.chatId, store.user.user_id]);
 
     const loadOlderHistory = useCallback(async () => {
         if (!chat.chat_id || oldestSeq == null || isLoadingHistory || !hasMoreHistory) {
@@ -1267,7 +1363,6 @@ function ChatDetails() {
         const readyAttachments = attachments.filter((attachment) => (
             attachment.uploadState === "ready" && attachment.asset_id
         ));
-        const hasUploadingAttachments = attachments.some((attachment) => attachment.uploadState === "uploading");
         if (hasUploadingAttachments) {
             return;
         }
@@ -1281,6 +1376,7 @@ function ChatDetails() {
                 replyToMessageId: replyingToMessage?.messageId || null,
                 replyPreview: replyingToMessage ? buildReplyPreviewFromMessage(replyingToMessage) : null,
                 username: "You",
+                profileUsername: store.user.username,
                 createdAt: new Date().toISOString(),
                 avatarUrl: store.user?.avatar?.small_url || null,
                 sharedContent: null,
@@ -1341,6 +1437,7 @@ function ChatDetails() {
     const handleChatLeave = async () => {
         try {
             stopTyping();
+            setIsOptionsOpen(false);
             await ChatService.leaveChat(chat.chat_id);
             navigate("/chats");
 
@@ -1349,16 +1446,12 @@ function ChatDetails() {
         }
     }
 
-    const optionsHandler = () => {
-        const menu = document.getElementById('options');
-        menu.style.display = (menu.style.display === 'none' || menu.style.display === '') ? 'flex' : 'none';
-    }
-
     const handleToggleChatMuted = async () => {
         if (!chat.chat_id || isUpdatingChatMuted) {
             return;
         }
 
+        setIsOptionsOpen(false);
         const nextMuted = !isChatMuted;
         setIsUpdatingChatMuted(true);
         setChatMuteError("");
@@ -1390,6 +1483,7 @@ function ChatDetails() {
     const handleChatDelete = async () => {
         try {
             stopTyping();
+            setIsOptionsOpen(false);
             await ChatService.deleteChat(chat.chat_id);
             navigate("/chats");
         } catch (e) {
@@ -1403,9 +1497,16 @@ function ChatDetails() {
         }
 
         event.preventDefault();
+        const mobileMenu = window.matchMedia("(max-width: 768px)").matches;
+        const minX = 10;
+        const minY = 10;
+        const maxX = Math.max(minX, window.innerWidth - 320);
+        const maxY = Math.max(minY, window.innerHeight - 280);
+
         setMessageMenu({
-            x: event.clientX,
-            y: event.clientY,
+            x: mobileMenu ? null : Math.min(Math.max(event.clientX, minX), maxX),
+            y: mobileMenu ? null : Math.min(Math.max(event.clientY, minY), maxY),
+            mobileMenu,
             message: item,
         });
     }
@@ -1511,6 +1612,17 @@ function ChatDetails() {
         handleMessageReaction(selectedMessage, reactionType);
     }
 
+    const handleAttachmentOpen = useCallback((attachment, attachmentList = []) => {
+        const items = normalizeAttachmentListToMediaViewerItems(attachmentList);
+        if (items.length === 0) {
+            return;
+        }
+
+        setMediaViewerItems(items);
+        setMediaViewerIndex(findMediaViewerIndexByAttachment(items, attachment));
+        setIsMediaViewerOpen(true);
+    }, []);
+
     const handleChatSaved = (nextChat) => {
         if (!nextChat) {
             return;
@@ -1520,6 +1632,13 @@ function ChatDetails() {
             ...nextChat,
         }));
     };
+
+    const isGroupChat = chat.chat_type !== "direct";
+    const membersCount = Array.isArray(chat.members) ? chat.members.length : 0;
+    const statusParts = [
+        isGroupChat && membersCount > 0 ? `${membersCount} ${membersCount === 1 ? "member" : "members"}` : null,
+        isChatMuted ? "Muted" : null,
+    ].filter(Boolean);
 
     if (isError) {
         return (
@@ -1531,76 +1650,123 @@ function ChatDetails() {
 
     return (
         <div className="chat-details" onClick={() => setMessageMenu(null)}>
-            <div className="chat-header">
+            <header className="chat-header">
                 <div className="header-label">
-                    <img
-                        src={chatImage}
-                        alt=""
-                        onError={(event) => {
-                            event.currentTarget.src = chatImageFallback;
-                        }}
-                    />
-                    <h2><span id="ws-id">{chatTitle}</span></h2>
+                    <IconButton
+                        variant="ghost"
+                        size="md"
+                        className="chat-back-button"
+                        aria-label="Back to chats"
+                        onClick={() => navigate("/chats")}
+                    >
+                        <ChevronIcon direction="left" />
+                    </IconButton>
+                    {
+                        directMember
+                            ? (
+                                <img
+                                    className="chat-header-avatar"
+                                    src={directChatImage}
+                                    alt={chatTitle || "Chat avatar"}
+                                    onError={(event) => {
+                                        event.currentTarget.src = "/assets/profile.svg";
+                                    }}
+                                />
+                            )
+                            : (
+                                <ChatAvatar
+                                    className="chat-header-avatar"
+                                    src={groupChatImage}
+                                    title={chatTitle || "Chat"}
+                                    seed={chat.chat_id || currentChatId || chatTitle}
+                                />
+                            )
+                    }
+                    <div className="chat-header-main">
+                        <h2>{chatTitle || "Chat"}</h2>
+                        <div className="chat-header-status">
+                            {statusParts.join(" · ")}
+                            {typingIndicatorText ? ` · ${typingIndicatorText}` : ""}
+                        </div>
+                    </div>
                 </div>
 
                 <div className="header-actions">
-                    <button
+                    <IconButton
                         type="button"
-                        className={`header-action-button${isSearchPanelOpen ? " active" : ""}`}
+                        variant={isSearchPanelOpen ? "active" : "default"}
+                        size="md"
                         aria-label="Toggle message search"
                         aria-expanded={isSearchPanelOpen}
                         onClick={() => setIsSearchPanelOpen((current) => !current)}
                     >
-                        <img src="../../../assets/search.svg" alt="" />
-                    </button>
-                    <img id="options-btn" src="../../../assets/options.svg" alt="Options" onClick={optionsHandler} />
+                        <SearchIcon />
+                    </IconButton>
+                    <IconButton
+                        ref={optionsTriggerRef}
+                        type="button"
+                        variant={isOptionsOpen ? "active" : "default"}
+                        size="md"
+                        aria-label="Chat options"
+                        aria-expanded={isOptionsOpen}
+                        onClick={(event) => {
+                            event.stopPropagation();
+                            setIsOptionsOpen((current) => !current);
+                        }}
+                    >
+                        <OptionsIcon />
+                    </IconButton>
                 </div>
-            </div>
-            <div id="options">
+            </header>
+
+            {isOptionsOpen && (
                 <div
-                    className={`option${isUpdatingChatMuted ? " disabled" : ""}`}
-                    onClick={handleToggleChatMuted}
+                    ref={optionsMenuRef}
+                    className="chat-options-menu"
+                    onClick={(event) => event.stopPropagation()}
                 >
-                    <img src="../../../assets/chat.svg" alt="Notifications" />
-                    <div>
+                    <button
+                        type="button"
+                        className="chat-options-item"
+                        onClick={handleToggleChatMuted}
+                        disabled={isUpdatingChatMuted}
+                    >
                         {isUpdatingChatMuted
                             ? "Updating notification setting..."
                             : isChatMuted
                                 ? "Enable notifications"
                                 : "Mute notifications"}
-                    </div>
+                    </button>
+                    {chatMuteError && <div className="chat-mute-error">{chatMuteError}</div>}
+                    {store.user.user_id === chat.owner_id && chat.chat_type !== "direct" && (
+                        <button
+                            type="button"
+                            className="chat-options-item"
+                            onClick={() => {
+                                setIsOptionsOpen(false);
+                                setIsEditChatModalActive(true);
+                            }}
+                        >
+                            Edit info
+                        </button>
+                    )}
+                    <button type="button" className="chat-options-item danger" onClick={handleChatLeave}>
+                        Leave chat
+                    </button>
+                    {store.user.user_id === chat.owner_id && (
+                        <button type="button" className="chat-options-item danger" onClick={handleChatDelete}>
+                            Delete chat
+                        </button>
+                    )}
                 </div>
-                {chatMuteError && <div className="chat-mute-error">{chatMuteError}</div>}
-                <hr />
-                {
-                    store.user.user_id === chat.owner_id && chat.chat_type !== "direct" &&
-                    <>
-                        <div className="option" onClick={() => setIsEditChatModalActive(true)}>
-                            <img src="../../../assets/edit.svg" alt="Edit" />
-                            <div>Edit info</div>
-                        </div>
-                        <hr />
-                    </>
-                }
-                <div className="option danger" onClick={handleChatLeave}>
-                    <img src="../../../assets/leave.svg" alt="Leave" />
-                    <div>Leave chat</div>
-                </div>
-                {
-                    store.user.user_id === chat.owner_id &&
-                    <div className="option danger" onClick={handleChatDelete}>
-                        <img src="../../../assets/delete.svg" alt="Delete" />
-                        <div>Delete chat</div>
-                    </div>
-                }
-            </div>
+            )}
 
             {isSearchPanelOpen && (
-                <div className="chat-search-panel">
+                <section className="chat-search-panel">
                     <div className="chat-search-bar">
                         <input
                             ref={searchInputRef}
-                            type="text"
+                            type="search"
                             className="chat-search-input"
                             placeholder="Search messages in this chat"
                             value={searchInput}
@@ -1608,29 +1774,31 @@ function ChatDetails() {
                             onChange={(event) => setSearchInput(event.target.value)}
                             onKeyDown={handleSearchInputKeyDown}
                         />
-                        <button
+                        <Button
                             type="button"
-                            className="chat-search-button primary"
+                            size="sm"
                             onClick={handleSearchSubmit}
                             disabled={!searchInput.trim()}
                         >
                             Search
-                        </button>
-                        <button
+                        </Button>
+                        <Button
                             type="button"
-                            className="chat-search-button"
+                            size="sm"
+                            variant="secondary"
                             onClick={handleSearchClear}
                             disabled={!searchInput.trim() && !activeSearchQuery}
                         >
                             Clear
-                        </button>
-                        <button
+                        </Button>
+                        <Button
                             type="button"
-                            className="chat-search-button"
+                            size="sm"
+                            variant="ghost"
                             onClick={() => setIsSearchPanelOpen(false)}
                         >
                             Close
-                        </button>
+                        </Button>
                     </div>
 
                     {searchError && <div className="chat-search-status error">{searchError}</div>}
@@ -1668,22 +1836,20 @@ function ChatDetails() {
                             )}
                         </>
                     )}
-                </div>
+                </section>
             )}
 
             <div className="chat-body" ref={messagesEndRef} onScroll={handleHistoryScroll}>
-                {
-                    isLoadingHistory &&
-                    <div className="history-loader">Loading history...</div>
-                }
-                {
-                    chatItems.map((item, index) => {
+                <div className="chat-body-lane">
+                    {isLoadingHistory && <div className="history-loader">Loading history...</div>}
+                    {chatItems.map((item, index) => {
                         if (item.type === "message") {
                             return (
                                 <Message
                                     key={item.key || index}
                                     messageId={item.messageId}
                                     username={item.username}
+                                    profileUsername={item.profileUsername}
                                     content={item.content}
                                     createdAt={item.createdAt}
                                     avatarUrl={item.avatarUrl}
@@ -1695,26 +1861,34 @@ function ChatDetails() {
                                     sharedContent={item.sharedContent}
                                     reactions={item.reactions}
                                     isHighlighted={focusedSearchMessageId === item.messageId}
+                                    showUsername={isGroupChat}
+                                    onAttachmentOpen={handleAttachmentOpen}
                                     onContextMenu={(event) => openMessageMenu(event, item)}
                                     onReplyPreviewClick={scrollToMessage}
                                     onRetry={() => retryMessage(item.clientMessageId)}
                                 />
-                            )
-                        } else if (item.type === "event") {
+                            );
+                        }
+                        if (item.type === "event") {
                             return (
-                                <Event key={item.key || index} action={item.action} username={item.username} addedUserUsername={item.addedUserUsername} />
-                            )
+                                <Event
+                                    key={item.key || index}
+                                    action={item.action}
+                                    username={item.username}
+                                    addedUserUsername={item.addedUserUsername}
+                                />
+                            );
                         }
 
                         return null;
-                    })
-                }
+                    })}
+                </div>
             </div>
-            {
-                messageMenu &&
+
+            {messageMenu && (
                 <div
-                    className="message-context-menu"
-                    style={{ left: messageMenu.x, top: messageMenu.y }}
+                    className={`message-context-menu${messageMenu.mobileMenu ? " message-context-menu-mobile" : ""}`}
+                    style={messageMenu.mobileMenu ? undefined : { left: messageMenu.x, top: messageMenu.y }}
                     onClick={(event) => event.stopPropagation()}
                 >
                     {!messageMenu.message.deletedAt && (
@@ -1744,131 +1918,166 @@ function ChatDetails() {
                     )}
                     <div className="message-context-menu-actions">
                         <button type="button" onClick={startReplyingToMessage}>Reply</button>
-                        {
-                            messageMenu.message.userId === store.user.user_id && !messageMenu.message.deletedAt &&
+                        {messageMenu.message.userId === store.user.user_id && !messageMenu.message.deletedAt && (
                             <>
                                 <button type="button" onClick={startEditingMessage}>Edit</button>
                                 <button type="button" className="danger" onClick={requestDeleteSelectedMessage}>Delete</button>
                             </>
-                        }
+                        )}
                     </div>
                 </div>
-            }
+            )}
+
             <Modal active={Boolean(deleteMessageCandidate)} setActive={closeDeleteMessageModal}>
                 <div className="delete-message-modal">
                     <h2>Delete message?</h2>
                     <p>The message will stay in history as a deleted message stub.</p>
                     <div className="delete-message-modal-actions">
-                        <button
+                        <Button
                             type="button"
-                            className="btn btn-secondary"
+                            variant="secondary"
                             onClick={closeDeleteMessageModal}
                             disabled={isDeletingMessage}
                         >
                             Cancel
-                        </button>
-                        <button
+                        </Button>
+                        <Button
                             type="button"
-                            className="btn btn-danger"
+                            variant="danger"
                             onClick={deleteSelectedMessage}
                             disabled={isDeletingMessage}
                         >
                             {isDeletingMessage ? "Deleting..." : "Delete"}
-                        </button>
+                        </Button>
                     </div>
                 </div>
             </Modal>
 
-            <div id="chat-footer" className="chat-footer">
-                {
-                    editingMessage &&
-                    <div className="edit-banner">
-                        <div>
-                            <span>Editing message</span>
-                            <p>{editingMessage.content}</p>
-                        </div>
-                        <button type="button" onClick={clearComposer}>Cancel</button>
-                    </div>
-                }
-                {
-                    replyingToMessage &&
-                    <div className="reply-banner">
-                        <div>
-                            <span>Replying to {replyingToMessage.username}</span>
-                            <p>{replyingToMessage.deletedAt ? "Message deleted" : replyingToMessage.content}</p>
-                        </div>
-                        <button type="button" onClick={() => setReplyingToMessage(null)}>Cancel</button>
-                    </div>
-                }
-                {
-                    attachments.length > 0 &&
-                    <div className="composer-attachments">
-                        {attachments.map((attachment) => (
-                            <div
-                                key={attachment.id || attachment.asset_id}
-                                className={`composer-attachment composer-attachment-${attachment.uploadState}`}
-                            >
-                                <span className="composer-attachment-name">
-                                    {attachment.original_filename || "Untitled file"}
-                                </span>
-                                <span className="composer-attachment-meta">
-                                    {attachment.uploadState === "uploading"
-                                        ? "Uploading"
-                                        : attachment.uploadState === "failed"
-                                            ? attachment.error || "Failed"
-                                            : formatAttachmentSize(attachment.size_bytes)}
-                                </span>
-                                <button
-                                    type="button"
-                                    aria-label={`Remove ${attachment.original_filename || "attachment"}`}
-                                    onClick={() => removeAttachment(attachment.id)}
-                                >
-                                    x
-                                </button>
+            {isJoinedChat ? (
+                <div id="chat-footer" className="chat-footer">
+                    {editingMessage && (
+                        <div className="edit-banner">
+                            <div>
+                                <span>Editing message</span>
+                                <p>{editingMessage.content}</p>
                             </div>
-                        ))}
+                            <IconButton type="button" variant="ghost" size="sm" aria-label="Cancel editing" onClick={clearComposer}>
+                                <CloseIcon />
+                            </IconButton>
+                        </div>
+                    )}
+                    {replyingToMessage && (
+                        <div className="reply-banner">
+                            <div>
+                                <span>Replying to {replyingToMessage.username}</span>
+                                <p>{replyingToMessage.deletedAt ? "Message deleted" : replyingToMessage.content}</p>
+                            </div>
+                            <IconButton
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                aria-label="Cancel reply"
+                                onClick={() => setReplyingToMessage(null)}
+                            >
+                                <CloseIcon />
+                            </IconButton>
+                        </div>
+                    )}
+                    {attachments.length > 0 && (
+                        <div className="composer-attachments">
+                            {attachments.map((attachment) => (
+                                <div
+                                    key={attachment.id || attachment.asset_id}
+                                    className={`composer-attachment composer-attachment-${attachment.uploadState}`}
+                                >
+                                    <span className="composer-attachment-name">
+                                        {attachment.original_filename || "Untitled file"}
+                                    </span>
+                                    <span className="composer-attachment-meta">
+                                        {attachment.uploadState === "uploading"
+                                            ? "Uploading"
+                                            : attachment.uploadState === "failed"
+                                                ? attachment.error || "Failed"
+                                                : formatAttachmentSize(attachment.size_bytes)}
+                                    </span>
+                                    <IconButton
+                                        type="button"
+                                        size="sm"
+                                        variant="ghost"
+                                        aria-label={`Remove ${attachment.original_filename || "attachment"}`}
+                                        onClick={() => removeAttachment(attachment.id)}
+                                    >
+                                        <CloseIcon />
+                                    </IconButton>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                    {typingIndicatorText && (
+                        <div className="typing-indicator" aria-live="polite">
+                            {typingIndicatorText}
+                        </div>
+                    )}
+                    <div className="chat-composer">
+                        <div className="msg-box">
+                            <IconButton
+                                type="button"
+                                className="attach-button"
+                                variant="default"
+                                size="md"
+                                aria-label="Attach file"
+                                disabled={Boolean(editingMessage)}
+                                onClick={() => fileInputRef.current?.click()}
+                            >
+                                +
+                            </IconButton>
+                            <input
+                                ref={fileInputRef}
+                                type="file"
+                                multiple
+                                className="attachment-input"
+                                onChange={handleAttachmentSelect}
+                            />
+                            <textarea
+                                name="message-input"
+                                ref={textareaRef}
+                                value={message}
+                                placeholder={editingMessage ? "Edit message" : "Type a message"}
+                                onChange={handleMessageChange}
+                                onBlur={handleMessageBlur}
+                                id="message-input"
+                                onKeyDown={handleKeyDown}
+                            />
+                        </div>
+                        <Button
+                            type="button"
+                            variant="primary"
+                            className="chat-send-button"
+                            aria-label={editingMessage ? "Save message" : "Send message"}
+                            onClick={sendMessage}
+                            disabled={!canSendMessage}
+                        >
+                            <img src="../../../assets/send-message.svg" alt="" />
+                        </Button>
                     </div>
-                }
-                {
-                    typingIndicatorText &&
-                    <div className="typing-indicator" aria-live="polite">
-                        {typingIndicatorText}
-                    </div>
-                }
-                <div className="msg-box">
-                    <button
-                        type="button"
-                        className="attach-button"
-                        aria-label="Attach file"
-                        disabled={Boolean(editingMessage)}
-                        onClick={() => fileInputRef.current?.click()}
-                    >
-                        +
-                    </button>
-                    <input
-                        ref={fileInputRef}
-                        type="file"
-                        multiple
-                        className="attachment-input"
-                        onChange={handleAttachmentSelect}
-                    />
-                    <textarea
-                        name="message-input"
-                        ref={textareaRef}
-                        value={message}
-                        placeholder={editingMessage ? "Edit message" : "Type a message"}
-                        onChange={handleMessageChange}
-                        onBlur={handleMessageBlur}
-                        id="message-input"
-                        onKeyDown={handleKeyDown}
-                    >
-                    </textarea>
                 </div>
-                <button className="btn btn-primary" onClick={sendMessage}>
-                    <img src="../../../assets/send-message.svg" alt="" />
-                </button>
-            </div>
-            {chat.chat_type !== "direct" && <button id="join-btn" className="btn btn-primary hidden" onClick={handleChatJoin}>Join</button>}
+            ) : (
+                chat.chat_type !== "direct" && (
+                    <button id="join-btn" className="btn btn-primary" onClick={handleChatJoin}>
+                        Join
+                    </button>
+                )
+            )}
+
+            <MediaViewer
+                open={isMediaViewerOpen}
+                items={mediaViewerItems}
+                activeIndex={mediaViewerIndex}
+                onClose={() => setIsMediaViewerOpen(false)}
+                onIndexChange={setMediaViewerIndex}
+                ariaLabel="Chat media"
+                videoSkin="chat"
+            />
 
             <ChatModal
                 key={"edit"}
@@ -1885,7 +2094,7 @@ function ChatDetails() {
                 buttonText={"Save"}
             />
         </div>
-    )
+    );
 }
 
 export default ChatDetails;

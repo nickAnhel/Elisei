@@ -17,10 +17,11 @@ export function getTypingIndicatorText(typingUsers = [], chatType) {
 
     const [firstUser, ...otherUsers] = typingUsers;
     const otherCount = otherUsers.length;
+    const firstUserName = firstUser.displayName || firstUser.username || "Someone";
 
     if (chatType !== "group" || otherCount === 0) {
-        return `${firstUser.username} typing...`;
+        return `${firstUserName} typing...`;
     }
 
-    return `${firstUser.username} and ${otherCount} other${otherCount === 1 ? "" : "s"} typing...`;
+    return `${firstUserName} and ${otherCount} other${otherCount === 1 ? "" : "s"} typing...`;
 }

@@ -7,9 +7,10 @@
     height: 2.1rem;
     padding: 0;
     margin: 0;
-    border: 1px solid #3c3c3c;
+    border: 1px solid var(--color-border);
     border-radius: 999px;
-    background: #232323;
+    background: var(--color-surface-raised);
+    color: var(--color-text-muted);
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -17,7 +18,9 @@
 }
 
 .action-menu-trigger:hover {
-    border-color: #6d6d6d;
+    border-color: var(--color-border-strong);
+    background: var(--color-surface-muted);
+    color: var(--color-text);
 }
 
 .action-menu-trigger svg {
@@ -31,14 +34,14 @@
     right: 0;
     min-width: 8.5rem;
     padding: 0.35rem;
-    border: 1px solid #343434;
+    border: 1px solid var(--color-border);
     border-radius: 0.75rem;
-    background: #181818;
-    box-shadow: 0 0.6rem 1.4rem rgba(0, 0, 0, 0.35);
+    background: var(--color-surface);
+    box-shadow: var(--shadow-popover);
     display: flex;
     flex-direction: column;
     gap: 0.2rem;
-    z-index: 5;
+    z-index: var(--z-dropdown);
 }
 
 .action-menu-item {
@@ -48,15 +51,15 @@
     border: none;
     border-radius: 0.55rem;
     background: transparent;
-    color: #ececec;
+    color: var(--color-text);
     text-align: left;
     cursor: pointer;
 }
 
 .action-menu-item:hover {
-    background: #282828;
+    background: var(--color-surface-muted);
 }
 
 .action-menu-item.danger {
-    color: #ff9ba7;
+    color: var(--color-danger);
 }

@@ -11,8 +11,10 @@ import DislikeIcon from "../icons/DislikeIcon";
 import LikeIcon from "../icons/LikeIcon";
 import ReplyIcon from "../icons/ReplyIcon";
 import CommentReplies from "../comment-replies/CommentReplies";
+import MarkdownRenderer from "../markdown-renderer";
 import Modal from "../modal/Modal";
 import { getAvatarUrl } from "../../utils/avatar";
+import { getUserDisplayName } from "../../utils/userDisplay";
 
 
 const REPLIES_PAGE_SIZE = 10;
@@ -327,7 +329,7 @@ function CommentListItem({
                                                     onError={() => { setAuthorPhotoSrc("/assets/profile.svg"); }}
                                                     alt={`${comment.author.username} avatar`}
                                                 />
-                                                {comment.author.username}
+                                                {getUserDisplayName(comment.author, comment.author.username)}
                                             </Link>
                                             <span className="comment-date">
                                                 {new Date(comment.created_at).toLocaleString()}
@@ -362,7 +364,7 @@ function CommentListItem({
                                             className="comment-parent-link"
                                             onClick={jumpToReplyTarget}
                                         >
-                                            {`Reply to @${comment.reply_to_username}`}
+                                            {`Reply to ${comment.reply_to_display_name || comment.reply_to_username}`}
                                         </button>
                                     )
                                     : (
@@ -392,7 +394,9 @@ function CommentListItem({
 
                     {
                         !comment.is_deleted && !isEditing &&
-                        <p className="comment-body">{comment.body_text}</p>
+                        <div className="comment-body">
+                            <MarkdownRenderer preset="comment" value={comment.body_text} />
+                        </div>
                     }
 
                     {
@@ -439,7 +443,7 @@ function CommentListItem({
                         <div className="comment-inline-composer">
                             <CommentComposer
                                 placeholder={
-                                    `Reply to ${comment.is_deleted ? "this thread" : `@${comment.author.username}`}`
+                                    `Reply to ${comment.is_deleted ? "this thread" : getUserDisplayName(comment.author, comment.author.username)}`
                                 }
                                 submitLabel="Reply"
                                 onSubmit={handleReplySubmit}

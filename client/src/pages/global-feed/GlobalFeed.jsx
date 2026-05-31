@@ -1,4 +1,4 @@
-import { useContext, useEffect, useMemo } from "react";
+import { useContext, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 
 import "./GlobalFeed.css";
@@ -95,24 +95,9 @@ function GlobalFeed() {
         setSearchParams,
     ]);
 
-    const availableTabs = useMemo(() => (
-        [
-            { id: FEED_TABS.recommendations, label: "Recommendations" },
-            ...(store.isAuthenticated ? [{ id: FEED_TABS.subscriptions, label: "Subscriptions" }] : []),
-        ]
-    ), [store.isAuthenticated]);
-
     const availableSorts = activeTab === FEED_TABS.subscriptions
         ? SUBSCRIPTION_SORTS
         : RECOMMENDATION_SORTS;
-
-    const setTab = (tab) => {
-        setSearchParams({
-            tab,
-            type: activeContentType,
-            sort: normalizeSort(tab, activeSort),
-        });
-    };
 
     const setContentType = (contentType) => {
         setSearchParams({
@@ -143,19 +128,6 @@ function GlobalFeed() {
     return (
         <main id="global-feed">
             <header className="global-feed-header">
-                <div className="global-feed-tabs" role="tablist" aria-label="Feed tabs">
-                    {availableTabs.map((tab) => (
-                        <button
-                            key={tab.id}
-                            type="button"
-                            className={activeTab === tab.id ? "active" : ""}
-                            onClick={() => setTab(tab.id)}
-                        >
-                            {tab.label}
-                        </button>
-                    ))}
-                </div>
-
                 <div className="global-feed-controls">
                     <div className="global-feed-types" role="tablist" aria-label="Content type filters">
                         {CONTENT_TYPES.map((type) => (
@@ -171,7 +143,7 @@ function GlobalFeed() {
                     </div>
 
                     <label className="global-feed-sort" htmlFor="global-feed-sort-select">
-                        Sort
+                        <span>Sort</span>
                         <select
                             id="global-feed-sort-select"
                             value={activeSort}

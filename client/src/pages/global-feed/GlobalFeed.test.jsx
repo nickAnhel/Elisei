@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 
 let mockLocationSearch = "";
 const mockContentListSpy = jest.fn();
@@ -76,8 +76,6 @@ beforeEach(() => {
 test("feed shows recommendations tab by default and does not expose popular tab", () => {
     renderFeed();
 
-    expect(screen.getByRole("button", { name: "Recommendations" })).not.toBeNull();
-    expect(screen.queryByRole("button", { name: "Subscriptions" })).toBeNull();
     expect(screen.queryByText("Popular")).toBeNull();
 
     const props = mockContentListSpy.mock.calls.at(-1)[0];
@@ -91,12 +89,10 @@ test("feed shows recommendations tab by default and does not expose popular tab"
 
 
 test("subscriptions mode maps sort and content type to subscriptions endpoint filters", async () => {
-    renderFeed({ isAuthenticated: true });
-
-    expect(screen.getByRole("button", { name: "Subscriptions" })).not.toBeNull();
-    fireEvent.click(screen.getByRole("button", { name: "Subscriptions" }));
-    fireEvent.click(screen.getByRole("button", { name: "Videos" }));
-    fireEvent.change(screen.getByLabelText("Sort"), { target: { value: "oldest" } });
+    renderFeed({
+        isAuthenticated: true,
+        initialSearch: "tab=subscriptions&type=video&sort=oldest",
+    });
 
     await waitFor(() => {
         expect(screen.queryByRole("option", { name: "Relevance" })).toBeNull();

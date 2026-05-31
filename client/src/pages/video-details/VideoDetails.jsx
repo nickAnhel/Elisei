@@ -17,6 +17,7 @@ import ContentService from "../../service/ContentService";
 import VideoService from "../../service/VideoService";
 import { getAvatarUrl } from "../../utils/avatar";
 import { formatDuration } from "../../components/video-card/VideoCard";
+import { getUserDisplayName } from "../../utils/userDisplay";
 
 
 function VideoDetails() {
@@ -273,129 +274,140 @@ function VideoDetails() {
 
     return (
         <main className="video-details-page">
-            <section className="video-watch-surface">
-                {
-                    canShowPlayer
-                        ? (
-                            <VideoPlayer
-                                skin="page"
-                                sources={video.playback_sources}
-                                posterUrl={video.cover?.preview_url || video.cover?.original_url}
-                                title={video.title}
-                                chapters={video.chapters || []}
-                                initialTimeSeconds={video.history_progress?.progress_percent < 95 ? video.history_progress?.last_position_seconds : 0}
-                                preload="metadata"
-                                onPlay={handlePlayerPlay}
-                                onPause={handlePlayerPause}
-                                onEnded={handlePlayerEnded}
-                                onTimeUpdate={handlePlayerTimeUpdate}
-                            />
-                        )
-                        : (
-                            <div className="video-processing-panel">
-                                {
-                                    video.cover?.preview_url &&
-                                    <img src={video.cover.preview_url} alt={video.title || "Video cover"} />
-                                }
-                                <div>
-                                    <h2>{ready ? "Playback unavailable" : "Video is processing"}</h2>
-                                    <p>{video.processing_error || `Current status: ${video.processing_status}`}</p>
+            <div className="video-details-layout">
+                <div className="video-details-primary">
+                    <section className="video-watch-surface">
+                        {
+                            canShowPlayer
+                                ? (
+                                    <VideoPlayer
+                                        skin="page"
+                                        sources={video.playback_sources}
+                                        posterUrl={video.cover?.preview_url || video.cover?.original_url}
+                                        title={video.title}
+                                        chapters={video.chapters || []}
+                                        initialTimeSeconds={video.history_progress?.progress_percent < 95 ? video.history_progress?.last_position_seconds : 0}
+                                        preload="metadata"
+                                        onPlay={handlePlayerPlay}
+                                        onPause={handlePlayerPause}
+                                        onEnded={handlePlayerEnded}
+                                        onTimeUpdate={handlePlayerTimeUpdate}
+                                    />
+                                )
+                                : (
+                                    <div className="video-processing-panel">
+                                        {
+                                            video.cover?.preview_url &&
+                                            <img src={video.cover.preview_url} alt={video.title || "Video cover"} />
+                                        }
+                                        <div>
+                                            <h2>{ready ? "Playback unavailable" : "Video is processing"}</h2>
+                                            <p>{video.processing_error || `Current status: ${video.processing_status}`}</p>
+                                        </div>
+                                    </div>
+                                )
+                        }
+                    </section>
+
+                    <section className="video-details-main">
+                        <div className="video-details-meta-row">
+                            <Link to={`/people/@${video.user.username}`} className="video-details-author">
+                                <img
+                                    src={avatarSrc}
+                                    alt={`${video.user.username} profile`}
+                                    onError={() => setAvatarSrc("/assets/profile.svg")}
+                                />
+                                <span>{getUserDisplayName(video.user, video.user.username)}</span>
+                            </Link>
+                            <span>{new Date(video.published_at || video.created_at).toLocaleDateString()}</span>
+                            {
+                                video.duration_seconds &&
+                                <span>{formatDuration(video.duration_seconds)}</span>
+                            }
+                        </div>
+
+                        <div className="video-details-title-row">
+                            <h1>{video.title || "Untitled video"}</h1>
+                            {
+                                video.is_owner &&
+                                <div className="video-owner-actions">
+                                    <button type="button" onClick={() => navigate(`/videos/${video.video_id}/edit`)}>
+                                        Edit
+                                    </button>
+                                    <button type="button" onClick={() => setIsDeleteModalActive(true)}>
+                                        Delete
+                                    </button>
                                 </div>
+                            }
+                        </div>
+
+                        <div className="video-details-badges">
+                            {
+                                video.status === "draft" &&
+                                <span>Draft</span>
+                            }
+                            {
+                                video.visibility === "private" &&
+                                <span>Private</span>
+                            }
+                            {
+                                video.processing_status !== "ready" &&
+                                <span>{video.processing_status}</span>
+                            }
+                        </div>
+
+                        <div className="video-details-feedback" aria-label="Video feedback">
+                            <div className="video-details-views">
+                                <ViewIcon />
+                                <span>{video.views_count || 0} views</span>
                             </div>
-                        )
-                }
-            </section>
-
-            <section className="video-details-main">
-                <div className="video-details-meta-row">
-                    <Link to={`/people/@${video.user.username}`} className="video-details-author">
-                        <img
-                            src={avatarSrc}
-                            alt={`${video.user.username} profile`}
-                            onError={() => setAvatarSrc("/assets/profile.svg")}
-                        />
-                        <span>{video.user.username}</span>
-                    </Link>
-                    <span>{new Date(video.published_at || video.created_at).toLocaleDateString()}</span>
-                    {
-                        video.duration_seconds &&
-                        <span>{formatDuration(video.duration_seconds)}</span>
-                    }
-                </div>
-
-                <div className="video-details-title-row">
-                    <h1>{video.title || "Untitled video"}</h1>
-                    {
-                        video.is_owner &&
-                        <div className="video-owner-actions">
-                            <button type="button" onClick={() => navigate(`/videos/${video.video_id}/edit`)}>
-                                Edit
+                            <button type="button" onClick={handleLike} className={isLiked ? "active" : ""} disabled={!canReact}>
+                                <LikeIcon />
+                                <span>{video.likes_count || 0}</span>
                             </button>
-                            <button type="button" onClick={() => setIsDeleteModalActive(true)}>
-                                Delete
+                            <button type="button" onClick={handleDislike} className={isDisliked ? "active" : ""} disabled={!canReact}>
+                                <DislikeIcon />
+                                <span>{video.dislikes_count || 0}</span>
+                            </button>
+                            <button type="button" onClick={handleScrollToComments}>
+                                <CommentIcon />
+                                <span>{video.comments_count || 0}</span>
                             </button>
                         </div>
-                    }
+
+                        {
+                            video.description &&
+                            <p className="video-details-description">{video.description}</p>
+                        }
+
+                        {
+                            video.tags?.length > 0 &&
+                            <div className="video-details-tags">
+                                {video.tags.map((tag) => <TagChip key={tag.tag_id || tag.slug} slug={tag.slug} />)}
+                            </div>
+                        }
+                    </section>
+
+                    <section ref={commentsRef} className="video-details-comments">
+                        <CommentSection
+                            contentId={video.content_id}
+                            isEnabled={video.status === "published" && ready}
+                            onCommentsCountChange={handleCommentsCountChange}
+                        />
+                    </section>
                 </div>
 
-                <div className="video-details-badges">
-                    {
-                        video.status === "draft" &&
-                        <span>Draft</span>
-                    }
-                    {
-                        video.visibility === "private" &&
-                        <span>Private</span>
-                    }
-                    <span>{video.processing_status}</span>
-                </div>
-
-                <div className="video-details-feedback" aria-label="Video feedback">
-                    <div className="video-details-views">
-                        <ViewIcon />
-                        <span>{video.views_count || 0} views</span>
+                <aside className="video-details-sidebar">
+                    <div className="video-details-similar">
+                        <SimilarContentBlock
+                            contentId={video.video_id}
+                            contentType="video"
+                            limit={3}
+                            compact
+                        />
                     </div>
-                    <button type="button" onClick={handleLike} className={isLiked ? "active" : ""} disabled={!canReact}>
-                        <LikeIcon />
-                        <span>{video.likes_count || 0}</span>
-                    </button>
-                    <button type="button" onClick={handleDislike} className={isDisliked ? "active" : ""} disabled={!canReact}>
-                        <DislikeIcon />
-                        <span>{video.dislikes_count || 0}</span>
-                    </button>
-                    <button type="button" onClick={handleScrollToComments}>
-                        <CommentIcon />
-                        <span>{video.comments_count || 0}</span>
-                    </button>
-                </div>
-
-                {
-                    video.description &&
-                    <p className="video-details-description">{video.description}</p>
-                }
-
-                {
-                    video.tags?.length > 0 &&
-                    <div className="video-details-tags">
-                        {video.tags.map((tag) => <TagChip key={tag.tag_id || tag.slug} slug={tag.slug} />)}
-                    </div>
-                }
-            </section>
-
-            <section ref={commentsRef}>
-                <div className="video-details-similar">
-                    <SimilarContentBlock
-                        contentId={video.video_id}
-                        contentType="video"
-                        limit={4}
-                    />
-                </div>
-                <CommentSection
-                    contentId={video.content_id}
-                    isEnabled={video.status === "published" && ready}
-                    onCommentsCountChange={handleCommentsCountChange}
-                />
-            </section>
+                </aside>
+            </div>
 
             <Modal
                 active={isDeleteModalActive}

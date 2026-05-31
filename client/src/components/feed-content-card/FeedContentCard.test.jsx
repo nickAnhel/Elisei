@@ -2,13 +2,13 @@ import { render, screen } from "@testing-library/react";
 
 jest.mock("../video-card/VideoCard", () => {
     const React = require("react");
-    return React.forwardRef(({ video }, ref) => (
-        <div ref={ref}>Video card: {video.title}</div>
+    return React.forwardRef(({ video, showExcerpt }, ref) => (
+        <div ref={ref}>Video card: {video.title} | excerpt: {String(showExcerpt)}</div>
     ));
 });
 jest.mock("../article-card/ArticleCard", () => {
     const React = require("react");
-    return React.forwardRef(() => <div>Article card</div>);
+    return React.forwardRef(({ showExcerpt }, ref) => <div ref={ref}>Article card | excerpt: {String(showExcerpt)}</div>);
 });
 jest.mock("../moment-card/MomentCard", () => {
     const React = require("react");
@@ -49,5 +49,19 @@ test("dispatches video content to VideoCard", () => {
         />
     );
 
-    expect(screen.getByText("Video card: Feed video")).not.toBeNull();
+    expect(screen.getByText("Video card: Feed video | excerpt: false")).not.toBeNull();
+});
+
+test("dispatches article content to ArticleCard without excerpt in feed", () => {
+    render(
+        <FeedContentCard
+            item={{
+                content_id: "article-1",
+                content_type: "article",
+                title: "Feed article",
+            }}
+        />
+    );
+
+    expect(screen.getByText("Article card | excerpt: false")).not.toBeNull();
 });

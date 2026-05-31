@@ -167,7 +167,7 @@ async def on_join(
         return _error_response("unauthorized", str(exc))
 
     async with async_session_maker() as session:
-        service = get_chat_service(session)
+        service = await get_chat_service(session)
         try:
             await service.ensure_user_is_chat_member(
                 chat_id=chat_id,
@@ -210,7 +210,7 @@ async def on_typing_start(
         return _error_response("unauthorized", str(exc))
 
     async with async_session_maker() as session:
-        service = get_chat_service(session)
+        service = await get_chat_service(session)
         try:
             await service.ensure_user_is_chat_member(
                 chat_id=msg.chat_id,
@@ -257,7 +257,7 @@ async def on_typing_stop(
         return _error_response("unauthorized", str(exc))
 
     async with async_session_maker() as session:
-        service = get_chat_service(session)
+        service = await get_chat_service(session)
         try:
             await service.ensure_user_is_chat_member(
                 chat_id=msg.chat_id,
@@ -301,7 +301,7 @@ async def on_message(
         return _error_response("unauthorized", str(exc))
 
     async with async_session_maker() as session:
-        chat_service = get_chat_service(session)
+        chat_service = await get_chat_service(session)
         try:
             await chat_service.ensure_user_is_chat_member(
                 chat_id=chat_id,

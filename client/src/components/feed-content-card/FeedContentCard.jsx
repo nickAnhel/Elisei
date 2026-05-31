@@ -13,6 +13,7 @@ function FeedContentCard({ item, removeItem, forwardedRef = null }) {
                     ...item,
                     article_id: item.content_id,
                 }}
+                showExcerpt={false}
                 removeItem={removeItem}
             />
         );
@@ -26,6 +27,7 @@ function FeedContentCard({ item, removeItem, forwardedRef = null }) {
                     ...item,
                     video_id: item.content_id,
                 }}
+                showExcerpt={false}
                 removeItem={removeItem}
             />
         );

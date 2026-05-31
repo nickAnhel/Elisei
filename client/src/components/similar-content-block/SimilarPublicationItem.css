@@ -1,0 +1,98 @@
+.similar-publication-item {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    padding: var(--space-4);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-xl);
+    background: var(--color-surface);
+}
+
+.similar-publication-item-meta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-2);
+}
+
+.similar-publication-item-author {
+    min-width: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    text-decoration: none;
+    color: var(--color-text);
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-medium);
+}
+
+.similar-publication-item-author img {
+    width: 1.65rem;
+    height: 1.65rem;
+    object-fit: cover;
+    border-radius: var(--radius-pill);
+    border: 1px solid var(--color-border);
+    background: var(--color-surface-muted);
+}
+
+.similar-publication-item-author span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.similar-publication-item-date {
+    flex: none;
+    color: var(--color-text-subtle);
+    font-size: var(--font-size-xs);
+}
+
+.similar-publication-item-preview {
+    display: block;
+    width: 100%;
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    border: 1px solid var(--color-border);
+    background: var(--color-surface-muted);
+    text-decoration: none;
+}
+
+.similar-publication-item-preview img {
+    display: block;
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    object-fit: cover;
+}
+
+.similar-publication-item-preview-empty {
+    display: grid;
+    place-items: center;
+    min-height: 6.75rem;
+    color: var(--color-text-subtle);
+    font-size: var(--font-size-xs);
+}
+
+.similar-publication-item-title {
+    margin: 0;
+    color: var(--color-text);
+    text-decoration: none;
+    font-size: var(--font-size-sm);
+    line-height: var(--line-height-normal);
+    font-weight: var(--font-weight-semibold);
+}
+
+.similar-publication-item-title:hover {
+    color: var(--color-accent);
+}
+
+.similar-publication-item-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-1);
+}
+
+.similar-publication-item-tags .tag-chip {
+    font-size: 0.67rem;
+    padding: 0.16rem 0.5rem;
+}

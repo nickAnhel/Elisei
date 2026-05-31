@@ -1,11 +1,11 @@
-import { useState, useContext, useRef, useEffect } from "react";
+import { useState, useContext } from "react";
 import { observer } from "mobx-react-lite";
 import { Link, useNavigate } from "react-router-dom";
 
 import "./SignUpForm.css";
 
 import { StoreContext } from "../../";
-import Loader from "../loader/Loader";
+import { Button, Card, Input, Textarea } from "../ui";
 
 
 function isValidHttpUrl(value) {
@@ -31,14 +31,6 @@ const SignUpForm = () => {
     const [password, setPassword] = useState("");
     const [confirmPassword, setConfirmPassword] = useState("");
     const [links, setLinks] = useState([{ label: "", url: "" }]);
-
-    const usernameInputRef = useRef(null);
-
-    useEffect(() => {
-        if (username === "") {
-            usernameInputRef?.current?.focus();
-        }
-    }, [username]);
 
     const setLinkField = (index, field, value) => {
         setLinks((prev) => prev.map((item, itemIndex) => {
@@ -122,120 +114,125 @@ const SignUpForm = () => {
     };
 
     return (
-        <div className="singup-form">
+        <Card className="singup-form" variant="raised" padding="lg">
             <h1>Sign Up</h1>
 
             <form onSubmit={handleSubmit}>
-                <div className="signup-field-group">
-                    <label htmlFor="username" className="signup-field-label">Username</label>
-                    <input
-                        ref={usernameInputRef}
-                        id="username"
-                        type="text"
-                        placeholder="Username"
-                        value={username}
-                        pattern="^[A-Za-z0-9._-]{1,32}$"
-                        maxLength={32}
-                        onChange={(e) => setUsername(e.target.value)}
-                        required
-                    />
-                </div>
+                <Input
+                    id="username"
+                    type="text"
+                    label="Username"
+                    placeholder="Username"
+                    value={username}
+                    pattern="^[A-Za-z0-9._-]{1,32}$"
+                    maxLength={32}
+                    onChange={(e) => setUsername(e.target.value)}
+                    required
+                    autoFocus
+                    fullWidth
+                />
 
-                <div className="signup-field-group">
-                    <label htmlFor="display-name" className="signup-field-label">Display name</label>
-                    <input
-                        id="display-name"
-                        type="text"
-                        placeholder="Display name"
-                        value={displayName}
-                        maxLength={64}
-                        onChange={(e) => setDisplayName(e.target.value)}
-                    />
-                </div>
+                <Input
+                    id="display-name"
+                    type="text"
+                    label="Display name"
+                    placeholder="Display name"
+                    value={displayName}
+                    maxLength={64}
+                    onChange={(e) => setDisplayName(e.target.value)}
+                    fullWidth
+                />
 
-                <div className="signup-field-group">
-                    <label htmlFor="bio" className="signup-field-label">Bio</label>
-                    <textarea
-                        id="bio"
-                        className="signup-field-textarea"
-                        placeholder="Tell people about yourself"
-                        value={bio}
-                        maxLength={500}
-                        onChange={(e) => setBio(e.target.value)}
-                    />
-                </div>
+                <Textarea
+                    id="bio"
+                    label="Bio"
+                    placeholder="Tell people about yourself"
+                    value={bio}
+                    maxLength={500}
+                    onChange={(e) => setBio(e.target.value)}
+                    fullWidth
+                />
 
                 <div className="signup-field-group">
                     <label className="signup-field-label">Links</label>
                     <div className="signup-links-block">
-                    {links.map((link, index) => (
-                        <div className="signup-link-row" key={`signup-link-${index}`}>
-                            <input
-                                type="text"
-                                placeholder="Label"
-                                value={link.label}
-                                maxLength={32}
-                                onChange={(e) => setLinkField(index, "label", e.target.value)}
-                            />
-                            <input
-                                type="url"
-                                placeholder="https://example.com"
-                                value={link.url}
-                                onChange={(e) => setLinkField(index, "url", e.target.value)}
-                            />
-                            <button
-                                type="button"
-                                className="btn btn-outline-primary signup-link-remove"
-                                onClick={() => removeLinkRow(index)}
-                                disabled={links.length === 1}
-                            >
-                                Remove
-                            </button>
-                        </div>
-                    ))}
-                    <button
-                        type="button"
-                        className="btn btn-outline-primary signup-link-add"
-                        onClick={addLinkRow}
-                    >
-                        Add link
-                    </button>
+                        {links.map((link, index) => (
+                            <div className="signup-link-row" key={`signup-link-${index}`}>
+                                <Input
+                                    type="text"
+                                    placeholder="Label"
+                                    value={link.label}
+                                    maxLength={32}
+                                    onChange={(e) => setLinkField(index, "label", e.target.value)}
+                                    fullWidth
+                                />
+                                <Input
+                                    type="url"
+                                    placeholder="https://example.com"
+                                    value={link.url}
+                                    onChange={(e) => setLinkField(index, "url", e.target.value)}
+                                    fullWidth
+                                />
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    className="signup-link-remove"
+                                    onClick={() => removeLinkRow(index)}
+                                    disabled={links.length === 1}
+                                >
+                                    Remove
+                                </Button>
+                            </div>
+                        ))}
+                        <Button
+                            type="button"
+                            variant="outline"
+                            className="signup-link-add"
+                            onClick={addLinkRow}
+                        >
+                            Add link
+                        </Button>
                     </div>
                 </div>
 
-                <input
+                <Input
                     id="password"
                     type="password"
+                    label="Password"
                     placeholder="Password"
                     value={password}
                     minLength={8}
                     onChange={(e) => setPassword(e.target.value)}
                     required
+                    fullWidth
                 />
 
-                <input
+                <Input
                     id="confirm-password"
                     type="password"
+                    label="Confirm password"
                     placeholder="Confirm password"
                     value={confirmPassword}
                     minLength={8}
                     onChange={(e) => setConfirmPassword(e.target.value)}
                     required
+                    fullWidth
                 />
 
                 {error ? <div className="signup-error">{error}</div> : null}
 
-                <button
-                    className="btn btn-primary btn-block"
+                <Button
                     type="submit"
-                    disabled={isLoading}
+                    variant="primary"
+                    fullWidth
+                    loading={isLoading}
                 >
-                    {isLoading ? <Loader /> : "Sign Up"}
-                </button>
+                    Sign Up
+                </Button>
 
                 <div className="hint">Already have an account? <Link to="/login">Sign In</Link></div>
             </form>
-        </div>
+        </Card>
     );
 };
 

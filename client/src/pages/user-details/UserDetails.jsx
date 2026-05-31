@@ -254,25 +254,28 @@ function UserDetails() {
             </div>
 
             <div className="user-info">
-                <div className="tabs">
-                    <div
+                <div className="tabs" role="tablist" aria-label="Profile sections">
+                    <button
+                        type="button"
                         className={tab === "publications" ? "tab active" : "tab"}
                         onClick={() => setTab("publications")}
                     >
                         Publications
-                    </div>
-                    <div
+                    </button>
+                    <button
+                        type="button"
                         className={tab === "gallery" ? "tab active" : "tab"}
                         onClick={() => setTab("gallery")}
                     >
                         Gallery
-                    </div>
-                    <div
+                    </button>
+                    <button
+                        type="button"
                         className={tab === "subscriptions" ? "tab active" : "tab"}
                         onClick={() => setTab("subscriptions")}
                     >
                         Subscriptions
-                    </div>
+                    </button>
                 </div>
 
                 {tab === "publications" && user.user_id ? (
@@ -379,13 +382,12 @@ function UserDetails() {
                                             ) : (
                                                 <img
                                                     src={item.attachment.preview_url || item.attachment.original_url || "/assets/profile.svg"}
-                                                    alt={item.excerpt || "Gallery item"}
+                                                    alt="Gallery item"
                                                     onError={(e) => { e.currentTarget.src = "/assets/profile.svg"; }}
                                                 />
                                             )}
                                             {item.attachment.file_kind === "video" ? <span className="gallery-video-badge">Video</span> : null}
                                         </div>
-                                        <div className="gallery-item-meta">{item.excerpt || "Open media"}</div>
                                     </button>
                                 )}
                             />

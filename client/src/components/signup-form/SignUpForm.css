@@ -1,110 +1,77 @@
 .singup-form {
+    width: min(42rem, 100%);
     display: flex;
     flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    height: 100%;
-    width: min(42rem, 100%);
-    box-sizing: border-box;
-    gap: 2rem;
+    gap: var(--space-4);
     margin: 0 auto;
-    padding: 1rem;
 }
 
 .singup-form h1 {
-    font-size: 2.4rem;
+    margin: 0;
+    font-size: clamp(1.9rem, 3.5vw, 2.45rem);
+    line-height: 1.1;
 }
 
 .singup-form form {
     width: 100%;
     display: flex;
     flex-direction: column;
-    gap: 0.65rem;
+    gap: var(--space-3);
     box-sizing: border-box;
-}
-
-.singup-form input,
-.singup-form textarea {
-    font-size: 1.05rem;
-}
-
-.singup-form textarea {
-    min-height: 6rem;
-    resize: vertical;
 }
 
 .signup-field-group {
     display: flex;
     flex-direction: column;
-    gap: 0.45rem;
+    gap: var(--space-2);
 }
 
 .signup-field-label {
-    font-size: 0.9rem;
-    color: #a8a8a8;
-    letter-spacing: 0.01em;
-}
-
-.signup-field-textarea {
-    border: 1px solid #3a3a3a;
-    background: #151515;
-    border-radius: 0.7rem;
+    font-size: var(--font-size-sm);
+    color: var(--color-text-subtle);
 }
 
 .signup-links-block {
-    border: 1px solid #2f2f2f;
-    border-radius: 0.9rem;
-    padding: 0.8rem;
-    background: #131313;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    padding: var(--space-3);
+    background: var(--color-surface);
     display: flex;
     flex-direction: column;
-    gap: 0.6rem;
-}
-
-.signup-links-header {
-    font-size: 0.95rem;
-    color: #b6b6b6;
-}
-
-.signup-links-block input {
-    border: 1px solid #3a3a3a;
-    background: #161616;
-    border-radius: 0.65rem;
+    gap: var(--space-2);
 }
 
 .signup-link-row {
     display: grid;
     grid-template-columns: 1fr 1.3fr auto;
-    gap: 0.55rem;
+    gap: var(--space-2);
+    align-items: end;
 }
 
 .signup-link-row .signup-link-remove {
     width: auto;
-    margin: 0;
+    min-height: var(--input-height-md);
 }
 
 .signup-link-add {
     width: auto;
-    margin: 0;
     align-self: flex-start;
 }
 
 .signup-error {
-    color: #ff8a8a;
-    font-size: 0.9rem;
-}
-
-.singup-form button {
-    font-size: 1.05rem;
+    color: var(--color-danger);
+    font-size: var(--font-size-sm);
 }
 
 .singup-form .hint {
-    color: #7e7e7e;
+    color: var(--color-text-subtle);
+    font-size: var(--font-size-sm);
 }
 
 @media (max-width: 860px) {
     .signup-link-row {
         grid-template-columns: 1fr;
+        align-items: stretch;
     }
 
     .signup-link-row .signup-link-remove {

@@ -1,0 +1,104 @@
+.profile-appearance-settings {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+}
+
+.profile-appearance-section {
+    background: var(--color-surface-raised);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    padding: var(--space-3);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    box-shadow: var(--shadow-card);
+}
+
+.profile-appearance-section h3 {
+    margin: 0;
+    font-size: var(--font-size-md);
+}
+
+.profile-appearance-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    background: var(--color-surface);
+    padding: var(--space-3);
+}
+
+.profile-appearance-info {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+}
+
+.profile-appearance-title {
+    color: var(--color-text);
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-semibold);
+}
+
+.profile-appearance-subtitle {
+    color: var(--color-text-subtle);
+    font-size: var(--font-size-xs);
+}
+
+.profile-appearance-switcher {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    padding: var(--space-1);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    background: var(--color-surface-muted);
+    flex-wrap: wrap;
+}
+
+.profile-appearance-switcher button {
+    min-height: 2rem;
+    border: 1px solid transparent;
+    border-radius: var(--radius-md);
+    background: transparent;
+    color: var(--color-text-subtle);
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-medium);
+    padding: 0 var(--space-3);
+    cursor: pointer;
+    transition: background-color var(--duration-fast) var(--ease-standard), color var(--duration-fast) var(--ease-standard), border-color var(--duration-fast) var(--ease-standard);
+}
+
+.profile-appearance-switcher button:hover {
+    color: var(--color-text);
+}
+
+.profile-appearance-switcher button.active {
+    border-color: var(--color-accent-muted);
+    color: var(--color-accent);
+    background: var(--color-accent-surface);
+}
+
+.profile-appearance-switcher button:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 3px var(--color-focus-ring);
+}
+
+@media (max-width: 860px) {
+    .profile-appearance-row {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .profile-appearance-switcher {
+        width: 100%;
+    }
+
+    .profile-appearance-switcher button {
+        flex: 1 1 auto;
+    }
+}

@@ -1,6 +1,6 @@
 import { render, screen, waitFor } from "@testing-library/react";
 
-jest.mock("../feed-content-card/FeedContentCard", () => ({ item }) => <div>Card {item.content_id}</div>);
+jest.mock("./SimilarPublicationItem", () => ({ item }) => <div>Item {item.content_id}</div>);
 jest.mock("../loader/Loader", () => () => <div>Loading</div>);
 jest.mock("../../service/ContentService", () => ({
     __esModule: true,
@@ -17,7 +17,7 @@ beforeEach(() => {
     jest.clearAllMocks();
 });
 
-test("renders similar content cards from API payload", async () => {
+test("renders similar content items from API payload", async () => {
     ContentService.getSimilarContent.mockResolvedValue({
         data: {
             items: [
@@ -30,8 +30,8 @@ test("renders similar content cards from API payload", async () => {
     render(<SimilarContentBlock contentId="content-1" />);
 
     await waitFor(() => expect(ContentService.getSimilarContent).toHaveBeenCalled());
-    await waitFor(() => expect(screen.getByText("Card one")).not.toBeNull());
-    expect(screen.getByText("Card two")).not.toBeNull();
+    await waitFor(() => expect(screen.getByText("Item one")).not.toBeNull());
+    expect(screen.getByText("Item two")).not.toBeNull();
 });
 
 test("renders empty state when API returns no items", async () => {
@@ -53,7 +53,7 @@ test("hides block on fetch error by default", async () => {
     render(<SimilarContentBlock contentId="content-1" />);
 
     await waitFor(() => expect(ContentService.getSimilarContent).toHaveBeenCalled());
-    await waitFor(() => expect(screen.queryByRole("heading", { name: "Похожие публикации" })).toBeNull());
+    await waitFor(() => expect(screen.queryByRole("heading", { name: "Similar publications" })).toBeNull());
     consoleSpy.mockRestore();
 });
 

@@ -1,9 +1,5 @@
 import { useContext, useEffect, useState, forwardRef } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
-import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
-import { oneDark } from "react-syntax-highlighter/dist/esm/styles/prism";
 
 import "./PostListItem.css";
 
@@ -16,12 +12,15 @@ import PostModal from "../post-modal/PostModal";
 import PostFileBlock from "../post-file-block/PostFileBlock";
 import PostGalleryViewer from "../post-gallery-viewer/PostGalleryViewer";
 import PostMediaBlock from "../post-media-block/PostMediaBlock";
+import MarkdownRenderer from "../markdown-renderer";
 import TagChip from "../tag-chip/TagChip";
+import { EditIcon, TrashIcon } from "../icons/ArticleUiIcons";
 import CommentIcon from "../icons/CommentIcon";
 import ContentShareButton from "../content-share-button/ContentShareButton";
 import DislikeIcon from "../icons/DislikeIcon";
 import LikeIcon from "../icons/LikeIcon";
 import { getAvatarUrl } from "../../utils/avatar";
+import { getUserDisplayName } from "../../utils/userDisplay";
 
 
 const PostListItem = forwardRef((props, ref) => {
@@ -143,7 +142,7 @@ const PostListItem = forwardRef((props, ref) => {
                             alt={`${post.user.username} profile photo`}
                         />
                         <p>
-                            {post.user.username}
+                            {getUserDisplayName(post.user, post.user.username)}
                         </p>
                     </Link>
                     <div className="post-badges">
@@ -183,31 +182,7 @@ const PostListItem = forwardRef((props, ref) => {
             {
                 post.content?.trim() && (
                     <div className="content">
-                        <ReactMarkdown
-                            remarkPlugins={[remarkGfm]}
-                            components={{
-                                code({ node, inline, className, children, ...props }) {
-                                    const match = /language-(\w+)/.exec(className || "");
-                                    return !inline && match ? (
-                                        <SyntaxHighlighter
-                                            style={oneDark}
-                                            language={match[1]}
-                                            PreTag="div"
-                                            customStyle={{ margin: 0 }}
-                                            {...props}
-                                        >
-                                            {String(children).replace(/\n$/, "")}
-                                        </SyntaxHighlighter>
-                                    ) : (
-                                        <code className={className} {...props}>
-                                            {children}
-                                        </code>
-                                    );
-                                },
-                            }}
-                        >
-                            {post.content}
-                        </ReactMarkdown>
+                        <MarkdownRenderer preset="post" value={post.content} />
                     </div>
                 )
             }
@@ -226,19 +201,26 @@ const PostListItem = forwardRef((props, ref) => {
             }
             <div className="actions">
                 {
-                    post.is_owner &&
-                    <>
-                        <img
-                            onClick={() => { setIsDeletePostModalActive(true); }}
-                            src="../../../assets/delete.svg"
-                            alt="Delete post"
-                        />
-                        <img
+                    post.is_owner && isDetailView &&
+                    <div className="post-owner-actions">
+                        <button
+                            type="button"
                             onClick={() => { setIsEditPostModalActive(true); }}
-                            src="../../../assets/edit.svg"
-                            alt="Edit post"
-                        />
-                    </>
+                            aria-label="Edit post"
+                        >
+                            <EditIcon />
+                            <span>Edit</span>
+                        </button>
+                        <button
+                            type="button"
+                            className="danger"
+                            onClick={() => { setIsDeletePostModalActive(true); }}
+                            aria-label="Delete post"
+                        >
+                            <TrashIcon />
+                            <span>Delete</span>
+                        </button>
+                    </div>
                 }
 
                 <button

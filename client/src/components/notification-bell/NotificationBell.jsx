@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { io } from "socket.io-client";
 import { useLocation, useNavigate } from "react-router-dom";
 
@@ -6,6 +7,7 @@ import "./NotificationBell.css";
 
 import NotificationService from "../../service/NotificationService";
 import BellIcon from "../icons/BellIcon";
+import { Badge, Button, EmptyState, Skeleton, Tabs, TabsList, TabsTrigger } from "../ui";
 
 const PAGE_LIMIT = 20;
 const TOAST_TTL_MS = 4500;
@@ -58,6 +60,16 @@ function resolveTarget(notification) {
     }
 
     return "/feed";
+}
+
+function getNotificationTabLabel(tab) {
+    if (tab === "publication") {
+        return "Publications";
+    }
+    if (tab === "messenger") {
+        return "Messenger";
+    }
+    return "All";
 }
 
 function NotificationBell({ isAuthenticated, userId }) {
@@ -325,6 +337,19 @@ function NotificationBell({ isAuthenticated, userId }) {
     }, []);
 
     useEffect(() => {
+        const onEscape = (event) => {
+            if (event.key === "Escape") {
+                setIsOpen(false);
+            }
+        };
+
+        document.addEventListener("keydown", onEscape);
+        return () => {
+            document.removeEventListener("keydown", onEscape);
+        };
+    }, []);
+
+    useEffect(() => {
         const timers = dismissTimersRef.current;
         return () => {
             timers.forEach((timerId) => clearTimeout(timerId));
@@ -336,11 +361,20 @@ function NotificationBell({ isAuthenticated, userId }) {
         if (!isOpen) {
             return;
         }
-        if (itemsByTab[activeTab]?.length > 0 || loadingByTab[activeTab]) {
+        if (loadingByTab[activeTab]) {
+            return;
+        }
+        if (itemsByTab[activeTab]?.length > 0) {
+            return;
+        }
+        if (errorByTab[activeTab]) {
+            return;
+        }
+        if (!hasMoreByTab[activeTab] && !beforeByTab[activeTab]) {
             return;
         }
         loadTab(activeTab);
-    }, [activeTab, isOpen, itemsByTab, loadTab, loadingByTab]);
+    }, [activeTab, beforeByTab, errorByTab, hasMoreByTab, isOpen, itemsByTab, loadTab, loadingByTab]);
 
     const handleNotificationClick = async (notification) => {
         const target = resolveTarget(notification);
@@ -391,91 +425,150 @@ function NotificationBell({ isAuthenticated, userId }) {
     }
 
     return (
-        <div className="notification-bell-root" ref={rootRef}>
-            <button
-                type="button"
-                className={`notification-bell-trigger${isOpen ? " active" : ""}`}
-                onClick={() => setIsOpen((prev) => !prev)}
-                aria-label="Open notifications"
-            >
-                <BellIcon />
-                {unreadBadge && <span className="notification-bell-badge">{unreadBadge}</span>}
-            </button>
+        <>
+            <div className="notification-bell-root" ref={rootRef}>
+                <button
+                    type="button"
+                    className={`notification-bell-trigger${isOpen ? " active" : ""}`}
+                    onClick={() => setIsOpen((prev) => !prev)}
+                    aria-label="Open notifications"
+                >
+                    <BellIcon />
+                    {unreadBadge && <span className="notification-bell-badge">{unreadBadge}</span>}
+                </button>
 
-            {isOpen && (
-                <div className="notification-popup">
-                    <div className="notification-popup-header">
-                        <div className="notification-popup-tabs">
-                            {["all", "publication", "messenger"].map((tab) => (
+                {isOpen && (
+                    <div className="notification-popup">
+                        <div className="notification-popup-header">
+                            <h3 className="notification-popup-title">Notifications</h3>
+                            <Button
+                                type="button"
+                                variant="secondary"
+                                size="sm"
+                                className="notification-mark-all"
+                                onClick={handleMarkAllRead}
+                                disabled={unreadCount === 0}
+                            >
+                                Mark all read
+                            </Button>
+                        </div>
+
+                        <Tabs value={activeTab} onValueChange={setActiveTab} className="notification-tabs">
+                            <TabsList className="notification-tabs-list">
+                                {["all", "publication", "messenger"].map((tab) => (
+                                    <TabsTrigger key={tab} value={tab}>
+                                        {getNotificationTabLabel(tab)}
+                                    </TabsTrigger>
+                                ))}
+                            </TabsList>
+                        </Tabs>
+
+                        <div className="notification-popup-list">
+                            {activeLoading && (
+                                <div className="notification-loading-list" aria-hidden="true">
+                                    {[0, 1, 2].map((item) => (
+                                        <div className="notification-loading-item" key={item}>
+                                            <Skeleton width="0.5rem" height="0.5rem" className="notification-loading-dot" />
+                                            <div className="notification-loading-body">
+                                                <Skeleton width="70%" height="0.9rem" />
+                                                <Skeleton width="52%" height="0.75rem" />
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                            {!activeLoading && activeError && (
+                                <EmptyState
+                                    className="notification-empty-state"
+                                    title="Failed to load notifications"
+                                    description={activeError}
+                                    action={(
+                                        <Button
+                                            type="button"
+                                            variant="secondary"
+                                            size="sm"
+                                            onClick={() => loadTab(activeTab)}
+                                        >
+                                            Retry
+                                        </Button>
+                                    )}
+                                />
+                            )}
+                            {!activeLoading && !activeError && activeItems.length === 0 && (
+                                <EmptyState
+                                    className="notification-empty-state"
+                                    title="No notifications yet"
+                                    description="Recent messenger and publication updates will appear here."
+                                />
+                            )}
+
+                            {!activeLoading && !activeError && activeItems.map((item) => (
                                 <button
-                                    key={tab}
+                                    key={item.notification_id}
                                     type="button"
-                                    className={`notification-tab${activeTab === tab ? " active" : ""}`}
-                                    onClick={() => setActiveTab(tab)}
+                                    className={`notification-item${item.read_at ? " read" : " unread"}`}
+                                    onClick={() => handleNotificationClick(item)}
                                 >
-                                    {tab === "all" ? "All" : tab === "publication" ? "Publications" : "Messenger"}
+                                    <span className="notification-item-dot" aria-hidden="true" />
+                                    <div className="notification-item-main">
+                                        <div className="notification-item-top">
+                                            <div className="notification-item-title">{item.title}</div>
+                                            <Badge
+                                                size="sm"
+                                                variant={item.notification_type === "messenger" ? "accent" : "default"}
+                                            >
+                                                {item.notification_type === "messenger" ? "Messenger" : "Publication"}
+                                            </Badge>
+                                        </div>
+                                        {item.body && <div className="notification-item-body">{item.body}</div>}
+                                    </div>
+                                    <div className="notification-item-date">{formatDate(item.created_at)}</div>
                                 </button>
                             ))}
                         </div>
-                        <button type="button" className="notification-mark-all" onClick={handleMarkAllRead}>
-                            Mark all as read
-                        </button>
-                    </div>
 
-                    <div className="notification-popup-list">
-                        {activeLoading && <div className="notification-state">Loading notifications...</div>}
-                        {!activeLoading && activeError && <div className="notification-state error">{activeError}</div>}
-                        {!activeLoading && !activeError && activeItems.length === 0 && (
-                            <div className="notification-state">No notifications yet</div>
-                        )}
-
-                        {!activeLoading && !activeError && activeItems.map((item) => (
-                            <button
-                                key={item.notification_id}
+                        {!activeLoading && !activeError && activeItems.length > 0 && activeHasMore && (
+                            <Button
                                 type="button"
-                                className={`notification-item${item.read_at ? " read" : " unread"}`}
-                                onClick={() => handleNotificationClick(item)}
+                                variant="secondary"
+                                size="sm"
+                                className="notification-load-more"
+                                onClick={() => loadTab(activeTab, { append: true })}
                             >
-                                <div className="notification-item-main">
-                                    <div className="notification-item-title">{item.title}</div>
-                                    {item.body && <div className="notification-item-body">{item.body}</div>}
-                                </div>
-                                <div className="notification-item-date">{formatDate(item.created_at)}</div>
-                            </button>
-                        ))}
-                    </div>
-
-                    {!activeLoading && !activeError && activeItems.length > 0 && activeHasMore && (
-                        <button
-                            type="button"
-                            className="notification-load-more"
-                            onClick={() => loadTab(activeTab, { append: true })}
-                        >
-                            Load more
-                        </button>
-                    )}
-                </div>
-            )}
-
-            <div className="notification-toast-stack">
-                {toasts.map((toast, index) => (
-                    <button
-                        key={toast.toast_id}
-                        type="button"
-                        className={`notification-toast${index > 0 ? " old" : ""}`}
-                        onClick={() => {
-                            removeToast(toast.toast_id);
-                            handleNotificationClick(toast.notification);
-                        }}
-                    >
-                        <div className="notification-toast-title">{toast.notification.title}</div>
-                        {toast.notification.body && (
-                            <div className="notification-toast-body">{toast.notification.body}</div>
+                                Load more
+                            </Button>
                         )}
-                    </button>
-                ))}
+                        {!activeLoading && !activeError && activeItems.length > 0 && !activeHasMore && (
+                            <div className="notification-no-older">
+                                No older notifications
+                            </div>
+                        )}
+                    </div>
+                )}
             </div>
-        </div>
+
+            {typeof document !== "undefined" && createPortal(
+                <div className="notification-toast-stack" role="status" aria-live="polite">
+                    {toasts.map((toast, index) => (
+                        <button
+                            key={toast.toast_id}
+                            type="button"
+                            className={`notification-toast${index > 0 ? " old" : ""}`}
+                            onClick={() => {
+                                removeToast(toast.toast_id);
+                                handleNotificationClick(toast.notification);
+                            }}
+                        >
+                            <div className="notification-toast-title">{toast.notification.title}</div>
+                            {toast.notification.body && (
+                                <div className="notification-toast-body">{toast.notification.body}</div>
+                            )}
+                        </button>
+                    ))}
+                </div>,
+                document.body,
+            )}
+        </>
     );
 }
 

@@ -9,6 +9,8 @@ import FeedContentCard from "../../components/feed-content-card/FeedContentCard"
 import Loader from "../../components/loader/Loader";
 import Unauthorized from "../../components/unauthorized/Unauthorized";
 import { getAvatarUrl } from "../../utils/avatar";
+import { getUserDisplayName } from "../../utils/userDisplay";
+import { Button, Card, EmptyState } from "../../components/ui";
 
 
 const ACTION_FILTERS = [
@@ -120,26 +122,23 @@ function Activity() {
         <div id="activity-page">
             <div className="activity-shell">
                 <header className="activity-header">
-                    <div>
-                        <h1>Activity</h1>
-                    </div>
-                    <button
-                        type="button"
-                        className="btn btn-outline-primary activity-retry"
-                        onClick={() => setReloadKey((value) => value + 1)}
-                    >
-                        Retry
-                    </button>
+                    <Card className="activity-header-card" variant="raised">
+                        <div>
+                            <h1>Activity</h1>
+                        </div>
+                    </Card>
                 </header>
 
-                <ActivityFilters
-                    actionFilter={actionFilter}
-                    contentFilter={contentFilter}
-                    periodFilter={periodFilter}
-                    setActionFilter={setActionFilter}
-                    setContentFilter={setContentFilter}
-                    setPeriodFilter={setPeriodFilter}
-                />
+                <Card className="activity-filters-panel" variant="raised">
+                    <ActivityFilters
+                        actionFilter={actionFilter}
+                        contentFilter={contentFilter}
+                        periodFilter={periodFilter}
+                        setActionFilter={setActionFilter}
+                        setContentFilter={setContentFilter}
+                        setPeriodFilter={setPeriodFilter}
+                    />
+                </Card>
 
                 {isLoading && (
                     <div className="activity-state">
@@ -148,22 +147,28 @@ function Activity() {
                 )}
 
                 {!isLoading && error && (
-                    <div className="activity-state">
-                        <div className="activity-state-title">Activity could not be loaded</div>
-                        <button
-                            type="button"
-                            className="btn btn-primary"
-                            onClick={() => setReloadKey((value) => value + 1)}
-                        >
-                            Retry
-                        </button>
-                    </div>
+                    <EmptyState
+                        className="activity-state"
+                        title="Activity could not be loaded"
+                        description={error?.response?.data?.detail || "Try again."}
+                        action={(
+                            <Button
+                                type="button"
+                                variant="secondary"
+                                onClick={() => setReloadKey((value) => value + 1)}
+                            >
+                                Retry
+                            </Button>
+                        )}
+                    />
                 )}
 
                 {!isLoading && !error && items.length === 0 && (
-                    <div className="activity-state">
-                        {hasActiveFilters ? "No activity matches these filters" : "No activity yet"}
-                    </div>
+                    <EmptyState
+                        className="activity-state"
+                        title="No activity yet"
+                        description={hasActiveFilters ? "No activity matches these filters." : "Once you interact with content, events will appear here."}
+                    />
                 )}
 
                 {!isLoading && !error && items.length > 0 && (
@@ -175,14 +180,15 @@ function Activity() {
                 )}
 
                 {!isLoading && !error && hasMore && (
-                    <button
+                    <Button
                         type="button"
-                        className="btn btn-outline-primary activity-load-more"
+                        variant="secondary"
+                        className="activity-load-more"
                         onClick={() => setOffset((value) => value + PAGE_SIZE)}
                         disabled={isLoadingMore}
                     >
                         {isLoadingMore ? <Loader /> : "Load more"}
-                    </button>
+                    </Button>
                 )}
             </div>
         </div>
@@ -263,7 +269,7 @@ function FilterButton({ active, onClick, children }) {
 
 function ActivityEventCard({ event }) {
     return (
-        <article className="activity-event-card">
+        <Card className="activity-event-card" variant="raised">
             <div className="activity-event-meta">
                 <div>
                     <h2>{activityTitle(event)}</h2>
@@ -288,7 +294,7 @@ function ActivityEventCard({ event }) {
             {event.target_user && (
                 <ActivityUserCard user={event.target_user} />
             )}
-        </article>
+        </Card>
     );
 }
 
@@ -303,7 +309,7 @@ function ActivityUserCard({ user }) {
                 alt={`${user.username} profile photo`}
             />
             <div>
-                <div className="activity-user-name">{user.username}</div>
+                <div className="activity-user-name">{getUserDisplayName(user, user.username)}</div>
                 <div className="activity-user-subtitle">
                     {user.subscribers_count.toLocaleString()} subscriber{user.subscribers_count === 1 ? "" : "s"}
                 </div>

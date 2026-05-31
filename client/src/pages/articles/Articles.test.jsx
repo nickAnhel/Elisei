@@ -90,7 +90,7 @@ test("articles default to recommendations section", () => {
 test("articles subscriptions section uses subscriptions feed for authenticated users", async () => {
     renderArticles({ isAuthenticated: true });
 
-    fireEvent.click(screen.getByRole("button", { name: "Subscriptions" }));
+    fireEvent.click(screen.getByRole("tab", { name: "Subscriptions" }));
 
     await waitFor(() => {
         const props = mockContentListSpy.mock.calls.at(-1)[0];
@@ -101,5 +101,18 @@ test("articles subscriptions section uses subscriptions feed for authenticated u
             desc: true,
         });
         expect(props.pageSize).toBe(5);
+    });
+});
+
+
+test("articles subscriptions support oldest sort", () => {
+    renderArticles({ initialSearch: "tab=subscriptions&sort=oldest", isAuthenticated: true });
+
+    const props = mockContentListSpy.mock.calls.at(-1)[0];
+    expect(props.fetchItems).toBe(ContentService.getSubscriptionsFeed);
+    expect(props.filters).toEqual({
+        content_type: "article",
+        order: "published_at",
+        desc: false,
     });
 });

@@ -9,6 +9,7 @@ import ContentService from "../../service/ContentService";
 
 import Loader from "../../components/loader/Loader";
 import Modal from "../../components/modal/Modal";
+import MediaViewer from "../../components/media-viewer";
 import CommentSection from "../../components/comment-section/CommentSection";
 import ArticleRenderer from "../../components/article-renderer/ArticleRenderer";
 import SimilarContentBlock from "../../components/similar-content-block/SimilarContentBlock";
@@ -19,6 +20,7 @@ import LikeIcon from "../../components/icons/LikeIcon";
 import { CopyIcon, EditIcon, ShareIcon, TrashIcon } from "../../components/icons/ArticleUiIcons";
 import { getAvatarUrl } from "../../utils/avatar";
 import { stripArticleFormatting } from "../../utils/articleMarkdown";
+import { getUserDisplayName } from "../../utils/userDisplay";
 
 function ArticleDetails() {
     const { store } = useContext(StoreContext);
@@ -45,6 +47,9 @@ function ArticleDetails() {
     const [isDeleteModalActive, setIsDeleteModalActive] = useState(false);
     const [isShareModalActive, setIsShareModalActive] = useState(false);
     const [copyState, setCopyState] = useState("Copy link");
+    const [mediaViewerItems, setMediaViewerItems] = useState([]);
+    const [mediaViewerIndex, setMediaViewerIndex] = useState(0);
+    const [isMediaViewerOpen, setIsMediaViewerOpen] = useState(false);
 
     useEffect(() => {
         if (!articleId) {
@@ -318,6 +323,19 @@ function ArticleDetails() {
         ));
     };
 
+    const handleArticleMediaOpen = useCallback(({ item, items = [] }) => {
+        if (!item) {
+            return;
+        }
+
+        const nextItems = items.length > 0 ? items : [item];
+        const nextIndex = Math.max(nextItems.findIndex((entry) => entry.id === item.id), 0);
+
+        setMediaViewerItems(nextItems);
+        setMediaViewerIndex(nextIndex);
+        setIsMediaViewerOpen(true);
+    }, []);
+
     const handleDelete = async () => {
         if (!article || isDeleting) {
             return;
@@ -387,7 +405,7 @@ function ArticleDetails() {
                                     alt={`${article.user.username} profile`}
                                     onError={() => setAvatarSrc("/assets/profile.svg")}
                                 />
-                                <span>{article.user.username}</span>
+                                <span>{getUserDisplayName(article.user, article.user.username)}</span>
                             </Link>
                             <span>{new Date(article.published_at || article.created_at).toLocaleDateString()}</span>
                             <span>{article.reading_time_minutes} min read</span>
@@ -419,7 +437,11 @@ function ArticleDetails() {
                     </header>
 
                     <section className="article-body">
-                        <ArticleRenderer bodyMarkdown={article.body_markdown} article={article} />
+                        <ArticleRenderer
+                            bodyMarkdown={article.body_markdown}
+                            article={article}
+                            onMediaOpen={handleArticleMediaOpen}
+                        />
                     </section>
 
                     <section className="article-feedback">
@@ -459,14 +481,6 @@ function ArticleDetails() {
                         }
                     </section>
 
-                    <section className="article-similar">
-                        <SimilarContentBlock
-                            contentId={article.article_id}
-                            contentType="article"
-                            limit={4}
-                        />
-                    </section>
-
                     <section className="article-comments" ref={commentsRef}>
                         <CommentSection
                             contentId={article.article_id}
@@ -499,6 +513,15 @@ function ArticleDetails() {
                                     </nav>
                                 )
                         }
+                    </div>
+
+                    <div className="article-sidebar-similar">
+                        <SimilarContentBlock
+                            contentId={article.article_id}
+                            contentType="article"
+                            limit={3}
+                            compact
+                        />
                     </div>
                 </aside>
             </div>
@@ -550,6 +573,16 @@ function ArticleDetails() {
                     </div>
                 </div>
             </Modal>
+
+            <MediaViewer
+                open={isMediaViewerOpen}
+                items={mediaViewerItems}
+                activeIndex={mediaViewerIndex}
+                onClose={() => setIsMediaViewerOpen(false)}
+                onIndexChange={setMediaViewerIndex}
+                ariaLabel="Article media"
+                videoSkin="article"
+            />
         </div>
     );
 }

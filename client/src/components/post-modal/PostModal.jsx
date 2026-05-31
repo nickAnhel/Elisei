@@ -6,11 +6,12 @@ import "./PostModal.css";
 import { StoreContext } from "../..";
 
 import Modal from "../modal/Modal";
-import Loader from "../loader/Loader";
 import TagInput from "../tag-input/TagInput";
 import AddIcon from "../icons/AddIcon";
 import CloseIcon from "../icons/CloseIcon";
 import FileTypeIcon from "../icons/FileTypeIcon";
+import MarkdownToolbar from "../markdown-toolbar";
+import { Button } from "../ui";
 import AssetService from "../../service/AssetService";
 import {
     buildComposerAttachmentFromAsset,
@@ -73,6 +74,7 @@ function PostModal({
     const navigate = useNavigate();
     const mediaInputRef = useRef(null);
     const fileInputRef = useRef(null);
+    const contentTextareaRef = useRef(null);
     const dragStateRef = useRef(null);
 
     const incomingTags = tags ?? EMPTY_TAGS;
@@ -104,6 +106,7 @@ function PostModal({
         normalizedValue: "",
         error: "",
     });
+    const [isToolbarOpen, setIsToolbarOpen] = useState(false);
     const [isLoadingSavePost, setIsLoadingSavePost] = useState(false);
     const [saveError, setSaveError] = useState("");
     const [mediaError, setMediaError] = useState("");
@@ -128,6 +131,7 @@ function PostModal({
         setSaveError("");
         setMediaError("");
         setFilesError("");
+        setIsToolbarOpen(false);
     }, [
         active,
         content,
@@ -344,7 +348,7 @@ function PostModal({
     };
 
     return (
-        <Modal active={active} setActive={setActive}>
+        <Modal active={active} setActive={setActive} contentClassName="post-modal-content">
             <form id="create-post-form">
                 <h1>{modalHeader}</h1>
 
@@ -501,7 +505,29 @@ function PostModal({
                 </div>
 
                 <div className="post-content-wrapper">
+                    <button
+                        type="button"
+                        className="post-toolbar-toggle"
+                        aria-expanded={isToolbarOpen}
+                        aria-controls="post-markdown-toolbar"
+                        onClick={() => setIsToolbarOpen((prev) => !prev)}
+                        disabled={isLoadingSavePost}
+                    >
+                        {isToolbarOpen ? "Hide formatting" : "Show formatting"}
+                    </button>
+                    {
+                        isToolbarOpen &&
+                        <MarkdownToolbar
+                            id="post-markdown-toolbar"
+                            preset="post"
+                            textareaRef={contentTextareaRef}
+                            value={postContent}
+                            setValue={setPostContent}
+                            disabled={isLoadingSavePost}
+                        />
+                    }
                     <textarea
+                        ref={contentTextareaRef}
                         className="post-content"
                         placeholder="Type something..."
                         value={postContent}
@@ -569,13 +595,16 @@ function PostModal({
 
                 {saveError && <div className="post-save-error">{saveError}</div>}
 
-                <button
-                    className="btn btn-primary btn-block"
+                <Button
+                    type="button"
+                    variant="primary"
+                    fullWidth
+                    loading={isLoadingSavePost}
                     disabled={!hasMeaningfulContent || isUploadingAttachments || hasAttachmentErrors}
                     onClick={(event) => { handleSavePost(event); }}
                 >
-                    {isLoadingSavePost ? <Loader /> : buttonText}
-                </button>
+                    {buttonText}
+                </Button>
             </form>
         </Modal>
     );

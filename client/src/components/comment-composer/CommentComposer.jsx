@@ -1,6 +1,9 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 
 import "./CommentComposer.css";
+
+import MarkdownToolbar from "../markdown-toolbar";
+import { Button } from "../ui";
 
 
 const COMMENT_BODY_LIMIT = 2048;
@@ -18,10 +21,16 @@ function CommentComposer({
 }) {
     const [value, setValue] = useState(initialValue);
     const [error, setError] = useState("");
+    const [isToolbarOpen, setIsToolbarOpen] = useState(false);
     const textareaRef = useRef(null);
+    const toolbarId = useId();
 
     useEffect(() => {
         setValue(initialValue);
+    }, [initialValue]);
+
+    useEffect(() => {
+        setIsToolbarOpen(false);
     }, [initialValue]);
 
     useEffect(() => {
@@ -60,6 +69,28 @@ function CommentComposer({
 
     return (
         <div className="comment-composer">
+            <button
+                type="button"
+                className="comment-composer-toolbar-toggle"
+                aria-expanded={isToolbarOpen}
+                aria-controls={toolbarId}
+                onClick={() => setIsToolbarOpen((prev) => !prev)}
+                disabled={isSubmitting}
+            >
+                {isToolbarOpen ? "Hide formatting" : "Show formatting"}
+            </button>
+            {
+                isToolbarOpen &&
+                <MarkdownToolbar
+                    className="comment-composer-toolbar"
+                    preset="comment"
+                    textareaRef={textareaRef}
+                    value={value}
+                    setValue={setValue}
+                    disabled={isSubmitting}
+                    id={toolbarId}
+                />
+            }
             <textarea
                 ref={textareaRef}
                 value={value}
@@ -87,23 +118,23 @@ function CommentComposer({
                 <div className="comment-composer-actions">
                     {
                         onCancel &&
-                        <button
+                        <Button
                             type="button"
-                            className="btn btn-secondary"
+                            variant="secondary"
                             onClick={onCancel}
                             disabled={isSubmitting}
                         >
                             {cancelLabel}
-                        </button>
+                        </Button>
                     }
-                    <button
+                    <Button
                         type="button"
-                        className="btn btn-primary"
+                        variant="primary"
                         onClick={() => { void handleSubmit(); }}
                         disabled={isSubmitting}
                     >
                         {isSubmitting ? "Saving..." : submitLabel}
-                    </button>
+                    </Button>
                 </div>
             </div>
             {

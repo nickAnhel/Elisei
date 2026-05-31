@@ -1,0 +1,60 @@
+.markdown-renderer {
+    color: var(--color-text-muted);
+    line-height: var(--line-height-relaxed);
+}
+
+.markdown-renderer p:first-child {
+    margin-top: 0;
+}
+
+.markdown-renderer p:last-child {
+    margin-bottom: 0;
+}
+
+.markdown-renderer p,
+.markdown-renderer blockquote,
+.markdown-renderer pre,
+.markdown-renderer ul,
+.markdown-renderer ol {
+    margin: var(--space-2) 0;
+}
+
+.markdown-renderer ul,
+.markdown-renderer ol {
+    padding-left: 1.5rem;
+}
+
+.markdown-renderer li + li {
+    margin-top: 0.2rem;
+}
+
+.markdown-renderer blockquote {
+    border-left: 3px solid var(--color-accent-muted);
+    background: var(--color-surface-muted);
+    border-radius: 0 var(--radius-md) var(--radius-md) 0;
+    padding: var(--space-2) var(--space-3);
+}
+
+.markdown-renderer code {
+    font-family: var(--font-family-mono);
+    font-size: 0.92em;
+    border-radius: var(--radius-sm);
+    background: color-mix(in srgb, var(--color-surface-muted) 80%, transparent);
+    color: var(--color-text);
+    padding: 0.1rem 0.35rem;
+}
+
+.markdown-renderer pre code {
+    padding: 0;
+    background: transparent;
+}
+
+.markdown-renderer a {
+    color: var(--color-accent);
+    text-decoration: underline;
+    text-underline-offset: 0.15rem;
+}
+
+.markdown-renderer a:hover {
+    color: var(--color-accent-hover);
+}

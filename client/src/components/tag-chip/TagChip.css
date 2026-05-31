@@ -1,13 +1,13 @@
 .tag-chip {
     display: inline-flex;
     align-items: center;
-    gap: 0.35rem;
-    padding: 0.3rem 0.65rem;
-    border-radius: 999px;
-    border: 1px solid #434343;
-    background: rgba(157, 80, 255, 0.12);
-    color: #d9c0ff;
-    font-size: 0.85rem;
+    gap: var(--space-1);
+    padding: 0.3rem 0.6rem;
+    border-radius: var(--radius-pill);
+    border: 1px solid var(--color-accent-muted);
+    background: var(--color-accent-surface);
+    color: var(--color-accent);
+    font-size: var(--font-size-xs);
     line-height: 1;
 }
 
@@ -29,5 +29,5 @@
 }
 
 .tag-chip-remove:hover {
-    color: #ffffff;
+    color: var(--color-text);
 }

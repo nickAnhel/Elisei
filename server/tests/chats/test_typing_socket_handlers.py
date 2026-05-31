@@ -39,7 +39,7 @@ async def test_typing_start_marks_state_and_broadcasts_to_chat(monkeypatch) -> N
 
     monkeypatch.setattr(sockets, "_get_socket_user_context", AsyncMock(return_value=(user_id, "alice")))
     monkeypatch.setattr(sockets, "async_session_maker", lambda: DummySessionManager(object()))
-    monkeypatch.setattr(sockets, "get_chat_service", lambda session: fake_service)
+    monkeypatch.setattr(sockets, "get_chat_service", AsyncMock(return_value=fake_service))
     monkeypatch.setattr(sockets.typing_state, "mark_chat_typing", mark_chat_typing)
     monkeypatch.setattr(sockets.sio, "emit", emit)
 
@@ -78,7 +78,7 @@ async def test_typing_stop_clears_state_and_broadcasts_stop(monkeypatch) -> None
 
     monkeypatch.setattr(sockets, "_get_socket_user_context", AsyncMock(return_value=(user_id, "alice")))
     monkeypatch.setattr(sockets, "async_session_maker", lambda: DummySessionManager(object()))
-    monkeypatch.setattr(sockets, "get_chat_service", lambda session: fake_service)
+    monkeypatch.setattr(sockets, "get_chat_service", AsyncMock(return_value=fake_service))
     monkeypatch.setattr(sockets.typing_state, "clear_chat_typing", clear_chat_typing)
     monkeypatch.setattr(sockets.sio, "emit", emit)
 
@@ -116,7 +116,7 @@ async def test_typing_start_rejects_non_member(monkeypatch) -> None:
 
     monkeypatch.setattr(sockets, "_get_socket_user_context", AsyncMock(return_value=(user_id, "alice")))
     monkeypatch.setattr(sockets, "async_session_maker", lambda: DummySessionManager(object()))
-    monkeypatch.setattr(sockets, "get_chat_service", lambda session: fake_service)
+    monkeypatch.setattr(sockets, "get_chat_service", AsyncMock(return_value=fake_service))
     monkeypatch.setattr(sockets.typing_state, "mark_chat_typing", mark_chat_typing)
     monkeypatch.setattr(sockets.sio, "emit", emit)
 

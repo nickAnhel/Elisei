@@ -6,8 +6,8 @@ import "./App.css";
 
 import { StoreContext } from ".";
 
-import Sidebar from "./components/sidebar/Sidebar";
 import Container from "./components/container/Container";
+import AppShell from "./components/app-shell/AppShell";
 import NotFound from "./components/not-found/NotFound";
 import Loader from "./components/loader/Loader";
 
@@ -38,10 +38,9 @@ import ChatDetails from "./components/chat-details/ChatDetails";
 
 function Layout() {
     return (
-        <>
-            <Sidebar />
+        <AppShell>
             <Container />
-        </>
+        </AppShell>
     )
 }
 

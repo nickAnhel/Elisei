@@ -49,6 +49,7 @@ class CommentState:
 class CommentAuthorRow:
     user_id: uuid.UUID
     username: str
+    display_name: str
 
 
 @dataclass(slots=True)
@@ -78,6 +79,7 @@ class CommentViewRow:
     is_deleted: bool
     reply_to_comment_depth: int | None
     reply_to_username: str | None
+    reply_to_display_name: str | None
     reply_to_comment_ref: CommentRefRow | None
 
 
@@ -550,11 +552,13 @@ class CommentRepository:
                 CommentModel.dislikes_count,
                 CommentModel.author_id.label("author_id"),
                 comment_author.username.label("author_username"),
+                comment_author.display_name.label("author_display_name"),
                 my_reaction_column.label("my_reaction"),
                 reply_to_comment.comment_id.label("reply_to_ref_comment_id"),
                 reply_to_comment.deleted_at.label("reply_to_deleted_at"),
                 reply_to_comment.depth.label("reply_to_comment_depth"),
                 reply_to_author.username.label("reply_to_username"),
+                reply_to_author.display_name.label("reply_to_display_name"),
             )
             .select_from(CommentModel)
             .outerjoin(comment_author, comment_author.user_id == CommentModel.author_id)
@@ -581,6 +585,7 @@ class CommentRepository:
             author = CommentAuthorRow(
                 user_id=row.author_id,
                 username=row.author_username,
+                display_name=row.author_display_name or row.author_username,
             )
 
         reply_to_comment_ref = None
@@ -591,8 +596,10 @@ class CommentRepository:
             )
 
         reply_to_username = None
+        reply_to_display_name = None
         if row.reply_to_ref_comment_id is not None and row.reply_to_deleted_at is None:
             reply_to_username = row.reply_to_username
+            reply_to_display_name = row.reply_to_display_name or row.reply_to_username
 
         return CommentViewRow(
             comment_id=row.comment_id,
@@ -614,6 +621,7 @@ class CommentRepository:
             is_deleted=is_deleted,
             reply_to_comment_depth=row.reply_to_comment_depth,
             reply_to_username=reply_to_username,
+            reply_to_display_name=reply_to_display_name,
             reply_to_comment_ref=reply_to_comment_ref,
         )
 

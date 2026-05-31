@@ -1,9 +1,9 @@
 .article-renderer {
     display: flex;
     flex-direction: column;
-    gap: 1.5rem;
-    color: #e8eaed;
-    line-height: 1.75;
+    gap: var(--space-6);
+    color: var(--color-text);
+    line-height: var(--line-height-relaxed);
 }
 
 .article-renderer h2,
@@ -12,8 +12,9 @@
 .article-renderer h5,
 .article-renderer h6 {
     scroll-margin-top: 6rem;
-    line-height: 1.2;
-    margin: 1.1rem 0 0.45rem;
+    line-height: var(--line-height-tight);
+    margin: var(--space-4) 0 var(--space-2);
+    color: var(--color-text);
 }
 
 .article-renderer h2 {
@@ -43,41 +44,33 @@
 }
 
 .article-renderer blockquote {
-    padding: 1rem 1.25rem;
-    border-left: 4px solid #9d50ff;
-    background: #232027;
-    border-radius: 0 1rem 1rem 0;
-}
-
-.article-renderer blockquote > :first-child {
-    margin-top: 0;
-}
-
-.article-renderer blockquote > :last-child {
-    margin-bottom: 0;
+    padding: var(--space-4) var(--space-5);
+    border-left: 4px solid var(--color-accent-muted);
+    background: var(--color-surface-muted);
+    border-radius: 0 var(--radius-lg) var(--radius-lg) 0;
 }
 
 .article-renderer blockquote > * + * {
-    margin-top: 0.75rem;
+    margin-top: var(--space-3);
 }
 
 .article-renderer table {
     width: 100%;
     border-collapse: collapse;
     overflow: hidden;
-    border-radius: 1rem;
-    box-shadow: 0 0 0 1px #404040;
+    border-radius: var(--radius-lg);
+    box-shadow: 0 0 0 1px var(--color-border);
 }
 
 .article-renderer th,
 .article-renderer td {
     padding: 0.85rem 1rem;
-    border-bottom: 1px solid #333;
+    border-bottom: 1px solid var(--color-border);
     text-align: left;
 }
 
 .article-renderer th {
-    background: #252525;
+    background: var(--color-surface-muted);
 }
 
 .article-renderer ul,
@@ -91,9 +84,9 @@
 
 .article-renderer code {
     padding: 0.1rem 0.35rem;
-    border-radius: 0.4rem;
-    background: #2b2b2b;
-    color: #f4f4f5;
+    border-radius: var(--radius-sm);
+    background: color-mix(in srgb, var(--color-surface-muted) 80%, transparent);
+    color: var(--color-text);
 }
 
 .article-figure,
@@ -104,7 +97,7 @@
     width: 100%;
     display: flex;
     flex-direction: column;
-    gap: 0.75rem;
+    gap: var(--space-3);
     align-items: center;
 }
 
@@ -125,22 +118,32 @@
     max-width: 100%;
 }
 
+.article-media-open-button {
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    cursor: zoom-in;
+}
+
 .article-figure img,
-.article-video-block .video-player-frame {
+.article-video-block .video-player-frame,
+.article-media-open-button img {
     width: 100%;
     display: block;
-    border-radius: 1.25rem;
-    background: #0f172a;
-    box-shadow: 0 10px 40px rgba(15, 23, 42, 0.12);
+    border-radius: var(--radius-xl);
+    background: var(--color-bg-subtle);
+    box-shadow: var(--shadow-card);
 }
 
 .article-youtube-frame {
     position: relative;
     width: 100%;
     padding-top: 56.25%;
-    border-radius: 1.25rem;
+    border-radius: var(--radius-xl);
     overflow: hidden;
-    box-shadow: 0 10px 40px rgba(15, 23, 42, 0.12);
+    box-shadow: var(--shadow-card);
 }
 
 .article-youtube-frame iframe {
@@ -154,63 +157,78 @@
 .article-figure figcaption,
 .article-video-block figcaption,
 .article-youtube-block figcaption {
-    color: #aaa;
+    color: var(--color-text-subtle);
     text-align: center;
-    font-size: 0.95rem;
+    font-size: var(--font-size-sm);
+}
+
+.article-video-open-button {
+    margin: 0;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-pill);
+    padding: 0.4rem 0.75rem;
+    background: var(--color-surface);
+    color: var(--color-text-muted);
+    cursor: pointer;
+}
+
+.article-video-open-button:hover {
+    border-color: var(--color-border-strong);
+    color: var(--color-text);
 }
 
 .article-spoiler {
-    border: 1px solid #404040;
-    background: #1f1f1f;
-    border-radius: 1rem;
-    padding: 1rem 1.1rem;
+    border: 1px solid var(--color-border);
+    background: var(--color-surface);
+    border-radius: var(--radius-lg);
+    padding: var(--space-4);
 }
 
 .article-spoiler summary {
     cursor: pointer;
-    font-weight: 600;
-    color: #e8eaed;
+    font-weight: var(--font-weight-semibold);
+    color: var(--color-text);
 }
 
 .article-spoiler[open] summary {
-    margin-bottom: 1rem;
+    margin-bottom: var(--space-4);
 }
 
 .article-mermaid-block {
     align-items: stretch;
-    padding: 1rem;
-    border-radius: 1.25rem;
-    background: #101828;
-    color: #f8fafc;
+    padding: var(--space-4);
+    border-radius: var(--radius-xl);
+    background: var(--color-surface-muted);
+    color: var(--color-text);
 }
 
 .article-mermaid-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 1rem;
+    gap: var(--space-3);
 }
 
 .article-mermaid-label {
-    font-size: 0.8rem;
+    font-size: var(--font-size-xs);
     text-transform: uppercase;
     letter-spacing: 0.08em;
-    color: #aaa;
+    color: var(--color-text-subtle);
 }
 
 .article-mermaid-edit-button {
     padding: 0.35rem 0.7rem;
-    border-radius: 999px;
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    background: rgba(255, 255, 255, 0.08);
-    color: #f8fafc;
+    border-radius: var(--radius-pill);
+    border: 1px solid var(--color-border-strong);
+    background: var(--color-surface);
+    color: var(--color-text);
     cursor: pointer;
 }
 
 .article-mermaid-image {
     width: 100%;
-    border-radius: 1rem;
-    background: #fff;
+    border-radius: var(--radius-lg);
+    background: var(--color-surface);
 }
 
 .article-mermaid-block pre,
@@ -226,18 +244,18 @@
 
 .article-pending-asset,
 .article-missing-asset {
-    padding: 1rem 1.25rem;
-    border-radius: 1rem;
+    padding: var(--space-4) var(--space-5);
+    border-radius: var(--radius-lg);
 }
 
 .article-pending-asset {
-    background: #202020;
-    border: 1px solid #333;
-    color: #aaa;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    color: var(--color-text-subtle);
 }
 
 .article-missing-asset {
-    background: rgba(104, 9, 9, 0.2);
-    border: 1px solid #680909;
-    color: #ff8082;
+    background: color-mix(in srgb, var(--color-danger) 14%, transparent);
+    border: 1px solid color-mix(in srgb, var(--color-danger) 56%, var(--color-border));
+    color: color-mix(in srgb, var(--color-danger) 88%, var(--color-text));
 }
