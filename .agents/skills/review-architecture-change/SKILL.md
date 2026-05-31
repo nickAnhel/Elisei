@@ -1,14 +1,14 @@
 ---
 name: review-architecture-change
-description: Review a non-trivial refactor, subsystem, or cross-cutting architecture change in Nerdex. Use when evaluating proposals that affect unified content design, service and repository boundaries, API contracts, PostgreSQL schema, S3 and media storage, frontend and backend responsibilities, migration cost, extensibility, or operational risk.
+description: Review a non-trivial refactor, subsystem, or cross-cutting architecture change in ELESEI. Use when evaluating proposals that affect unified content design, service and repository boundaries, API contracts, PostgreSQL schema, S3 and media storage, frontend and backend responsibilities, migration cost, extensibility, or operational risk.
 ---
 
-# Review an Architecture Change for Nerdex
+# Review an Architecture Change for ELESEI
 
 Используй этот skill, когда задача предлагает non-trivial refactor, новый subsystem или cross-cutting design change.
 
 ## Goal
-Оценить, делает ли proposed change Nerdex более reliable, scalable и maintainable.
+Оценить, делает ли proposed change ELESEI более reliable, scalable и maintainable.
 
 ## Review frame
 Оцени proposal по следующим осям:

@@ -48,7 +48,7 @@ def test_analyze_article_markdown_rejects_invalid_input(body: str, message: str)
 
 
 def test_slugify_title_normalizes_to_stable_path_segment() -> None:
-    assert slugify_title("  Hello, Nerdex Articles!  ") == "hello-nerdex-articles"
+    assert slugify_title("  Hello, ELESEI Articles!  ") == "hello-elesei-articles"
 
 
 def test_analyze_article_markdown_strips_markdown_formatting_from_excerpt() -> None:

@@ -148,6 +148,36 @@ services:
       timeout: 5s
       retries: 10
 
+  postgres_exporter:
+    container_name: postgres_exporter
+    image: prometheuscommunity/postgres-exporter:v0.16.0
+    restart: on-failure
+    environment:
+      DATA_SOURCE_NAME: postgresql://postgres:postgres@db:5432/postgres?sslmode=disable
+    depends_on:
+      db:
+        condition: service_healthy
+
+  redis_exporter:
+    container_name: redis_exporter
+    image: oliver006/redis_exporter:v1.67.0
+    restart: on-failure
+    command:
+      - --redis.addr=redis://redis:6379
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  cadvisor:
+    container_name: cadvisor
+    image: gcr.io/cadvisor/cadvisor:v0.49.1
+    restart: on-failure
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+
   neo4j:
     image: neo4j:5-community
     container_name: neo4j
@@ -233,6 +263,12 @@ services:
     depends_on:
       server:
         condition: service_healthy
+      postgres_exporter:
+        condition: service_started
+      redis_exporter:
+        condition: service_started
+      cadvisor:
+        condition: service_started
 
   grafana:
     container_name: grafana

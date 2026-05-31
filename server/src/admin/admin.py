@@ -45,7 +45,7 @@ def create_admin(app) -> Admin:
         app=app,
         engine=async_engine,
         authentication_backend=AdminAuth(secret_key=settings.admin.secret_key),
-        title="Nerdex Admin",
+        title="ELESEI Admin",
     )
 
     admin.add_base_view(DashboardAdminView)

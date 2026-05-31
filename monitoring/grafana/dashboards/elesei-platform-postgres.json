@@ -1,0 +1,60 @@
+{
+  "title": "ELESEI Platform PostgreSQL",
+  "uid": "elesei-platform-postgres",
+  "schemaVersion": 39,
+  "version": 1,
+  "editable": true,
+  "time": {
+    "from": "now-30m",
+    "to": "now"
+  },
+  "panels": [
+    {
+      "type": "timeseries",
+      "title": "Postgres up",
+      "gridPos": { "h": 6, "w": 8, "x": 0, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        { "refId": "A", "expr": "pg_up" }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "DB size (bytes)",
+      "gridPos": { "h": 6, "w": 8, "x": 8, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        { "refId": "A", "expr": "pg_database_size_bytes{datname!~\"template0|template1\"}", "legendFormat": "{{datname}}" }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Connections",
+      "gridPos": { "h": 6, "w": 8, "x": 16, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        { "refId": "A", "expr": "sum(pg_stat_activity_count) by (datname)", "legendFormat": "{{datname}}" }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Transactions per second",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 6 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        { "refId": "A", "expr": "sum(rate(pg_stat_database_xact_commit[1m])) by (datname)", "legendFormat": "commit {{datname}}" },
+        { "refId": "B", "expr": "sum(rate(pg_stat_database_xact_rollback[1m])) by (datname)", "legendFormat": "rollback {{datname}}" }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Blocks read/hit per second",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 6 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        { "refId": "A", "expr": "sum(rate(pg_stat_database_blks_read[1m])) by (datname)", "legendFormat": "read {{datname}}" },
+        { "refId": "B", "expr": "sum(rate(pg_stat_database_blks_hit[1m])) by (datname)", "legendFormat": "hit {{datname}}" }
+      ]
+    }
+  ]
+}

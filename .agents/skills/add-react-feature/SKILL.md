@@ -1,9 +1,9 @@
 ---
 name: add-react-feature
-description: Implement or substantially change a React frontend feature in Nerdex `client/src/`. Use when adding pages, routes, stores, API wiring, UI state handling, or shared content UI flows, especially if the change affects DTO consumption, permissions, optimistic updates, feed surfaces, or content-specific rendering.
+description: Implement or substantially change a React frontend feature in ELESEI `client/src/`. Use when adding pages, routes, stores, API wiring, UI state handling, or shared content UI flows, especially if the change affects DTO consumption, permissions, optimistic updates, feed surfaces, or content-specific rendering.
 ---
 
-# Add a React Feature in Nerdex Frontend
+# Add a React Feature in ELESEI Frontend
 
 Используй этот skill, когда задача добавляет или заметно меняет UI flow в `client/src/`.
 

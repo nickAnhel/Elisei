@@ -98,7 +98,7 @@ class PlainLogFormatter(logging.Formatter):
 
 def configure_logging() -> None:
     root_logger = logging.getLogger()
-    if root_logger.handlers and getattr(root_logger, "_nerdex_logging_configured", False):
+    if root_logger.handlers and getattr(root_logger, "_elesei_logging_configured", False):
         return
 
     handler = logging.StreamHandler()
@@ -117,4 +117,4 @@ def configure_logging() -> None:
     logging.basicConfig(level=settings.logging.level, handlers=[handler], force=True)
 
     root_logger = logging.getLogger()
-    setattr(root_logger, "_nerdex_logging_configured", True)
+    setattr(root_logger, "_elesei_logging_configured", True)

@@ -449,7 +449,7 @@
   "schemaVersion": 39,
   "style": "dark",
   "tags": [
-    "nerdex",
+    "elesei",
     "backend",
     "observability"
   ],
@@ -477,7 +477,7 @@
   "timepicker": {},
   "timezone": "",
   "title": "Backend Overview",
-  "uid": "nerdex-backend-overview",
+  "uid": "elesei-backend-overview",
   "version": 1,
   "weekStart": ""
 }

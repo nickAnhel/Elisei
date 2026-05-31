@@ -1,7 +1,7 @@
 # AGENTS.md
 
 ## Что это за проект
-Nerdex — это social network / knowledge-sharing platform с упором на unified content architecture.
+ELESEI — это social network / knowledge-sharing platform с упором на unified content architecture.
 Product direction опирается на unified content model и допускает развитие в сторону нескольких publishable content types, а также profiles, comments, reactions, subscriptions, chats, messages, events и media в S3-compatible storage.
 
 Repository layout:
