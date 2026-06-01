@@ -1,6 +1,6 @@
 ---
 name: add-content-type
-description: Extend the ELESEI unified content model with a new publishable content type such as posts, articles, or videos. Use when designing or implementing a new content type, or when refactoring an existing type to fit shared content semantics for feed, profile, search, permissions, reactions, comments, tags, and media lifecycle.
+description: Extend the ELISEI unified content model with a new publishable content type such as posts, articles, or videos. Use when designing or implementing a new content type, or when refactoring an existing type to fit shared content semantics for feed, profile, search, permissions, reactions, comments, tags, and media lifecycle.
 ---
 
 # Add a New Content Type to the Unified Content System
@@ -8,7 +8,7 @@ description: Extend the ELESEI unified content model with a new publishable cont
 Используй этот skill, когда вводится или развивается новый publishable content type: posts, articles, videos и т.д.
 
 ## Goal
-Расширить unified content architecture ELESEI без клонирования целых подсистем под каждый новый тип.
+Расширить unified content architecture ELISEI без клонирования целых подсистем под каждый новый тип.
 
 ## Working model
 Shared concerns должны жить в base content layer:

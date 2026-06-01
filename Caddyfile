@@ -2,12 +2,12 @@
     auto_https off
 }
 
-https://elesei.com {
+https://elisei.com {
     tls /certs/localhost.pem /certs/localhost-key.pem
     reverse_proxy client:3000
 }
 
-https://api.elesei.com {
+https://api.elisei.com {
     tls /certs/localhost.pem /certs/localhost-key.pem
     reverse_proxy server:8000
 }

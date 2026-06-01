@@ -1,4 +1,4 @@
 interface:
   display_name: "Design PostgreSQL Entity"
-  short_description: "Design PostgreSQL schema for ELESEI"
-  default_prompt: "Use $design-postgres-entity to design a PostgreSQL schema change for ELESEI."
+  short_description: "Design PostgreSQL schema for ELISEI"
+  default_prompt: "Use $design-postgres-entity to design a PostgreSQL schema change for ELISEI."

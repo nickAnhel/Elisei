@@ -225,7 +225,7 @@ class FakeAssetRepository:
 
 class FakeStorage:
     def __init__(self) -> None:
-        self.private_bucket = "elesei-dev-private"
+        self.private_bucket = "elisei-dev-private"
         self.put_requests: list[tuple[str, str, str | None]] = []
         self.get_requests: list[tuple[str, str]] = []
         self.head_map: dict[tuple[str, str], tuple[int, str]] = {}

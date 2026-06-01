@@ -1,4 +1,4 @@
-const THEME_STORAGE_KEY = "elesei-theme-mode";
+const THEME_STORAGE_KEY = "elisei-theme-mode";
 const AVAILABLE_MODES = ["system", "dark", "light"];
 
 function isValidThemeMode(value) {

@@ -1,9 +1,9 @@
 apiVersion: 1
 
 providers:
-  - name: ELESEI
+  - name: ELISEI
     orgId: 1
-    folder: ELESEI
+    folder: ELISEI
     type: file
     disableDeletion: false
     editable: true

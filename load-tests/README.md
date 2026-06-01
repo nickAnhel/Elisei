@@ -1,7 +1,7 @@
-# ELESEI Load Testing
+# ELISEI Load Testing
 
 ## 1. What this is
-REST API load testing for ELESEI with k6.
+REST API load testing for ELISEI with k6.
 
 Socket.IO/WebSocket is **not** tested.
 

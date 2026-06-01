@@ -1,6 +1,6 @@
 {
-  "title": "ELESEI Loadtest PostgreSQL",
-  "uid": "elesei-loadtest-postgres",
+  "title": "ELISEI Loadtest PostgreSQL",
+  "uid": "elisei-loadtest-postgres",
   "schemaVersion": 39,
   "version": 1,
   "editable": true,
