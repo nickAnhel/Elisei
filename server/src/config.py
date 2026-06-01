@@ -82,6 +82,12 @@ class WebsocketSettings(ConfigBase):
     model_config = SettingsConfigDict(env_prefix="ws_")
 
 
+class AppSettings(ConfigBase):
+    allowed_hosts: list[str] = Field(default_factory=lambda: ["*"])
+
+    model_config = SettingsConfigDict(env_prefix="app_")
+
+
 class StorageSettings(ConfigBase):
     endpoint_url: str
     region: str
@@ -190,6 +196,7 @@ class Settings(BaseSettings):
     db: DBSettings = Field(default_factory=DBSettings)  # type: ignore
     logging: LoggingConfig = Field(default_factory=LoggingConfig)  # type: ignore
     cors: CORSSettings = Field(default_factory=CORSSettings)  # type: ignore
+    app: AppSettings = Field(default_factory=AppSettings)  # type: ignore
     project: ProjectSettings = Field(default_factory=ProjectSettings)  # type: ignore
     admin: AdminSettings = Field(default_factory=AdminSettings)  # type: ignore
     ws: WebsocketSettings = Field(default_factory=WebsocketSettings)  # type: ignore

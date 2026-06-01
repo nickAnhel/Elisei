@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from src.config import settings
 
@@ -221,6 +222,10 @@ def register_exception_handlers(app: FastAPI) -> None:
 
 
 def register_middleware(app: FastAPI) -> None:
+    app.add_middleware(
+        TrustedHostMiddleware,
+        allowed_hosts=settings.app.allowed_hosts,
+    )
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.cors.allowed_hosts,
