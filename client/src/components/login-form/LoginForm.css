@@ -19,6 +19,11 @@
     box-sizing: border-box;
 }
 
+.login-form .login-error {
+    color: var(--color-danger);
+    font-size: var(--font-size-sm);
+}
+
 .login-form .hint {
     color: var(--color-text-subtle);
     font-size: var(--font-size-sm);

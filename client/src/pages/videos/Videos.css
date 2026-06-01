@@ -33,23 +33,19 @@
     gap: var(--space-3);
 }
 
-.videos-page-sort {
+.videos-page-sort.ui-select {
     width: fit-content;
     min-width: 10.5rem;
     display: inline-flex;
+    flex-direction: row;
     align-items: center;
     gap: var(--space-2);
     font-size: var(--font-size-sm);
     color: var(--color-text-subtle);
 }
 
-.videos-page-sort select {
+.videos-page-sort .ui-select__control {
     min-height: 2.25rem;
-    border: 1px solid var(--color-border);
-    background: var(--color-surface);
-    color: var(--color-text);
-    border-radius: var(--radius-md);
-    padding: 0 var(--space-3);
 }
 
 #videos-page .content-list-items {
@@ -97,7 +93,7 @@
         flex-direction: column;
     }
 
-    .videos-page-sort {
+    .videos-page-sort.ui-select {
         width: 100%;
         justify-content: space-between;
     }

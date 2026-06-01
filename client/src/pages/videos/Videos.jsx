@@ -8,7 +8,7 @@ import ContentList from "../../components/content-list/ContentList";
 import VideoCard from "../../components/video-card/VideoCard";
 import ContentService from "../../service/ContentService";
 import GlobalSearchInput from "../../components/global-search-input/GlobalSearchInput";
-import { Button, Card, Tabs, TabsList, TabsTrigger } from "../../components/ui";
+import { Button, Card, Select, Tabs, TabsList, TabsTrigger } from "../../components/ui";
 
 
 const VIDEO_TABS = {
@@ -132,20 +132,19 @@ function Videos() {
                     </TabsList>
                 </Tabs>
 
-                <label className="videos-page-sort" htmlFor="videos-sort-select">
-                    <span>Sort</span>
-                    <select
-                        id="videos-sort-select"
-                        value={activeSort}
-                        onChange={(event) => setSort(event.target.value)}
-                    >
+                <Select
+                    className="videos-page-sort"
+                    fitToOptions
+                    label="Sort"
+                    value={activeSort}
+                    onChange={(event) => setSort(event.target.value)}
+                >
                         {availableSorts.map((sortOption) => (
                             <option key={sortOption.id} value={sortOption.id}>
                                 {sortOption.label}
                             </option>
                         ))}
-                    </select>
-                </label>
+                </Select>
             </div>
 
             <ContentList

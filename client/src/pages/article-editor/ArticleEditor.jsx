@@ -15,7 +15,7 @@ import MarkdownToolbar from "../../components/markdown-toolbar";
 import TagInput from "../../components/tag-input/TagInput";
 import ArticleRenderer from "../../components/article-renderer/ArticleRenderer";
 import AddIcon from "../../components/icons/AddIcon";
-import { Button } from "../../components/ui";
+import { Button, Select } from "../../components/ui";
 import { buildComposerAttachmentFromAsset, resolveAssetTypeForFile } from "../../utils/postAttachments";
 import { MarkdownIcon, PreviewIcon, SplitViewIcon } from "../../components/icons/ArticleUiIcons";
 import {
@@ -600,33 +600,29 @@ function ArticleEditor() {
                             />
                         </label>
 
-                        <label>
-                            <span>Status</span>
-                            <select
-                                value={form.status}
-                                onChange={(event) => setForm((prevForm) => ({
-                                    ...prevForm,
-                                    status: event.target.value,
-                                }))}
-                            >
+                        <Select
+                            label="Status"
+                            value={form.status}
+                            onChange={(event) => setForm((prevForm) => ({
+                                ...prevForm,
+                                status: event.target.value,
+                            }))}
+                        >
                                 <option value="draft">Draft</option>
                                 <option value="published">Published</option>
-                            </select>
-                        </label>
+                        </Select>
 
-                        <label>
-                            <span>Visibility</span>
-                            <select
-                                value={form.visibility}
-                                onChange={(event) => setForm((prevForm) => ({
-                                    ...prevForm,
-                                    visibility: event.target.value,
-                                }))}
-                            >
+                        <Select
+                            label="Visibility"
+                            value={form.visibility}
+                            onChange={(event) => setForm((prevForm) => ({
+                                ...prevForm,
+                                visibility: event.target.value,
+                            }))}
+                        >
                                 <option value="private">Private</option>
                                 <option value="public">Public</option>
-                            </select>
-                        </label>
+                        </Select>
                     </div>
 
                     <div className="article-cover-panel">
