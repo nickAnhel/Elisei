@@ -122,8 +122,12 @@ class MessageService:
             raise InvalidMessageAssets("Shared content messages are not configured")
 
         chat_ids = list(dict.fromkeys(data.chat_ids))
+        joined_chat_ids = await self._chat_repository.get_joined_chat_ids(
+            user_id=user_id,
+            chat_ids=chat_ids,
+        )
         for chat_id in chat_ids:
-            if not await self._chat_repository.is_member(chat_id=chat_id, user_id=user_id):
+            if chat_id not in joined_chat_ids:
                 raise PermissionDenied(
                     f"User with id '{user_id}' is not a member of chat with id '{chat_id}'"
                 )
@@ -158,18 +162,24 @@ class MessageService:
         order_desc: bool,
         offset: int,
         limit: int,
-    ) -> list[MessageGetWithUser]:
-        messages = await self._repository.get_multi(
+        cursor: str | None = None,
+    ) -> tuple[list[MessageGetWithUser], str | None]:
+        messages, next_cursor = await self._repository.get_multi(
             order=order,
             order_desc=order_desc,
             offset=offset,
             limit=limit,
             chat_id=chat_id,
+            viewer_id=viewer_id,
+            cursor=cursor,
         )
-        return [
-            await self._build_message_with_user(message, viewer_id=viewer_id)
-            for message in messages
-        ]
+        return (
+            [
+                await self._build_message_with_user(message, viewer_id=viewer_id)
+                for message in messages
+            ],
+            next_cursor,
+        )
 
     async def delete_message(
         self,

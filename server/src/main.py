@@ -1,11 +1,22 @@
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 
 from src.admin.admin import create_admin
 from src.config import settings
 from src.observability import configure_logging
+from src.recommendations.graph_repository import close_neo4j_driver
 from src.setup_app import setup_app
 
 configure_logging()
+
+
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    try:
+        yield
+    finally:
+        await close_neo4j_driver()
 
 
 app = FastAPI(
@@ -15,6 +26,7 @@ app = FastAPI(
     debug=settings.project.debug,
     openapi_url="/openapi.json",
     docs_url="/docs",
+    lifespan=lifespan,
 )
 
 admin = create_admin(app)

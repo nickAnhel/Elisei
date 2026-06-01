@@ -10,7 +10,7 @@ from src.demo_seed.orchestrator import cleanup_command, collect_media_command, r
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(prog="python -m src.demo_seed", description="Nerdex demo seed CLI")
+    parser = argparse.ArgumentParser(prog="python -m src.demo_seed", description="ELESEI demo seed CLI")
     parser.add_argument("--verbose", action="store_true", help="Enable debug logs")
 
     subparsers = parser.add_subparsers(dest="command", required=True)

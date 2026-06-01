@@ -1,6 +1,6 @@
 import uuid
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Query, Response, status
 from sqlalchemy.exc import IntegrityError
 
 from src.auth.dependencies import get_current_user
@@ -88,20 +88,26 @@ async def search_chats(
 
 @router.get("/user")
 async def get_joined_chats(
+    response: Response,
     order: ChatOrder = ChatOrder.ID,
     order_desc: bool = False,
     offset: int = 0,
     limit: int = 100,
+    cursor: str | None = Query(default=None),
     user: UserGet = Depends(get_current_user),
     service: ChatService = Depends(get_chat_service),
 ) -> list[ChatDialogGet]:
-    return await service.get_user_joined_chats(
+    chats, next_cursor = await service.get_user_joined_chats(
         user=user,
         order=order,
         order_desc=order_desc,
         offset=offset,
         limit=limit,
+        cursor=cursor,
     )
+    if next_cursor is not None:
+        response.headers["X-Next-Cursor"] = next_cursor
+    return chats
 
 
 @router.post("/{chat_id}/read")

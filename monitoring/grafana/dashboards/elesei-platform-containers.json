@@ -1,0 +1,52 @@
+{
+  "title": "ELESEI Platform Containers",
+  "uid": "elesei-platform-containers",
+  "schemaVersion": 39,
+  "version": 1,
+  "editable": true,
+  "time": {
+    "from": "now-30m",
+    "to": "now"
+  },
+  "panels": [
+    {
+      "type": "timeseries",
+      "title": "Container CPU usage (cores)",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (container_label_com_docker_compose_service) (rate(container_cpu_usage_seconds_total{container_label_com_docker_compose_service=~\"server|db|redis|neo4j|celery_worker|celery_beat|prometheus|grafana|loki|alloy|client|pgadmin\",image!=\"\"}[1m]))",
+          "legendFormat": "{{container_label_com_docker_compose_service}}"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Container memory working set (bytes)",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (container_label_com_docker_compose_service) (container_memory_working_set_bytes{container_label_com_docker_compose_service=~\"server|db|redis|neo4j|celery_worker|celery_beat|prometheus|grafana|loki|alloy|client|pgadmin\",image!=\"\"})",
+          "legendFormat": "{{container_label_com_docker_compose_service}}"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Container network received (bytes/s)",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 8 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (container_label_com_docker_compose_service) (rate(container_network_receive_bytes_total{container_label_com_docker_compose_service=~\"server|db|redis|neo4j|celery_worker|celery_beat|prometheus|grafana|loki|alloy|client|pgadmin\",image!=\"\"}[1m]))",
+          "legendFormat": "{{container_label_com_docker_compose_service}}"
+        }
+      ]
+    }
+  ]
+}

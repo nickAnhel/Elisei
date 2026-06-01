@@ -4,7 +4,7 @@ from src.config import settings
 
 
 celery_app = Celery(
-    "nerdex",
+    "elesei",
     broker=settings.celery.broker_url,
     backend=settings.celery.result_backend,
     include=["src.assets.tasks", "src.recommendations.tasks"],

@@ -25,7 +25,7 @@ files:
     content: |
       services:
         api:
-          image: nerdex-api
+          image: elesei-api
   - filename: neo4j-recommendations-draft.md
     mime_type: text/markdown
     content: |

@@ -115,6 +115,21 @@ const PostListItem = forwardRef((props, ref) => {
     const isLiked = myReaction === "like";
     const isDisliked = myReaction === "dislike";
     const isDetailView = props.showDetailLink === false;
+    const hasTextContent = Boolean(post.content?.trim());
+    const mediaAttachments = post.media_attachments || [];
+    const firstImageAttachment = mediaAttachments.find((attachment) => attachment.asset_type === "image");
+    const featuredImageAttachments = firstImageAttachment ? [firstImageAttachment] : [];
+    const featuredImageIndex = firstImageAttachment
+        ? mediaAttachments.findIndex((attachment) => attachment.asset_id === firstImageAttachment.asset_id)
+        : -1;
+    const showFeaturedFeedMedia = !isDetailView && featuredImageAttachments.length > 0;
+    const showSideMediaLayout = showFeaturedFeedMedia && hasTextContent;
+    const showCenteredMediaLayout = showFeaturedFeedMedia && !hasTextContent;
+    const displayedMediaAttachments = isDetailView
+        ? mediaAttachments
+        : showFeaturedFeedMedia
+            ? featuredImageAttachments
+            : mediaAttachments;
 
     const buildPostQueryLocation = (postId, mediaIndex = null) => {
         const nextSearchParams = new URLSearchParams(location.search);
@@ -160,45 +175,57 @@ const PostListItem = forwardRef((props, ref) => {
                     {formatCreatedAt(post.published_at || post.created_at)}
                 </span>
             </div>
-            <PostMediaBlock
-                attachments={post.media_attachments || []}
-                variant="feed"
-                onMediaClick={(index) => {
-                    if (index < 0) {
-                        return;
-                    }
-                    if (isDetailView) {
-                        setGalleryIndex(index);
-                        props.onGalleryIndexChange?.(index);
-                        return;
-                    }
-                    navigate(buildPostQueryLocation(post.post_id, index));
-                }}
-            />
-            <PostFileBlock
-                attachments={post.file_attachments || []}
-                variant={isDetailView ? "detail" : "feed"}
-            />
-            {
-                post.content?.trim() && (
-                    <div className="content">
-                        <MarkdownRenderer preset="post" value={post.content} />
-                    </div>
-                )
-            }
-            {
-                post.tags?.length > 0 &&
-                <div className="post-tags">
+            <div
+                className={[
+                    "post-main",
+                    showSideMediaLayout ? "with-featured-image" : "",
+                    showCenteredMediaLayout ? "with-centered-featured-image" : "",
+                ].filter(Boolean).join(" ")}
+            >
+                <PostMediaBlock
+                    attachments={displayedMediaAttachments}
+                    variant="feed"
+                    className={showFeaturedFeedMedia ? "post-list-item-featured-media" : ""}
+                    onMediaClick={(index) => {
+                        const targetIndex = showFeaturedFeedMedia ? featuredImageIndex : index;
+                        if (targetIndex < 0) {
+                            return;
+                        }
+                        if (isDetailView) {
+                            setGalleryIndex(targetIndex);
+                            props.onGalleryIndexChange?.(targetIndex);
+                            return;
+                        }
+                        navigate(buildPostQueryLocation(post.post_id, targetIndex));
+                    }}
+                />
+                <div className="post-body">
+                    <PostFileBlock
+                        attachments={post.file_attachments || []}
+                        variant={isDetailView ? "detail" : "feed"}
+                    />
                     {
-                        post.tags.map((tag) => (
-                            <TagChip
-                                key={tag.tag_id || tag.slug}
-                                slug={tag.slug}
-                            />
-                        ))
+                        hasTextContent && (
+                            <div className="content">
+                                <MarkdownRenderer preset="post" value={post.content} />
+                            </div>
+                        )
+                    }
+                    {
+                        post.tags?.length > 0 &&
+                        <div className="post-tags">
+                            {
+                                post.tags.map((tag) => (
+                                    <TagChip
+                                        key={tag.tag_id || tag.slug}
+                                        slug={tag.slug}
+                                    />
+                                ))
+                            }
+                        </div>
                     }
                 </div>
-            }
+            </div>
             <div className="actions">
                 {
                     post.is_owner && isDetailView &&

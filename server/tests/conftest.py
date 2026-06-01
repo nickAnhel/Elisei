@@ -16,7 +16,7 @@ TEST_ENV_DEFAULTS = {
     "DB_USER": "test",
     "DB_PASSWORD": "test",
     "CORS_ALLOWED_HOSTS": '["*"]',
-    "PROJECT_TITLE": "Nerdex API Tests",
+    "PROJECT_TITLE": "ELESEI API Tests",
     "PROJECT_DESCRIPTION": "Test configuration",
     "PROJECT_VERSION": "0.1.0",
     "PROJECT_DEBUG": "true",

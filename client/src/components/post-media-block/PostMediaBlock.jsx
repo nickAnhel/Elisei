@@ -4,7 +4,7 @@ import "./PostMediaBlock.css";
 const FEED_MEDIA_LIMIT = 4;
 
 
-function PostMediaBlock({ attachments = [], variant = "feed", onMediaClick }) {
+function PostMediaBlock({ attachments = [], variant = "feed", onMediaClick, className = "" }) {
     if (!attachments.length) {
         return null;
     }
@@ -13,8 +13,10 @@ function PostMediaBlock({ attachments = [], variant = "feed", onMediaClick }) {
     const visibleAttachments = isFeed ? attachments.slice(0, FEED_MEDIA_LIMIT) : attachments;
     const hiddenCount = Math.max(attachments.length - visibleAttachments.length, 0);
 
+    const rootClassName = ["post-media-block", variant, className].filter(Boolean).join(" ");
+
     return (
-        <div className={`post-media-block ${variant}`}>
+        <div className={rootClassName}>
             {visibleAttachments.map((attachment, index) => {
                 const actualIndex = attachments.findIndex((item) => item.asset_id === attachment.asset_id);
                 const isLastVisible = index === visibleAttachments.length - 1;

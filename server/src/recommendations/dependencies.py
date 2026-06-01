@@ -10,7 +10,7 @@ from src.cache.dependencies import get_cache_service
 from src.cache.service import CacheService
 from src.common.database import get_async_session
 from src.content.projectors import build_default_content_projector_registry
-from src.recommendations.graph_repository import RecommendationGraphRepository, create_neo4j_driver
+from src.recommendations.graph_repository import RecommendationGraphRepository, get_neo4j_driver
 from src.recommendations.postgres_repository import RecommendationPostgresRepository
 from src.recommendations.service import RecommendationService
 from src.recommendations.sync_service import RecommendationGraphSyncService
@@ -18,12 +18,12 @@ from src.config import settings
 
 
 async def get_recommendation_graph_repository() -> AsyncGenerator[RecommendationGraphRepository, None]:
-    driver = create_neo4j_driver()
-    repository = RecommendationGraphRepository(driver=driver, database=settings.neo4j.database)
-    try:
-        yield repository
-    finally:
-        await repository.close()
+    repository = RecommendationGraphRepository(
+        driver=get_neo4j_driver(),
+        database=settings.neo4j.database,
+        close_driver_on_close=False,
+    )
+    yield repository
 
 
 async def get_recommendation_service(

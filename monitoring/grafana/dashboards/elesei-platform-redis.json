@@ -1,6 +1,6 @@
 {
-  "title": "Nerdex Loadtest Redis",
-  "uid": "nerdex-loadtest-redis",
+  "title": "ELESEI Platform Redis",
+  "uid": "elesei-platform-redis",
   "schemaVersion": 39,
   "version": 1,
   "editable": true,
@@ -13,7 +13,7 @@
       "type": "timeseries",
       "title": "Redis up",
       "gridPos": { "h": 6, "w": 8, "x": 0, "y": 0 },
-      "datasource": { "type": "prometheus", "uid": "prometheus-loadtest" },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
       "targets": [
         { "refId": "A", "expr": "redis_up" }
       ]
@@ -22,7 +22,7 @@
       "type": "timeseries",
       "title": "Connected clients",
       "gridPos": { "h": 6, "w": 8, "x": 8, "y": 0 },
-      "datasource": { "type": "prometheus", "uid": "prometheus-loadtest" },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
       "targets": [
         { "refId": "A", "expr": "redis_connected_clients" }
       ]
@@ -31,7 +31,7 @@
       "type": "timeseries",
       "title": "Memory used (bytes)",
       "gridPos": { "h": 6, "w": 8, "x": 16, "y": 0 },
-      "datasource": { "type": "prometheus", "uid": "prometheus-loadtest" },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
       "targets": [
         { "refId": "A", "expr": "redis_memory_used_bytes" }
       ]
@@ -40,7 +40,7 @@
       "type": "timeseries",
       "title": "Commands processed per second",
       "gridPos": { "h": 8, "w": 12, "x": 0, "y": 6 },
-      "datasource": { "type": "prometheus", "uid": "prometheus-loadtest" },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
       "targets": [
         { "refId": "A", "expr": "rate(redis_commands_processed_total[1m])" }
       ]
@@ -49,7 +49,7 @@
       "type": "timeseries",
       "title": "Network throughput (bytes/s)",
       "gridPos": { "h": 8, "w": 12, "x": 12, "y": 6 },
-      "datasource": { "type": "prometheus", "uid": "prometheus-loadtest" },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
       "targets": [
         { "refId": "A", "expr": "rate(redis_net_input_bytes_total[1m])", "legendFormat": "input" },
         { "refId": "B", "expr": "rate(redis_net_output_bytes_total[1m])", "legendFormat": "output" }

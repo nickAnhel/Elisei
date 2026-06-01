@@ -132,7 +132,7 @@ class PixabayClient:
         candidates = [url, *(fallback_urls or [])]
         last_error: Exception | None = None
         headers = {
-            "User-Agent": "Mozilla/5.0 (NerdexDemoSeed/1.0)",
+            "User-Agent": "Mozilla/5.0 (ELESEIDemoSeed/1.0)",
             "Accept": "*/*",
             "Referer": "https://pixabay.com/",
         }
@@ -158,7 +158,7 @@ class PixabayClient:
         request = Request(
             url,
             headers={
-                "User-Agent": "Mozilla/5.0 (NerdexDemoSeed/1.0)",
+                "User-Agent": "Mozilla/5.0 (ELESEIDemoSeed/1.0)",
                 "Accept": "application/json",
                 "Referer": "https://pixabay.com/",
             },

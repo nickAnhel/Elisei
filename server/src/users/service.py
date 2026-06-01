@@ -295,11 +295,14 @@ class UserService:
         """Get user subsctiptions."""
 
         try:
-            users = await self._repository.get_subscriptions(user_id=user_id)
+            users = await self._repository.get_subscriptions(
+                user_id=user_id,
+                offset=offset,
+                limit=limit,
+            )
         except NoResultFound as exc:
             raise UserNotFound(f"User with id {user_id} not found") from exc
 
-        users = users[offset : offset + limit]
         return await build_user_get_many(
             users,
             viewer_id=curr_user.user_id if curr_user else None,

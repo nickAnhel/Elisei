@@ -219,33 +219,33 @@ class FakeRepository:
 
         if viewer_id == author_id:
             if profile_filter == ContentProfileFilterEnum.DRAFTS:
-                return [item for item in items if item.status == ContentStatusEnum.DRAFT]
+                return [item for item in items if item.status == ContentStatusEnum.DRAFT], None
             if profile_filter == ContentProfileFilterEnum.PRIVATE:
                 return [
                     item
                     for item in items
                     if item.status == ContentStatusEnum.PUBLISHED
                     and item.visibility == ContentVisibilityEnum.PRIVATE
-                ]
+                ], None
             if profile_filter == ContentProfileFilterEnum.PUBLIC:
                 return [
                     item
                     for item in items
                     if item.status == ContentStatusEnum.PUBLISHED
                     and item.visibility == ContentVisibilityEnum.PUBLIC
-                ]
+                ], None
             return [
                 item
                 for item in items
                 if item.status in {ContentStatusEnum.PUBLISHED, ContentStatusEnum.DRAFT}
-            ]
+            ], None
 
         return [
             item
             for item in items
             if item.status == ContentStatusEnum.PUBLISHED
             and item.visibility == ContentVisibilityEnum.PUBLIC
-        ]
+        ], None
 
     async def get_author_gallery_posts(self, **kwargs):  # type: ignore[no-untyped-def]
         viewer_id = kwargs["viewer_id"]
@@ -743,7 +743,7 @@ async def test_publications_owner_and_non_owner_visibility_filters(service_bundl
 
     repository.publications = [content, private_post, draft_post]
 
-    owner_items = await service.get_publications(
+    owner_items, _ = await service.get_publications(
         author_id=author.user_id,
         viewer_id=author.user_id,
         content_type=None,
@@ -753,7 +753,7 @@ async def test_publications_owner_and_non_owner_visibility_filters(service_bundl
         offset=0,
         limit=20,
     )
-    viewer_items = await service.get_publications(
+    viewer_items, _ = await service.get_publications(
         author_id=author.user_id,
         viewer_id=viewer.user_id,
         content_type=None,
@@ -763,7 +763,7 @@ async def test_publications_owner_and_non_owner_visibility_filters(service_bundl
         offset=0,
         limit=20,
     )
-    owner_drafts = await service.get_publications(
+    owner_drafts, _ = await service.get_publications(
         author_id=author.user_id,
         viewer_id=author.user_id,
         content_type=None,

@@ -34,6 +34,7 @@ async def build_user_get(
     viewer_id: uuid.UUID | None = None,
     storage: AssetStorage | None = None,
 ) -> UserGet:
+    precomputed_is_subscribed = getattr(user, "is_subscribed", None)
     return UserGet(
         user_id=user.user_id,
         avatar_asset_id=user.avatar_asset_id,
@@ -45,11 +46,15 @@ async def build_user_get(
         subscribers_count=user.subscribers_count,
         is_admin=user.is_admin,
         is_subscribed=(
-            viewer_id is not None
-            and viewer_id in [
-                subscriber.user_id
-                for subscriber in _loaded_relationship_or_default(user, "subscribers", [])
-            ]
+            bool(precomputed_is_subscribed)
+            if precomputed_is_subscribed is not None
+            else (
+                viewer_id is not None
+                and viewer_id in [
+                    subscriber.user_id
+                    for subscriber in _loaded_relationship_or_default(user, "subscribers", [])
+                ]
+            )
         ),
     )
 

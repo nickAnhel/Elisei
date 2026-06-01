@@ -1,13 +1,16 @@
+import datetime
 import uuid
 from typing import Any
 
-from sqlalchemy import delete, desc, func, insert, literal, or_, select, update
+from sqlalchemy import and_, delete, desc, func, insert, literal, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased, selectinload
 
 from src.assets.models import AssetModel, ContentAssetModel, MessageAssetModel
 from src.chats.enums import ChatMemberRole, ChatType
 from src.chats.models import ChatModel, ChatTimelineItemModel, MembershipModel
+from src.common.cursor import decode_cursor, encode_cursor, parse_cursor_timestamp, parse_cursor_uuid
+from src.common.exceptions import InvalidCursor
 from src.content.models import ContentModel
 import src.articles.models  # noqa: F401
 import src.moments.models  # noqa: F401
@@ -146,7 +149,6 @@ class ChatRepository:
                 select(MessageModel)
                 .where(MessageModel.message_id.in_(message_ids))
                 .options(
-                    selectinload(MessageModel.user).selectinload(UserModel.subscribers),
                     selectinload(MessageModel.user)
                     .selectinload(UserModel.avatar_asset)
                     .selectinload(AssetModel.variants),
@@ -227,6 +229,23 @@ class ChatRepository:
 
         result = await self._session.execute(query)
         return result.scalar_one_or_none() is not None
+
+    async def get_joined_chat_ids(
+        self,
+        *,
+        user_id: uuid.UUID,
+        chat_ids: list[uuid.UUID],
+    ) -> set[uuid.UUID]:
+        if not chat_ids:
+            return set()
+
+        query = (
+            select(MembershipModel.chat_id)
+            .where(MembershipModel.user_id == user_id)
+            .where(MembershipModel.chat_id.in_(chat_ids))
+        )
+        result = await self._session.execute(query)
+        return set(result.scalars().all())
 
     async def is_owner_member(
         self,
@@ -401,7 +420,13 @@ class ChatRepository:
         user_id: uuid.UUID,
         offset: int,
         limit: int,
-    ) -> list[ChatModel]:
+        cursor: str | None = None,
+        order: str | None = None,
+        order_desc: bool | None = None,
+    ) -> tuple[list[ChatModel], str | None]:
+        if cursor is not None and ((order is not None and order != "chat_id") or (order_desc is not None and order_desc)):
+            raise InvalidCursor("Cursor is not supported for this order/order_desc combination")
+
         latest_message_at_query = (
             select(
                 MessageModel.chat_id,
@@ -427,14 +452,29 @@ class ChatRepository:
                 desc(latest_message_at_query.c.last_message_at).nulls_last(),
                 ChatModel.chat_id,
             )
-            .offset(offset)
-            .limit(limit)
         )
+        if cursor is not None:
+            cursor_last_message_at, cursor_chat_id = self._decode_user_dialogs_cursor(
+                token=cursor,
+                user_id=user_id,
+            )
+            query = query.where(
+                or_(
+                    latest_message_at_query.c.last_message_at < cursor_last_message_at,
+                    and_(
+                        latest_message_at_query.c.last_message_at == cursor_last_message_at,
+                        ChatModel.chat_id > cursor_chat_id,
+                    ),
+                )
+            ).limit(limit + 1)
+        else:
+            query = query.offset(offset).limit(limit + 1)
 
         rows = (await self._session.execute(query)).unique().all()
-        chats = [row[0] for row in rows]
-        memberships_by_chat_id = {row[0].chat_id: row[1] for row in rows}
-        last_message_at_by_chat_id = {row[0].chat_id: row[2] for row in rows}
+        page_rows = rows[:limit]
+        chats = [row[0] for row in page_rows]
+        memberships_by_chat_id = {row[0].chat_id: row[1] for row in page_rows}
+        last_message_at_by_chat_id = {row[0].chat_id: row[2] for row in page_rows}
 
         chat_ids = [chat.chat_id for chat in chats]
         last_messages = await self._get_last_messages(chat_ids=chat_ids)
@@ -451,7 +491,15 @@ class ChatRepository:
             setattr(chat, "last_message_at", last_message_at_by_chat_id[chat.chat_id])
             setattr(chat, "unread_count", unread_counts.get(chat.chat_id, 0))
 
-        return chats
+        next_cursor = None
+        has_next = len(rows) > limit
+        if has_next and chats:
+            next_cursor = self._encode_user_dialogs_cursor(
+                user_id=user_id,
+                chat=chats[-1],
+                last_message_at=last_message_at_by_chat_id.get(chats[-1].chat_id),
+            )
+        return chats, next_cursor
 
     async def set_avatar(
         self,
@@ -552,7 +600,6 @@ class ChatRepository:
             )
             .where(ranked_messages.c.rank == 1)
             .options(
-                selectinload(MessageModel.user).selectinload(UserModel.subscribers),
                 selectinload(MessageModel.user)
                 .selectinload(UserModel.avatar_asset)
                 .selectinload(AssetModel.variants),
@@ -640,7 +687,6 @@ class ChatRepository:
             MessageSharedContentModel.content
         )
         return (
-            content_load.selectinload(ContentModel.author).selectinload(UserModel.subscribers),
             content_load.selectinload(ContentModel.author)
             .selectinload(UserModel.avatar_asset)
             .selectinload(AssetModel.variants),
@@ -653,4 +699,47 @@ class ChatRepository:
             content_load.selectinload(ContentModel.asset_links)
             .selectinload(ContentAssetModel.asset)
             .selectinload(AssetModel.variants),
+        )
+
+    def _decode_user_dialogs_cursor(
+        self,
+        *,
+        token: str,
+        user_id: uuid.UUID,
+    ) -> tuple[datetime.datetime, uuid.UUID]:
+        payload = decode_cursor(token)
+        if payload.get("kind") != "chats:user":
+            raise InvalidCursor("Cursor kind mismatch for user chats")
+        if payload.get("endpoint") != "/chats/user":
+            raise InvalidCursor("Cursor endpoint mismatch")
+        if payload.get("user_id") != str(user_id):
+            raise InvalidCursor("Cursor user mismatch")
+        if payload.get("order") != "chat_id" or payload.get("order_desc") is not False:
+            raise InvalidCursor("Cursor order mismatch")
+        if payload.get("sort_field") != "last_message_at":
+            raise InvalidCursor("Cursor sort field mismatch")
+        last_message_at = parse_cursor_timestamp(payload.get("timestamp"), field_name="timestamp")
+        chat_id = parse_cursor_uuid(payload.get("chat_id"), field_name="chat_id")
+        return last_message_at, chat_id
+
+    def _encode_user_dialogs_cursor(
+        self,
+        *,
+        user_id: uuid.UUID,
+        chat: ChatModel,
+        last_message_at: datetime.datetime | None,
+    ) -> str | None:
+        if last_message_at is None:
+            return None
+        return encode_cursor(
+            {
+                "kind": "chats:user",
+                "endpoint": "/chats/user",
+                "user_id": str(user_id),
+                "order": "chat_id",
+                "order_desc": False,
+                "sort_field": "last_message_at",
+                "timestamp": last_message_at.isoformat(),
+                "chat_id": str(chat.chat_id),
+            }
         )

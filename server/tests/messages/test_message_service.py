@@ -205,6 +205,10 @@ class _ChatRepository:
     async def is_member(self, *, chat_id, user_id):
         return chat_id in self.member_chat_ids
 
+    async def get_joined_chat_ids(self, *, user_id, chat_ids):
+        _ = user_id
+        return {chat_id for chat_id in chat_ids if chat_id in self.member_chat_ids}
+
 
 class _SharedContent:
     def __init__(self, content_id) -> None:

@@ -1,6 +1,6 @@
 {
-  "title": "Nerdex Loadtest PostgreSQL",
-  "uid": "nerdex-loadtest-postgres",
+  "title": "ELESEI Loadtest Redis",
+  "uid": "elesei-loadtest-redis",
   "schemaVersion": 39,
   "version": 1,
   "editable": true,
@@ -11,49 +11,48 @@
   "panels": [
     {
       "type": "timeseries",
-      "title": "Postgres up",
+      "title": "Redis up",
       "gridPos": { "h": 6, "w": 8, "x": 0, "y": 0 },
       "datasource": { "type": "prometheus", "uid": "prometheus-loadtest" },
       "targets": [
-        { "refId": "A", "expr": "pg_up" }
+        { "refId": "A", "expr": "redis_up" }
       ]
     },
     {
       "type": "timeseries",
-      "title": "DB size (bytes)",
+      "title": "Connected clients",
       "gridPos": { "h": 6, "w": 8, "x": 8, "y": 0 },
       "datasource": { "type": "prometheus", "uid": "prometheus-loadtest" },
       "targets": [
-        { "refId": "A", "expr": "pg_database_size_bytes{datname=~\".*loadtest.*|.*test.*|.*perf.*\"}", "legendFormat": "{{datname}}" }
+        { "refId": "A", "expr": "redis_connected_clients" }
       ]
     },
     {
       "type": "timeseries",
-      "title": "Connections",
+      "title": "Memory used (bytes)",
       "gridPos": { "h": 6, "w": 8, "x": 16, "y": 0 },
       "datasource": { "type": "prometheus", "uid": "prometheus-loadtest" },
       "targets": [
-        { "refId": "A", "expr": "sum(pg_stat_activity_count) by (datname)", "legendFormat": "{{datname}}" }
+        { "refId": "A", "expr": "redis_memory_used_bytes" }
       ]
     },
     {
       "type": "timeseries",
-      "title": "Transactions per second",
+      "title": "Commands processed per second",
       "gridPos": { "h": 8, "w": 12, "x": 0, "y": 6 },
       "datasource": { "type": "prometheus", "uid": "prometheus-loadtest" },
       "targets": [
-        { "refId": "A", "expr": "sum(rate(pg_stat_database_xact_commit[1m])) by (datname)", "legendFormat": "commit {{datname}}" },
-        { "refId": "B", "expr": "sum(rate(pg_stat_database_xact_rollback[1m])) by (datname)", "legendFormat": "rollback {{datname}}" }
+        { "refId": "A", "expr": "rate(redis_commands_processed_total[1m])" }
       ]
     },
     {
       "type": "timeseries",
-      "title": "Blocks read/hit per second",
+      "title": "Network throughput (bytes/s)",
       "gridPos": { "h": 8, "w": 12, "x": 12, "y": 6 },
       "datasource": { "type": "prometheus", "uid": "prometheus-loadtest" },
       "targets": [
-        { "refId": "A", "expr": "sum(rate(pg_stat_database_blks_read[1m])) by (datname)", "legendFormat": "read {{datname}}" },
-        { "refId": "B", "expr": "sum(rate(pg_stat_database_blks_hit[1m])) by (datname)", "legendFormat": "hit {{datname}}" }
+        { "refId": "A", "expr": "rate(redis_net_input_bytes_total[1m])", "legendFormat": "input" },
+        { "refId": "B", "expr": "rate(redis_net_output_bytes_total[1m])", "legendFormat": "output" }
       ]
     }
   ]

@@ -1,13 +1,16 @@
+import datetime
 import uuid
 from typing import Any
 
-from sqlalchemy import delete, desc, func, insert, literal_column, select, update
+from sqlalchemy import and_, delete, desc, exists, func, insert, literal_column, or_, select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from src.assets.models import AssetModel, ContentAssetModel, MessageAssetModel
 from src.chats.timeline import create_message_timeline_item, get_message_chat_seq
+from src.common.cursor import decode_cursor, encode_cursor, parse_cursor_timestamp, parse_cursor_uuid
+from src.common.exceptions import InvalidCursor
 from src.content.models import ContentModel
 import src.articles.models  # noqa: F401
 import src.moments.models  # noqa: F401
@@ -16,7 +19,7 @@ import src.tags.models  # noqa: F401
 import src.videos.models  # noqa: F401
 from src.content.enums import ReactionTypeEnum
 from src.messages.models import MessageModel, MessageReactionModel, MessageSharedContentModel
-from src.users.models import UserModel
+from src.users.models import SubscriptionModel, UserModel
 
 
 class MessageRepository:
@@ -25,7 +28,6 @@ class MessageRepository:
 
     def _message_load_options(self):
         return [
-            selectinload(MessageModel.user).selectinload(UserModel.subscribers),
             selectinload(MessageModel.user)
             .selectinload(UserModel.avatar_asset)
             .selectinload(AssetModel.variants),
@@ -129,18 +131,76 @@ class MessageRepository:
         order_desc: bool,
         offset: int,
         limit: int,
-    ) -> list[MessageModel]:
+        viewer_id: uuid.UUID | None = None,
+        cursor: str | None = None,
+    ) -> tuple[list[MessageModel], str | None]:
+        supports_cursor = order == "created_at" and order_desc
+        if cursor is not None and not supports_cursor:
+            raise InvalidCursor("Cursor is not supported for this order/order_desc combination")
+        order_column = self._resolve_order_column(order)
+
+        subscription_exists = None
+        if viewer_id is not None:
+            subscription_exists = exists(
+                select(1)
+                .select_from(SubscriptionModel)
+                .where(SubscriptionModel.subscriber_id == viewer_id)
+                .where(SubscriptionModel.subscribed_id == MessageModel.user_id)
+            )
+
+        query = select(MessageModel)
+        if subscription_exists is not None:
+            query = select(MessageModel, subscription_exists.label("user_is_subscribed"))
+
         query = (
-            select(MessageModel)
+            query
             .filter_by(chat_id=chat_id)
-            .order_by(desc(order) if order_desc else order)
-            .offset(offset)
-            .limit(limit)
+            .order_by(
+                desc(order_column) if order_desc else order_column,
+                desc(MessageModel.message_id),
+            )
             .options(*self._message_load_options())
         )
 
+        if cursor is not None:
+            cursor_created_at, cursor_message_id = self._decode_messages_cursor(
+                token=cursor,
+                chat_id=chat_id,
+                order=order,
+                order_desc=order_desc,
+            )
+            query = query.where(
+                or_(
+                    MessageModel.created_at < cursor_created_at,
+                    and_(
+                        MessageModel.created_at == cursor_created_at,
+                        MessageModel.message_id < cursor_message_id,
+                    ),
+                )
+            ).limit(limit + 1)
+        else:
+            query = query.offset(offset).limit(limit + 1)
+
         result = await self._session.execute(query)
-        return list(reversed(result.scalars().all()))
+        if viewer_id is None:
+            fetched_desc = list(result.scalars().all())
+        else:
+            fetched_desc = []
+            for message, user_is_subscribed in result.all():
+                setattr(message.user, "is_subscribed", bool(user_is_subscribed))
+                fetched_desc.append(message)
+
+        page_desc = fetched_desc[:limit]
+        has_next = len(fetched_desc) > limit
+        next_cursor = None
+        if has_next and supports_cursor and page_desc:
+            next_cursor = self._encode_messages_cursor(
+                chat_id=chat_id,
+                order=order,
+                order_desc=order_desc,
+                message=page_desc[-1],
+            )
+        return list(reversed(page_desc)), next_cursor
 
     async def delete(self, **filters) -> int:
         stmt = (
@@ -367,7 +427,6 @@ class MessageRepository:
             MessageSharedContentModel.content
         )
         return (
-            content_load.selectinload(ContentModel.author).selectinload(UserModel.subscribers),
             content_load.selectinload(ContentModel.author)
             .selectinload(UserModel.avatar_asset)
             .selectinload(AssetModel.variants),
@@ -381,3 +440,54 @@ class MessageRepository:
             .selectinload(ContentAssetModel.asset)
             .selectinload(AssetModel.variants),
         )
+
+    def _decode_messages_cursor(
+        self,
+        *,
+        token: str,
+        chat_id: uuid.UUID,
+        order: str,
+        order_desc: bool,
+    ) -> tuple[datetime.datetime, uuid.UUID]:
+        payload = decode_cursor(token)
+        if payload.get("kind") != "messages:list":
+            raise InvalidCursor("Cursor kind mismatch for messages list")
+        if payload.get("endpoint") != "/messages/":
+            raise InvalidCursor("Cursor endpoint mismatch")
+        if payload.get("chat_id") != str(chat_id):
+            raise InvalidCursor("Cursor chat mismatch")
+        if payload.get("order") != order or payload.get("order_desc") is not order_desc:
+            raise InvalidCursor("Cursor order mismatch")
+        if payload.get("sort_field") != "created_at":
+            raise InvalidCursor("Cursor sort field mismatch")
+        created_at = parse_cursor_timestamp(payload.get("timestamp"), field_name="timestamp")
+        message_id = parse_cursor_uuid(payload.get("message_id"), field_name="message_id")
+        return created_at, message_id
+
+    def _encode_messages_cursor(
+        self,
+        *,
+        chat_id: uuid.UUID,
+        order: str,
+        order_desc: bool,
+        message: MessageModel,
+    ) -> str:
+        return encode_cursor(
+            {
+                "kind": "messages:list",
+                "endpoint": "/messages/",
+                "chat_id": str(chat_id),
+                "order": order,
+                "order_desc": order_desc,
+                "sort_field": "created_at",
+                "timestamp": message.created_at.isoformat(),
+                "message_id": str(message.message_id),
+            }
+        )
+
+    def _resolve_order_column(self, order: str):
+        if order == "created_at":
+            return MessageModel.created_at
+        if order == "message_id":
+            return MessageModel.message_id
+        raise InvalidCursor("Unsupported messages order field")

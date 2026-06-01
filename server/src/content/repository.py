@@ -23,6 +23,8 @@ from src.content.enums import (
 )
 from src.content.enums_list import ContentOrder
 from src.content.models import ContentModel, ContentReactionModel, ContentViewSessionModel
+from src.common.cursor import decode_cursor, encode_cursor, parse_cursor_timestamp, parse_cursor_uuid
+from src.common.exceptions import InvalidCursor
 from src.users.models import SubscriptionModel, UserModel
 from src.videos.enums import VideoProcessingStatusEnum
 from src.videos.models import VideoPlaybackDetailsModel
@@ -53,9 +55,14 @@ class ContentRepository:
         order_desc: bool,
         offset: int,
         limit: int,
-    ) -> list[ContentModel]:
+        cursor: str | None = None,
+    ) -> tuple[list[ContentModel], str | None]:
+        supports_cursor = order in {ContentOrder.CREATED_AT, ContentOrder.PUBLISHED_AT} and order_desc
+        if cursor is not None and not supports_cursor:
+            raise InvalidCursor("Cursor is not supported for this order/order_desc combination")
+
         stmt = (
-            self._build_content_query(viewer_id=viewer_id)
+            self._build_content_query(viewer_id=viewer_id, load_profile="list")
             .outerjoin(VideoPlaybackDetailsModel)
             .where(ContentModel.content_type.in_([
                 ContentTypeEnum.POST,
@@ -72,12 +79,42 @@ class ContentRepository:
                     VideoPlaybackDetailsModel.processing_status == VideoProcessingStatusEnum.READY,
                 )
             )
-            .order_by(self._order_by_clause(order=order, order_desc=order_desc))
-            .offset(offset)
-            .limit(limit)
+            .order_by(
+                self._order_by_clause(order=order, order_desc=order_desc),
+                desc(ContentModel.content_id) if order_desc else ContentModel.content_id,
+            )
         )
+        if cursor is not None:
+            cursor_ts, cursor_content_id = self._decode_feed_cursor(
+                token=cursor,
+                order=order,
+                order_desc=order_desc,
+            )
+            cursor_column = self._resolve_order_column(order=order)
+            stmt = stmt.where(
+                or_(
+                    cursor_column < cursor_ts,
+                    and_(
+                        cursor_column == cursor_ts,
+                        ContentModel.content_id < cursor_content_id,
+                    ),
+                )
+            )
+            stmt = stmt.limit(limit + 1)
+        else:
+            stmt = stmt.offset(offset).limit(limit + 1)
         result = await self._session.execute(stmt)
-        return self._many(result, viewer_id=viewer_id)
+        items = self._many(result, viewer_id=viewer_id)
+        page_items = items[:limit]
+        has_next = len(items) > limit
+        next_cursor = None
+        if has_next and supports_cursor and page_items:
+            next_cursor = self._encode_feed_cursor(
+                order=order,
+                order_desc=order_desc,
+                item=page_items[-1],
+            )
+        return page_items, next_cursor
 
     async def get_user_subscriptions_feed(
         self,
@@ -196,8 +233,20 @@ class ContentRepository:
             .group_by(ContentViewSessionModel.content_id)
             .subquery()
         )
+        reaction_subquery = self._reaction_subquery(viewer_id=viewer_id)
+        subscription_exists = exists(
+            select(1)
+            .select_from(SubscriptionModel)
+            .where(SubscriptionModel.subscriber_id == viewer_id)
+            .where(SubscriptionModel.subscribed_id == ContentModel.author_id)
+        )
         stmt = (
-            select(ContentModel, ContentViewSessionModel)
+            select(
+                ContentModel,
+                ContentViewSessionModel,
+                reaction_subquery.c.reaction_type.label("my_reaction"),
+                subscription_exists.label("author_is_subscribed"),
+            )
             .join(latest_subquery, latest_subquery.c.content_id == ContentModel.content_id)
             .join(
                 ContentViewSessionModel,
@@ -206,6 +255,10 @@ class ContentRepository:
                     ContentViewSessionModel.last_seen_at == latest_subquery.c.last_seen_at,
                     ContentViewSessionModel.viewer_id == viewer_id,
                 ),
+            )
+            .outerjoin(
+                reaction_subquery,
+                ContentModel.content_id == reaction_subquery.c.content_id,
             )
             .outerjoin(VideoPlaybackDetailsModel)
             .where(ContentModel.status == ContentStatusEnum.PUBLISHED)
@@ -224,21 +277,7 @@ class ContentRepository:
 
         stmt = (
             stmt
-            .options(
-                selectinload(ContentModel.author).selectinload(UserModel.subscribers),
-                selectinload(ContentModel.author)
-                .selectinload(UserModel.avatar_asset)
-                .selectinload(AssetModel.variants),
-                selectinload(ContentModel.post_details),
-                selectinload(ContentModel.article_details),
-                selectinload(ContentModel.video_details),
-                selectinload(ContentModel.moment_details),
-                selectinload(ContentModel.video_playback_details),
-                selectinload(ContentModel.tags),
-                selectinload(ContentModel.asset_links)
-                .selectinload(ContentAssetModel.asset)
-                .selectinload(AssetModel.variants),
-            )
+            .options(*self._content_list_load_options())
             .order_by(desc(ContentViewSessionModel.last_seen_at))
             .offset(offset)
             .limit(limit)
@@ -246,9 +285,10 @@ class ContentRepository:
         result = await self._session.execute(stmt)
         rows = list(result.unique().all())
         items: list[tuple[ContentModel, ContentViewSessionModel]] = []
-        for item, session in rows:
-            item.my_reaction = await self._get_reaction_type(content_id=item.content_id, user_id=viewer_id)
+        for item, session, my_reaction, author_is_subscribed in rows:
+            item.my_reaction = my_reaction
             item.is_owner = item.author_id == viewer_id
+            setattr(item.author, "is_subscribed", bool(author_is_subscribed))
             items.append((item, session))
         return items
 
@@ -263,9 +303,14 @@ class ContentRepository:
         order_desc: bool,
         offset: int,
         limit: int,
-    ) -> list[ContentModel]:
+        cursor: str | None = None,
+    ) -> tuple[list[ContentModel], str | None]:
+        supports_cursor = order in {ContentOrder.CREATED_AT, ContentOrder.PUBLISHED_AT} and order_desc
+        if cursor is not None and not supports_cursor:
+            raise InvalidCursor("Cursor is not supported for this order/order_desc combination")
+
         stmt = (
-            self._build_content_query(viewer_id=viewer_id)
+            self._build_content_query(viewer_id=viewer_id, load_profile="list")
             .outerjoin(VideoPlaybackDetailsModel)
             .where(
                 ContentModel.content_type.in_(
@@ -318,13 +363,46 @@ class ContentRepository:
                 .where(ContentModel.visibility == ContentVisibilityEnum.PUBLIC)
             )
 
-        stmt = (
-            stmt.order_by(self._order_by_clause(order=order, order_desc=order_desc))
-            .offset(offset)
-            .limit(limit)
+        stmt = stmt.order_by(
+            self._order_by_clause(order=order, order_desc=order_desc),
+            desc(ContentModel.content_id) if order_desc else ContentModel.content_id,
         )
+        if cursor is not None:
+            cursor_ts, cursor_content_id = self._decode_publications_cursor(
+                token=cursor,
+                author_id=author_id,
+                profile_filter=profile_filter,
+                content_type=content_type,
+                order=order,
+                order_desc=order_desc,
+            )
+            cursor_column = self._resolve_order_column(order=order)
+            stmt = stmt.where(
+                or_(
+                    cursor_column < cursor_ts,
+                    and_(
+                        cursor_column == cursor_ts,
+                        ContentModel.content_id < cursor_content_id,
+                    ),
+                )
+            ).limit(limit + 1)
+        else:
+            stmt = stmt.offset(offset).limit(limit + 1)
         result = await self._session.execute(stmt)
-        return self._many(result, viewer_id=viewer_id)
+        items = self._many(result, viewer_id=viewer_id)
+        page_items = items[:limit]
+        has_next = len(items) > limit
+        next_cursor = None
+        if has_next and supports_cursor and page_items:
+            next_cursor = self._encode_publications_cursor(
+                author_id=author_id,
+                profile_filter=profile_filter,
+                content_type=content_type,
+                order=order,
+                order_desc=order_desc,
+                item=page_items[-1],
+            )
+        return page_items, next_cursor
 
     async def get_author_gallery_posts(
         self,
@@ -622,31 +700,28 @@ class ContentRepository:
         )
         return int(views_count or 0)
 
-    def _build_content_query(self, viewer_id: uuid.UUID | None):
+    def _build_content_query(self, viewer_id: uuid.UUID | None, *, load_profile: str = "detail"):
         reaction_subquery = self._reaction_subquery(viewer_id=viewer_id)
         base_options = (
-            selectinload(ContentModel.author).selectinload(UserModel.subscribers),
-            selectinload(ContentModel.author)
-            .selectinload(UserModel.avatar_asset)
-            .selectinload(AssetModel.variants),
-            selectinload(ContentModel.post_details),
-            selectinload(ContentModel.article_details),
-            selectinload(ContentModel.video_details),
-            selectinload(ContentModel.moment_details),
-            selectinload(ContentModel.video_playback_details),
-            selectinload(ContentModel.tags),
-            selectinload(ContentModel.asset_links)
-            .selectinload(ContentAssetModel.asset)
-            .selectinload(AssetModel.variants),
+            self._content_detail_load_options()
+            if load_profile == "detail"
+            else self._content_list_load_options()
         )
 
         if reaction_subquery is None:
             return select(ContentModel).options(*base_options)
 
+        subscription_exists = exists(
+            select(1)
+            .select_from(SubscriptionModel)
+            .where(SubscriptionModel.subscriber_id == viewer_id)
+            .where(SubscriptionModel.subscribed_id == ContentModel.author_id)
+        )
         return (
             select(
                 ContentModel,
                 reaction_subquery.c.reaction_type.label("my_reaction"),
+                subscription_exists.label("author_is_subscribed"),
             )
             .outerjoin(
                 reaction_subquery,
@@ -688,9 +763,10 @@ class ContentRepository:
             return items
 
         items: list[ContentModel] = []
-        for item, my_reaction in result.unique().all():
+        for item, my_reaction, author_is_subscribed in result.unique().all():
             item.my_reaction = my_reaction
             item.is_owner = item.author_id == viewer_id
+            setattr(item.author, "is_subscribed", bool(author_is_subscribed))
             items.append(item)
         return items
 
@@ -704,9 +780,10 @@ class ContentRepository:
         row = result.one_or_none()
         if row is None:
             return None
-        item, my_reaction = row
+        item, my_reaction, author_is_subscribed = row
         item.my_reaction = my_reaction
         item.is_owner = item.author_id == viewer_id
+        setattr(item.author, "is_subscribed", bool(author_is_subscribed))
         return item
 
     async def _get_reaction(
@@ -721,15 +798,6 @@ class ContentRepository:
             .where(ContentReactionModel.user_id == user_id)
         )
         return result.scalar_one_or_none()
-
-    async def _get_reaction_type(
-        self,
-        *,
-        content_id: uuid.UUID,
-        user_id: uuid.UUID,
-    ) -> ReactionTypeEnum | None:
-        reaction = await self._get_reaction(content_id=content_id, user_id=user_id)
-        return reaction.reaction_type if reaction is not None else None
 
     async def _update_reaction_counters(
         self,
@@ -756,3 +824,137 @@ class ContentRepository:
         }
         column = order_mapping[order]
         return desc(column) if order_desc else column
+
+    def _resolve_order_column(self, order: ContentOrder):
+        order_mapping = {
+            ContentOrder.CREATED_AT: ContentModel.created_at,
+            ContentOrder.PUBLISHED_AT: ContentModel.published_at,
+        }
+        if order not in order_mapping:
+            raise InvalidCursor("Cursor is not supported for this order field")
+        return order_mapping[order]
+
+    def _content_list_load_options(self):
+        return (
+            selectinload(ContentModel.author)
+            .selectinload(UserModel.avatar_asset)
+            .selectinload(AssetModel.variants),
+            selectinload(ContentModel.post_details),
+            selectinload(ContentModel.article_details),
+            selectinload(ContentModel.video_details),
+            selectinload(ContentModel.moment_details),
+            selectinload(ContentModel.video_playback_details),
+            selectinload(ContentModel.tags),
+            selectinload(ContentModel.asset_links)
+            .selectinload(ContentAssetModel.asset)
+            .selectinload(AssetModel.variants),
+        )
+
+    def _content_detail_load_options(self):
+        return (
+            selectinload(ContentModel.author).selectinload(UserModel.subscribers),
+            *self._content_list_load_options(),
+        )
+
+    def _decode_feed_cursor(
+        self,
+        *,
+        token: str,
+        order: ContentOrder,
+        order_desc: bool,
+    ) -> tuple[datetime.datetime, uuid.UUID]:
+        payload = decode_cursor(token)
+        expected_sort_field = order.value
+        if payload.get("kind") != "contents:list":
+            raise InvalidCursor("Cursor kind mismatch for contents list")
+        if payload.get("endpoint") != "/contents/list":
+            raise InvalidCursor("Cursor endpoint mismatch")
+        if payload.get("order") != order.value or payload.get("order_desc") is not order_desc:
+            raise InvalidCursor("Cursor order mismatch")
+        if payload.get("sort_field") != expected_sort_field:
+            raise InvalidCursor("Cursor sort field mismatch")
+        cursor_ts = parse_cursor_timestamp(payload.get("timestamp"), field_name="timestamp")
+        cursor_content_id = parse_cursor_uuid(payload.get("content_id"), field_name="content_id")
+        return cursor_ts, cursor_content_id
+
+    def _encode_feed_cursor(
+        self,
+        *,
+        order: ContentOrder,
+        order_desc: bool,
+        item: ContentModel,
+    ) -> str | None:
+        cursor_column = self._resolve_order_column(order=order)
+        cursor_ts = getattr(item, cursor_column.key, None)
+        if cursor_ts is None:
+            return None
+        return encode_cursor(
+            {
+                "kind": "contents:list",
+                "endpoint": "/contents/list",
+                "order": order.value,
+                "order_desc": order_desc,
+                "sort_field": order.value,
+                "timestamp": cursor_ts.isoformat(),
+                "content_id": str(item.content_id),
+            }
+        )
+
+    def _decode_publications_cursor(
+        self,
+        *,
+        token: str,
+        author_id: uuid.UUID,
+        profile_filter: ContentProfileFilterEnum,
+        content_type: ContentTypeEnum | None,
+        order: ContentOrder,
+        order_desc: bool,
+    ) -> tuple[datetime.datetime, uuid.UUID]:
+        payload = decode_cursor(token)
+        if payload.get("kind") != "contents:publications":
+            raise InvalidCursor("Cursor kind mismatch for contents publications")
+        if payload.get("endpoint") != "/contents/publications":
+            raise InvalidCursor("Cursor endpoint mismatch")
+        if payload.get("author_id") != str(author_id):
+            raise InvalidCursor("Cursor author mismatch")
+        if payload.get("profile_filter") != profile_filter.value:
+            raise InvalidCursor("Cursor profile filter mismatch")
+        expected_content_type = content_type.value if content_type is not None else None
+        if payload.get("content_type") != expected_content_type:
+            raise InvalidCursor("Cursor content type mismatch")
+        if payload.get("order") != order.value or payload.get("order_desc") is not order_desc:
+            raise InvalidCursor("Cursor order mismatch")
+        if payload.get("sort_field") != order.value:
+            raise InvalidCursor("Cursor sort field mismatch")
+        cursor_ts = parse_cursor_timestamp(payload.get("timestamp"), field_name="timestamp")
+        cursor_content_id = parse_cursor_uuid(payload.get("content_id"), field_name="content_id")
+        return cursor_ts, cursor_content_id
+
+    def _encode_publications_cursor(
+        self,
+        *,
+        author_id: uuid.UUID,
+        profile_filter: ContentProfileFilterEnum,
+        content_type: ContentTypeEnum | None,
+        order: ContentOrder,
+        order_desc: bool,
+        item: ContentModel,
+    ) -> str | None:
+        cursor_column = self._resolve_order_column(order=order)
+        cursor_ts = getattr(item, cursor_column.key, None)
+        if cursor_ts is None:
+            return None
+        return encode_cursor(
+            {
+                "kind": "contents:publications",
+                "endpoint": "/contents/publications",
+                "author_id": str(author_id),
+                "profile_filter": profile_filter.value,
+                "content_type": content_type.value if content_type is not None else None,
+                "order": order.value,
+                "order_desc": order_desc,
+                "sort_field": order.value,
+                "timestamp": cursor_ts.isoformat(),
+                "content_id": str(item.content_id),
+            }
+        )
