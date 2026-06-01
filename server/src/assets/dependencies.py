@@ -7,9 +7,14 @@ from src.assets.storage import AssetStorage
 from src.common.database import get_async_session
 from src.config import settings
 
+_asset_storage: AssetStorage | None = None
+
 
 def get_asset_storage() -> AssetStorage:
-    return AssetStorage(settings.storage)
+    global _asset_storage
+    if _asset_storage is None:
+        _asset_storage = AssetStorage(settings.storage)
+    return _asset_storage
 
 
 def get_task_dispatcher() -> TaskDispatcher:

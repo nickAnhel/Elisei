@@ -3,6 +3,9 @@ from __future__ import annotations
 import re
 import uuid
 
+from src.cache.keys import CACHE_NAMESPACE_TAGS, build_tag_suggestions_cache_key
+from src.cache.service import CacheService
+from src.config import settings
 from src.tags.exceptions import InvalidTag
 from src.tags.models import TagModel
 from src.tags.repository import TagRepository
@@ -17,8 +20,13 @@ MAX_TAG_SUGGESTIONS_LIMIT = 20
 
 
 class TagService:
-    def __init__(self, repository: TagRepository) -> None:
+    def __init__(
+        self,
+        repository: TagRepository,
+        cache_service: CacheService | None = None,
+    ) -> None:
         self._repository = repository
+        self._cache_service = cache_service
 
     async def suggest_tags(
         self,
@@ -30,11 +38,29 @@ class TagService:
         if not normalized_prefix:
             return []
 
+        normalized_limit = self._normalize_limit(limit)
+        cache_key = build_tag_suggestions_cache_key(prefix=normalized_prefix, limit=normalized_limit)
+        if self._cache_service is not None:
+            cached_payload = await self._cache_service.get_json(
+                cache_key,
+                namespace=CACHE_NAMESPACE_TAGS,
+            )
+            if isinstance(cached_payload, list):
+                return [TagGet.model_validate(item) for item in cached_payload]
+
         tags = await self._repository.suggest_tags(
             prefix=normalized_prefix,
-            limit=self._normalize_limit(limit),
+            limit=normalized_limit,
         )
-        return [TagGet.model_validate(tag) for tag in tags]
+        result = [TagGet.model_validate(tag) for tag in tags]
+        if self._cache_service is not None:
+            await self._cache_service.set_json(
+                cache_key,
+                [tag.model_dump(mode="json") for tag in result],
+                ttl_seconds=settings.cache.tag_suggestions_ttl_seconds,
+                namespace=CACHE_NAMESPACE_TAGS,
+            )
+        return result
 
     async def resolve_tags(self, slugs: list[str]) -> list[TagModel]:
         normalized_slugs = self.normalize_tags(slugs)

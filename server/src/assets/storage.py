@@ -138,12 +138,49 @@ class AssetStorage:
         if response_content_type:
             params["ResponseContentType"] = response_content_type
 
+        cache_ttl_seconds = min(self._settings.presigned_download_ttl_seconds - 30, 300)
+        cache_service = None
+        cache_key = None
+        if cache_ttl_seconds > 0:
+            try:
+                from src.cache.dependencies import get_cache_service
+                from src.cache.keys import CACHE_NAMESPACE_ASSETS, build_presigned_get_cache_key
+
+                cache_service = get_cache_service()
+                cache_key = build_presigned_get_cache_key(
+                    bucket=bucket,
+                    key=key,
+                    download_filename=download_filename,
+                    inline=inline,
+                    response_content_type=response_content_type,
+                    expires_in=self._settings.presigned_download_ttl_seconds,
+                )
+                cached_url = await cache_service.get_json(
+                    cache_key,
+                    namespace=CACHE_NAMESPACE_ASSETS,
+                )
+                if isinstance(cached_url, str) and cached_url:
+                    return cached_url
+            except Exception:
+                cache_service = None
+                cache_key = None
+
         async with self._client() as client:
-            return await client.generate_presigned_url(
+            url = await client.generate_presigned_url(
                 "get_object",
                 Params=params,
                 ExpiresIn=self._settings.presigned_download_ttl_seconds,
             )
+        if cache_service is not None and cache_key is not None:
+            from src.cache.keys import CACHE_NAMESPACE_ASSETS
+
+            await cache_service.set_json(
+                cache_key,
+                url,
+                ttl_seconds=cache_ttl_seconds,
+                namespace=CACHE_NAMESPACE_ASSETS,
+            )
+        return url
 
     async def head_object(
         self,

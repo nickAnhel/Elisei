@@ -1,6 +1,6 @@
 import pytest
 
-from src.observability.router import metrics
+from src.observability.router import healthz, metrics
 
 
 @pytest.fixture
@@ -22,3 +22,8 @@ async def test_metrics_endpoint_exposes_prometheus_metrics() -> None:
     assert "recommendation_recompute_duration_seconds" in body
     assert "recommendation_recompute_users_total" in body
     assert "recommendations_feed_fallback_total" in body
+
+
+@pytest.mark.anyio
+async def test_healthz_returns_ok_status() -> None:
+    assert await healthz() == {"status": "ok"}

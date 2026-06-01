@@ -199,6 +199,8 @@ class UserRepository:
     async def get_subscriptions(
         self,
         user_id: uuid.UUID,
+        offset: int,
+        limit: int,
     ) -> list[UserModel]:
         subs_query = (
             select(SubscriptionModel.subscribed_id)
@@ -209,6 +211,8 @@ class UserRepository:
         query = (
             self._user_query()
             .join(subs_query, UserModel.user_id == subs_query.c.subscribed_id)
+            .offset(offset)
+            .limit(limit)
         )
 
         res = await self._session.execute(query)

@@ -21,6 +21,12 @@ class DBSettings(ConfigBase):
     password: str
 
     echo: bool = False
+    # These pool limits are applied per worker process.
+    pool_size: int = 10
+    max_overflow: int = 10
+    pool_timeout: int = 30
+    pool_recycle: int = 1800
+    pool_pre_ping: bool = True
 
     model_config = SettingsConfigDict(env_prefix="db_")
 
@@ -175,6 +181,7 @@ class CacheSettings(ConfigBase):
     similar_content_ttl_seconds: int = 1800
     recommended_authors_ttl_seconds: int = 1800
     search_popular_ttl_seconds: int = 300
+    tag_suggestions_ttl_seconds: int = 60
 
     model_config = SettingsConfigDict(env_prefix="cache_")
 

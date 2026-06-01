@@ -29,9 +29,11 @@ from src.observability.middleware import request_logging_middleware
 
 # Exception handlers
 from src.common.exceptions import (
+    InvalidCursor,
     PermissionDenied,
 )
 from src.common.exc_handlers import (
+    invalid_cursor_handler,
     permission_denied_handler,
 )
 
@@ -160,6 +162,7 @@ def register_routes(app: FastAPI) -> None:
 
 def register_exception_handlers(app: FastAPI) -> None:
     app.add_exception_handler(PermissionDenied, permission_denied_handler)  # type: ignore
+    app.add_exception_handler(InvalidCursor, invalid_cursor_handler)  # type: ignore
 
     app.add_exception_handler(UserNotFound, user_not_found_handler)  # type: ignore
     app.add_exception_handler(

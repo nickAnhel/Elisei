@@ -1,6 +1,6 @@
 import uuid
 
-from fastapi import APIRouter, Body, Depends, Query
+from fastapi import APIRouter, Body, Depends, Query, Response
 
 from src.auth.dependencies import get_current_optional_user, get_current_user
 from src.content.dependencies import get_content_service
@@ -27,25 +27,32 @@ router = APIRouter(
 
 @router.get("/list")
 async def get_feed(
+    response: Response,
     order: ContentOrder = ContentOrder.CREATED_AT,
     desc: bool = True,
     offset: int = Query(default=0, ge=0),
     limit: int = Query(default=100, ge=0, lt=1000),
+    cursor: str | None = Query(default=None),
     user: UserGet | None = Depends(get_current_optional_user),
     content_service: ContentService = Depends(get_content_service),
 ) -> list[ContentListItemGet]:
     viewer_id = user.user_id if user is not None else None
-    return await content_service.get_feed(
+    items, next_cursor = await content_service.get_feed(
         order=order,
         desc=desc,
         offset=offset,
         limit=limit,
         viewer_id=viewer_id,
+        cursor=cursor,
     )
+    if next_cursor is not None:
+        response.headers["X-Next-Cursor"] = next_cursor
+    return items
 
 
 @router.get("/publications")
 async def get_author_publications(
+    response: Response,
     author_id: uuid.UUID,
     content_type: ContentTypeEnum | None = None,
     profile_filter: ContentProfileFilterEnum = ContentProfileFilterEnum.PUBLIC,
@@ -53,11 +60,12 @@ async def get_author_publications(
     desc: bool = True,
     offset: int = Query(default=0, ge=0),
     limit: int = Query(default=100, ge=0, lt=1000),
+    cursor: str | None = Query(default=None),
     user: UserGet | None = Depends(get_current_optional_user),
     content_service: ContentService = Depends(get_content_service),
 ) -> list[ContentListItemGet]:
     viewer_id = user.user_id if user is not None else None
-    return await content_service.get_publications(
+    items, next_cursor = await content_service.get_publications(
         author_id=author_id,
         viewer_id=viewer_id,
         content_type=content_type,
@@ -66,7 +74,11 @@ async def get_author_publications(
         desc=desc,
         offset=offset,
         limit=limit,
+        cursor=cursor,
     )
+    if next_cursor is not None:
+        response.headers["X-Next-Cursor"] = next_cursor
+    return items
 
 
 @router.get("/gallery")

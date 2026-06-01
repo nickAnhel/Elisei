@@ -1,6 +1,6 @@
 import uuid
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, Response
 
 from src.auth.dependencies import get_current_user
 from src.chats.sockets import _build_message_ws_payload, sio
@@ -26,23 +26,29 @@ router = APIRouter(
 
 @router.get("/")
 async def get_chat_messages(
+    response: Response,
     chat_id: uuid.UUID,
     order: MessagesOrder = MessagesOrder.CREATED_AT,
     offset: int = 0,
     limit: int = 100,
+    cursor: str | None = Query(default=None),
     user: UserGet = Depends(get_current_user),
     service: MessageService = Depends(get_message_service),
     chat_service: ChatService = Depends(get_chat_service),
 ) -> list[MessageGetWithUser]:
     await chat_service.ensure_user_is_chat_member(chat_id=chat_id, user_id=user.user_id)
-    return await service.get_messages(
+    messages, next_cursor = await service.get_messages(
         chat_id=chat_id,
         viewer_id=user.user_id,
         order=order,
         order_desc=True,
         offset=offset,
         limit=limit,
+        cursor=cursor,
     )
+    if next_cursor is not None:
+        response.headers["X-Next-Cursor"] = next_cursor
+    return messages
 
 
 @router.get("/search")

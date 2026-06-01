@@ -4,7 +4,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from src.chats.enums import ChatMemberRole, ChatType
+from src.chats.enums import ChatMemberRole, ChatOrder, ChatType
 from src.chats.exceptions import CantAddMembers, ChatAvatarNotSupported, InvalidChatHistoryCursor
 from src.chats.schemas import ChatAvatarUpdate, ChatCreate
 from src.chats.service import ChatService
@@ -112,8 +112,9 @@ class FakeChatRepository:
             return self.single_chat.owner_id == user_id
         return False
 
-    async def get_user_dialogs(self, *, user_id, offset, limit):
-        return self.dialogs[offset:offset + limit]
+    async def get_user_dialogs(self, *, user_id, offset, limit, cursor=None, order=None, order_desc=None):
+        _ = (user_id, cursor, order, order_desc)
+        return self.dialogs[offset:offset + limit], None
 
     async def is_member(self, *, chat_id, user_id):
         return True
@@ -292,9 +293,9 @@ async def test_user_dialogs_resolve_direct_display_title_and_unread_state() -> N
     setattr(repository.dialogs[0], "unread_count", 3)
     service = ChatService(repository)  # type: ignore[arg-type]
 
-    dialogs = await service.get_user_joined_chats(
+    dialogs, _ = await service.get_user_joined_chats(
         user=_user(owner_id, "owner"),
-        order=None,  # type: ignore[arg-type]
+        order=ChatOrder.ID,
         order_desc=True,
         offset=0,
         limit=10,
@@ -323,9 +324,9 @@ async def test_user_dialogs_keep_group_display_title() -> None:
     setattr(repository.dialogs[0], "membership", SimpleNamespace())
     service = ChatService(repository)  # type: ignore[arg-type]
 
-    dialogs = await service.get_user_joined_chats(
+    dialogs, _ = await service.get_user_joined_chats(
         user=_user(owner_id, "owner"),
-        order=None,  # type: ignore[arg-type]
+        order=ChatOrder.ID,
         order_desc=True,
         offset=0,
         limit=10,

@@ -56,15 +56,20 @@ class ContentService:
         offset: int,
         limit: int,
         viewer_id: uuid.UUID | None,
-    ) -> list[ContentListItemGet]:
-        content_items = await self._repository.get_feed(
+        cursor: str | None = None,
+    ) -> tuple[list[ContentListItemGet], str | None]:
+        content_items, next_cursor = await self._repository.get_feed(
             viewer_id=viewer_id,
             order=order,
             order_desc=desc,
             offset=offset,
             limit=limit,
+            cursor=cursor,
         )
-        return [await self._build_feed_item(item, viewer_id=viewer_id) for item in content_items]
+        return (
+            [await self._build_feed_item(item, viewer_id=viewer_id) for item in content_items],
+            next_cursor,
+        )
 
     async def get_subscriptions_feed(
         self,
@@ -125,8 +130,9 @@ class ContentService:
         desc: bool,
         offset: int,
         limit: int,
-    ) -> list[ContentListItemGet]:
-        content_items = await self._repository.get_author_publications(
+        cursor: str | None = None,
+    ) -> tuple[list[ContentListItemGet], str | None]:
+        content_items, next_cursor = await self._repository.get_author_publications(
             author_id=author_id,
             viewer_id=viewer_id,
             content_type=content_type,
@@ -135,11 +141,15 @@ class ContentService:
             order_desc=desc,
             offset=offset,
             limit=limit,
+            cursor=cursor,
         )
         visible_items = [
             item for item in content_items if can_view_content(content=item, viewer_id=viewer_id)
         ]
-        return [await self._build_feed_item(item, viewer_id=viewer_id) for item in visible_items]
+        return (
+            [await self._build_feed_item(item, viewer_id=viewer_id) for item in visible_items],
+            next_cursor,
+        )
 
     async def get_gallery(
         self,

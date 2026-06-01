@@ -52,6 +52,22 @@ class FakeTagRepository:
         self.tags_by_slug[slug] = FakeTag(tag_id=uuid.uuid4(), slug=slug)
 
 
+class FakeCacheService:
+    def __init__(self) -> None:
+        self.storage: dict[str, object] = {}
+        self.set_calls = 0
+
+    async def get_json(self, key: str, *, namespace: str = "default"):
+        _ = namespace
+        return self.storage.get(key)
+
+    async def set_json(self, key: str, value, ttl_seconds: int | None = None, *, namespace: str = "default"):
+        _ = (ttl_seconds, namespace)
+        self.storage[key] = value
+        self.set_calls += 1
+        return True
+
+
 @pytest.fixture
 def tag_service() -> TagService:
     repository = FakeTagRepository()
@@ -155,3 +171,32 @@ async def test_suggestions_respect_limit(tag_service: TagService) -> None:
     suggestions = await tag_service.suggest_tags(prefix="pa", limit=2)
 
     assert len(suggestions) == 2
+
+
+@pytest.mark.anyio
+async def test_suggestions_use_cache_hit_before_repository() -> None:
+    repository = FakeTagRepository()
+    cache = FakeCacheService()
+    service = TagService(repository=repository, cache_service=cache)  # type: ignore[arg-type]
+    cache.storage["v1:tags:suggestions:py:2"] = [
+        {"tag_id": str(uuid.uuid4()), "slug": "python"},
+        {"tag_id": str(uuid.uuid4()), "slug": "pytest"},
+    ]
+
+    result = await service.suggest_tags(prefix="py", limit=2)
+
+    assert [tag.slug for tag in result] == ["python", "pytest"]
+    assert cache.set_calls == 0
+
+
+@pytest.mark.anyio
+async def test_suggestions_cache_miss_writes_cache() -> None:
+    repository = FakeTagRepository()
+    repository.seed_tag("python")
+    cache = FakeCacheService()
+    service = TagService(repository=repository, cache_service=cache)  # type: ignore[arg-type]
+
+    result = await service.suggest_tags(prefix="py", limit=2)
+
+    assert [tag.slug for tag in result] == ["python"]
+    assert cache.set_calls == 1

@@ -9,6 +9,8 @@ CACHE_NAMESPACE_RECOMMENDATIONS_FEED = "recommendations_feed"
 CACHE_NAMESPACE_RECOMMENDATIONS_SIMILAR = "recommendations_similar"
 CACHE_NAMESPACE_RECOMMENDATIONS_AUTHORS = "recommendations_authors"
 CACHE_NAMESPACE_SEARCH_POPULAR = "search_popular"
+CACHE_NAMESPACE_TAGS = "tags"
+CACHE_NAMESPACE_ASSETS = "assets"
 
 
 def build_recommendations_feed_cache_key(
@@ -59,3 +61,24 @@ def build_recommendations_feed_user_index_key(*, viewer_id: uuid.UUID) -> str:
 
 def build_recommendations_authors_user_index_key(*, viewer_id: uuid.UUID) -> str:
     return f"{KEY_VERSION}:cache-index:recommendations:authors:{viewer_id}"
+
+
+def build_tag_suggestions_cache_key(*, prefix: str, limit: int) -> str:
+    return f"{KEY_VERSION}:tags:suggestions:{prefix}:{limit}"
+
+
+def build_presigned_get_cache_key(
+    *,
+    bucket: str,
+    key: str,
+    download_filename: str | None,
+    inline: bool,
+    response_content_type: str | None,
+    expires_in: int,
+) -> str:
+    filename_part = download_filename or ""
+    content_type_part = response_content_type or ""
+    return (
+        f"{KEY_VERSION}:assets:presigned-get:{bucket}:{key}:{inline}:"
+        f"{filename_part}:{content_type_part}:{expires_in}"
+    )

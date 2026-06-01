@@ -465,16 +465,23 @@ class ChatService:
         order_desc: bool,
         offset: int,
         limit: int,
-    ) -> list[ChatDialogGet]:
-        chats = await self._repository.get_user_dialogs(
+        cursor: str | None = None,
+    ) -> tuple[list[ChatDialogGet], str | None]:
+        chats, next_cursor = await self._repository.get_user_dialogs(
             user_id=user.user_id,
             offset=offset,
             limit=limit,
+            cursor=cursor,
+            order=order.value,
+            order_desc=order_desc,
         )
-        return [
-            await self._build_chat_dialog_get(chat, user_id=user.user_id)
-            for chat in chats
-        ]
+        return (
+            [
+                await self._build_chat_dialog_get(chat, user_id=user.user_id)
+                for chat in chats
+            ],
+            next_cursor,
+        )
 
     async def mark_chat_read(
         self,

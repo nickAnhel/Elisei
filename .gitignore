@@ -40,6 +40,9 @@ server/src/demo_seed/output/
 load-tests/results/*.json
 load-tests/results/*.log
 load-tests/results/*.html
+load-tests/results/*/*.json
+load-tests/results/*/*.log
+load-tests/results/*/*.html
 load-tests/k6/data/demo_accounts.json
 
 certs/

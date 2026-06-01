@@ -21,6 +21,8 @@ from src.recommendations.scoring import (
     TAG_AFFINITY_WEIGHT,
 )
 
+_neo4j_driver = None
+
 
 @dataclass(slots=True)
 class SimilarContentGraphResult:
@@ -57,13 +59,36 @@ def create_neo4j_driver():
     )
 
 
+def get_neo4j_driver():
+    global _neo4j_driver
+    if _neo4j_driver is None:
+        _neo4j_driver = create_neo4j_driver()
+    return _neo4j_driver
+
+
+async def close_neo4j_driver() -> None:
+    global _neo4j_driver
+    if _neo4j_driver is None:
+        return
+    await _neo4j_driver.close()
+    _neo4j_driver = None
+
+
 class RecommendationGraphRepository:
-    def __init__(self, *, driver, database: str) -> None:  # type: ignore[no-untyped-def]
+    def __init__(
+        self,
+        *,
+        driver,  # type: ignore[no-untyped-def]
+        database: str,
+        close_driver_on_close: bool = True,
+    ) -> None:
         self._driver = driver
         self._database = database
+        self._close_driver_on_close = close_driver_on_close
 
     async def close(self) -> None:
-        await self._driver.close()
+        if self._close_driver_on_close:
+            await self._driver.close()
 
     async def clear_graph(self) -> None:
         await self._write("MATCH (n) DETACH DELETE n")

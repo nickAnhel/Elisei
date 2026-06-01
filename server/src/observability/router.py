@@ -8,3 +8,8 @@ router = APIRouter(include_in_schema=False)
 @router.get("/metrics")
 async def metrics() -> Response:
     return Response(content=generate_latest(), media_type=CONTENT_TYPE_LATEST)
+
+
+@router.get("/healthz")
+async def healthz() -> dict[str, str]:
+    return {"status": "ok"}
