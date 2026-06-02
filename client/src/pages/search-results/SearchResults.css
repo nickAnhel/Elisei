@@ -68,21 +68,17 @@
     background: var(--color-accent-surface);
 }
 
-.search-sort-control {
+.search-sort-control.ui-select {
     display: inline-flex;
+    flex-direction: row;
     align-items: center;
     gap: var(--space-2);
     color: var(--color-text-subtle);
     font-size: var(--font-size-sm);
 }
 
-.search-sort-control select {
+.search-sort-control .ui-select__control {
     min-height: 2.25rem;
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-md);
-    padding: 0 var(--space-3);
-    background: var(--color-surface);
-    color: var(--color-text);
 }
 
 .search-results-body {
@@ -183,7 +179,7 @@
         padding-bottom: var(--space-1);
     }
 
-    .search-sort-control {
+    .search-sort-control.ui-select {
         width: 100%;
         justify-content: space-between;
     }

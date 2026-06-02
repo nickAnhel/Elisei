@@ -45,4 +45,5 @@ load-tests/results/*/*.log
 load-tests/results/*/*.html
 load-tests/k6/data/demo_accounts.json
 
-certs/
+certs
+!certs/.gitkeep

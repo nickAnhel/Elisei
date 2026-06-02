@@ -1,6 +1,7 @@
 export { default as Button } from "./button/Button";
 export { default as IconButton } from "./icon-button/IconButton";
 export { default as Input } from "./input/Input";
+export { default as Select } from "./select/Select";
 export { default as Textarea } from "./textarea/Textarea";
 export { default as Card } from "./card/Card";
 export { default as Badge } from "./badge/Badge";

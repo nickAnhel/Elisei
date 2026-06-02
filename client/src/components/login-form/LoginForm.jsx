@@ -7,27 +7,53 @@ import { StoreContext } from "../../";
 import { Button, Card, Input } from "../ui";
 
 
+function resolveLoginErrorMessage(error) {
+    const detail = error?.response?.data?.detail;
+
+    if (typeof detail === "string" && detail.trim()) {
+        return detail;
+    }
+
+    if (Array.isArray(detail) && detail.length > 0) {
+        const firstDetail = detail[0];
+        if (typeof firstDetail === "string" && firstDetail.trim()) {
+            return firstDetail;
+        }
+        if (typeof firstDetail?.msg === "string" && firstDetail.msg.trim()) {
+            return firstDetail.msg;
+        }
+    }
+
+    if (error?.response?.status === 401) {
+        return "Invalid username or password";
+    }
+
+    return "Sign in failed. Please try again.";
+}
+
+
 const LoginForm = () => {
     const { store } = useContext(StoreContext);
     const navigate = useNavigate();
 
     const [isLoading, setIsLoading] = useState(false);
+    const [error, setError] = useState("");
     const [username, setUsername] = useState("");
     const [password, setPassword] = useState("");
 
     const handleSubmit = async (e) => {
-        setIsLoading(true);
         e.preventDefault();
+        setError("");
+        setIsLoading(true);
 
         try {
             await store.login(username, password);
             navigate("/");
         } catch (error) {
-            console.log(error);
-            console.log(error?.response?.data?.detail);
+            setError(resolveLoginErrorMessage(error));
+        } finally {
+            setIsLoading(false);
         }
-
-        setIsLoading(false);
     };
 
     return (
@@ -41,7 +67,12 @@ const LoginForm = () => {
                     label="Username"
                     placeholder="Username"
                     value={username}
-                    onChange={(e) => setUsername(e.target.value)}
+                    onChange={(e) => {
+                        setUsername(e.target.value);
+                        if (error) {
+                            setError("");
+                        }
+                    }}
                     required
                     autoFocus
                     fullWidth
@@ -53,10 +84,17 @@ const LoginForm = () => {
                     label="Password"
                     placeholder="Password"
                     value={password}
-                    onChange={(e) => setPassword(e.target.value)}
+                    onChange={(e) => {
+                        setPassword(e.target.value);
+                        if (error) {
+                            setError("");
+                        }
+                    }}
                     required
                     fullWidth
                 />
+
+                {error ? <div className="login-error" role="alert">{error}</div> : null}
 
                 <Button
                     type="submit"

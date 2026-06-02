@@ -20,7 +20,7 @@ function ProfileAppearanceSettings() {
                     <div className="profile-appearance-info">
                         <div className="profile-appearance-title">App Theme</div>
                         <div className="profile-appearance-subtitle">
-                            Select how ELESEI should look across the app.
+                            Select how ELISEI should look across the app.
                         </div>
                     </div>
                     <div className="profile-appearance-switcher" role="radiogroup" aria-label="App Theme">

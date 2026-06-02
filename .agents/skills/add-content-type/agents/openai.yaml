@@ -1,4 +1,4 @@
 interface:
   display_name: "Add Content Type"
-  short_description: "Add unified content types to ELESEI"
-  default_prompt: "Use $add-content-type to design and implement a new publishable content type for ELESEI."
+  short_description: "Add unified content types to ELISEI"
+  default_prompt: "Use $add-content-type to design and implement a new publishable content type for ELISEI."

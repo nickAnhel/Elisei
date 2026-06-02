@@ -1,14 +1,14 @@
 ---
 name: add-fastapi-feature
-description: Implement or substantially change a FastAPI backend feature in ELESEI `server/src/`. Use when adding endpoints, services, repositories, DTOs, permissions, migrations, or async backend flows, especially if the change can affect content rules, visibility, ownership, counters, or S3 and media behavior.
+description: Implement or substantially change a FastAPI backend feature in ELISEI `server/src/`. Use when adding endpoints, services, repositories, DTOs, permissions, migrations, or async backend flows, especially if the change can affect content rules, visibility, ownership, counters, or S3 and media behavior.
 ---
 
-# Add a FastAPI Feature in ELESEI Backend
+# Add a FastAPI Feature in ELISEI Backend
 
 Используй этот skill, когда задача добавляет или существенно меняет backend feature в `server/src/`.
 
 ## Goal
-Реализовать backend functionality так, чтобы она уважала module boundaries, async patterns, unified content direction и migration discipline проекта ELESEI.
+Реализовать backend functionality так, чтобы она уважала module boundaries, async patterns, unified content direction и migration discipline проекта ELISEI.
 
 ## Before writing code
 Сначала проверь:

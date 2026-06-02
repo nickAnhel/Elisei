@@ -449,7 +449,7 @@
   "schemaVersion": 39,
   "style": "dark",
   "tags": [
-    "elesei",
+    "elisei",
     "backend",
     "observability"
   ],
@@ -477,7 +477,7 @@
   "timepicker": {},
   "timezone": "",
   "title": "Backend Overview",
-  "uid": "elesei-backend-overview",
+  "uid": "elisei-backend-overview",
   "version": 1,
   "weekStart": ""
 }

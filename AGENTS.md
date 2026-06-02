@@ -1,7 +1,7 @@
 # AGENTS.md
 
 ## Что это за проект
-ELESEI — это social network / knowledge-sharing platform с упором на unified content architecture.
+ELISEI — это social network / knowledge-sharing platform с упором на unified content architecture.
 Product direction опирается на unified content model и допускает развитие в сторону нескольких publishable content types, а также profiles, comments, reactions, subscriptions, chats, messages, events и media в S3-compatible storage.
 
 Repository layout:
@@ -105,4 +105,3 @@ Repository layout:
 - scalability of the content system,
 - practical extension to articles/videos,
 - predictable developer workflow.
-

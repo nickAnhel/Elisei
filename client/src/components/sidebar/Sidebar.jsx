@@ -70,10 +70,13 @@ function Sidebar() {
                     <MomentsIcon />
                     Moments
                 </NavLink>
-                <NavLink to="/chats" className="sidebar-item sidebar-item-chats">
-                    <ChatIcon />
-                    Chats
-                </NavLink>
+                {
+                    store.isAuthenticated &&
+                    <NavLink to="/chats" className="sidebar-item sidebar-item-chats">
+                        <ChatIcon />
+                        Chats
+                    </NavLink>
+                }
                 {
                     store.isAuthenticated &&
                     <NavLink to="/activity" className="sidebar-item sidebar-item-activity">

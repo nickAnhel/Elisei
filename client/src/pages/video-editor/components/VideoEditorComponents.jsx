@@ -1,4 +1,8 @@
+import { useId } from "react";
+
+import AddIcon from "../../../components/icons/AddIcon";
 import TagInput from "../../../components/tag-input/TagInput";
+import { Select } from "../../../components/ui";
 import { formatDuration } from "../../../components/video-card/VideoCard";
 
 
@@ -74,6 +78,7 @@ export function VideoSourcePicker({
     onVideoFile,
     children,
 }) {
+    const inputId = useId();
     const fileName = selectedSourceFile?.name || sourceAsset?.original_filename;
     const size = selectedSourceFile?.size || sourceAsset?.size_bytes;
     const duration = metadata?.duration || sourceAsset?.duration_ms / 1000;
@@ -83,15 +88,23 @@ export function VideoSourcePicker({
 
     return (
         <section className="video-editor-panel">
-            <label className="video-file-drop">
+            <div className="video-file-drop">
                 <span>Video source</span>
                 <input
+                    id={inputId}
+                    className="video-file-input"
                     type="file"
                     accept="video/mp4,video/webm,video/quicktime,.mp4,.webm,.mov"
                     onChange={(event) => onVideoFile(event.target.files?.[0])}
                     disabled={isUploading}
                 />
-            </label>
+                <label htmlFor={inputId} className={`video-file-trigger${isUploading ? " is-disabled" : ""}`}>
+                    <span className="video-file-trigger-icon" aria-hidden="true">
+                        <AddIcon />
+                    </span>
+                    <span>{fileName ? "Replace video" : "Select video"}</span>
+                </label>
+            </div>
             <div className="video-editor-metadata">
                 <span>{fileName || "No video selected"}</span>
                 {size ? <span>{formatBytes(size)}</span> : null}
@@ -153,17 +166,27 @@ export function VideoFramePicker({
 }
 
 export function VideoCoverPicker({ coverAsset, localCoverUrl, isUploading, onCoverFile }) {
+    const inputId = useId();
+
     return (
         <section className="video-editor-panel">
-            <label>
-                Cover image
+            <div className="video-file-drop">
+                <span>Cover image</span>
                 <input
+                    id={inputId}
+                    className="video-file-input"
                     type="file"
                     accept="image/jpeg,image/png,image/webp,image/gif,.jpg,.jpeg,.png,.webp,.gif"
                     onChange={(event) => onCoverFile(event.target.files?.[0])}
                     disabled={isUploading}
                 />
-            </label>
+                <label htmlFor={inputId} className={`video-file-trigger${isUploading ? " is-disabled" : ""}`}>
+                    <span className="video-file-trigger-icon" aria-hidden="true">
+                        <AddIcon />
+                    </span>
+                    <span>{coverAsset?.original_filename ? "Replace cover" : "Select cover image"}</span>
+                </label>
+            </div>
             <div className="video-editor-metadata">
                 <span>{coverAsset?.original_filename || "Cover is required"}</span>
                 {coverAsset?.size_bytes ? <span>{formatBytes(coverAsset.size_bytes)}</span> : null}
@@ -200,16 +223,14 @@ export function VideoPublishSettings({ form, updateField, tagInputState, setTagI
                     placeholder="Describe the video"
                 />
             </label>
-            <label>
-                Visibility
-                <select
-                    value={form.visibility}
-                    onChange={(event) => updateField("visibility", event.target.value)}
-                >
+            <Select
+                label="Visibility"
+                value={form.visibility}
+                onChange={(event) => updateField("visibility", event.target.value)}
+            >
                     <option value="private">Private</option>
                     <option value="public">Public</option>
-                </select>
-            </label>
+            </Select>
             <TagInput
                 tags={form.tags}
                 onChange={(tags) => updateField("tags", tags)}

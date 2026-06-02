@@ -9,7 +9,7 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
       DEMO_DB_NAME: ${DEMO_DB_NAME:-postgres}
-      LOADTEST_DB_NAME: ${LOADTEST_DB_NAME:-elesei_loadtest}
+      LOADTEST_DB_NAME: ${LOADTEST_DB_NAME:-elisei_loadtest}
     volumes:
       - ./server/src/demo_seed/output:/seed-output:ro
       - ./load-tests/k6/data:/k6-data
@@ -29,7 +29,7 @@ services:
     env_file:
       - ./server/.env
     environment:
-      DB_NAME: ${LOADTEST_DB_NAME:-elesei_loadtest}
+      DB_NAME: ${LOADTEST_DB_NAME:-elisei_loadtest}
     depends_on:
       loadtest_db_prepare:
         condition: service_completed_successfully
@@ -48,7 +48,7 @@ services:
     env_file:
       - ./server/.env
     environment:
-      DB_NAME: ${LOADTEST_DB_NAME:-elesei_loadtest}
+      DB_NAME: ${LOADTEST_DB_NAME:-elisei_loadtest}
     depends_on:
       migrate_loadtest:
         condition: service_completed_successfully
@@ -67,7 +67,7 @@ services:
     image: prometheuscommunity/postgres-exporter:v0.16.0
     restart: on-failure
     environment:
-      DATA_SOURCE_NAME: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${LOADTEST_DB_NAME:-elesei_loadtest}?sslmode=disable
+      DATA_SOURCE_NAME: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${LOADTEST_DB_NAME:-elisei_loadtest}?sslmode=disable
     depends_on:
       db:
         condition: service_healthy

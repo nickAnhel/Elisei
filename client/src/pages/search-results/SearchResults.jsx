@@ -9,7 +9,7 @@ import FeedContentCard from "../../components/feed-content-card/FeedContentCard"
 import Loader from "../../components/loader/Loader";
 import UserListItem from "../../components/user-list-item/UserListItem";
 import SearchService from "../../service/SearchService";
-import { Button, Card, EmptyState } from "../../components/ui";
+import { Button, Card, EmptyState, Select } from "../../components/ui";
 
 
 const CONTENT_TYPES = [
@@ -393,19 +393,19 @@ function SearchResults() {
 
                     {
                         isSearchMode &&
-                        <label className="search-sort-control" htmlFor="search-sort-select">
-                            <span>Sort</span>
-                            <select
-                                id="search-sort-select"
-                                value={sort}
-                                onChange={(event) => {
+                        <Select
+                            className="search-sort-control"
+                            fitToOptions
+                            label="Sort"
+                            value={sort}
+                            onChange={(event) => {
                                     const nextSort = event.target.value;
                                     updateSearchParams((params) => {
                                         params.set("sort", nextSort);
                                         params.set("offset", "0");
                                     });
                                 }}
-                            >
+                        >
                                 {
                                     SEARCH_SORTS.map((item) => (
                                         <option key={item.value} value={item.value}>
@@ -413,25 +413,24 @@ function SearchResults() {
                                         </option>
                                     ))
                                 }
-                            </select>
-                        </label>
+                        </Select>
                     }
 
                     {
                         !isSearchMode &&
-                        <label className="search-sort-control" htmlFor="search-period-select">
-                            <span>Period</span>
-                            <select
-                                id="search-period-select"
-                                value={period}
-                                onChange={(event) => {
+                        <Select
+                            className="search-sort-control"
+                            fitToOptions
+                            label="Period"
+                            value={period}
+                            onChange={(event) => {
                                     const nextPeriod = event.target.value;
                                     updateSearchParams((params) => {
                                         params.set("period", nextPeriod);
                                         params.set("offset", "0");
                                     });
                                 }}
-                            >
+                        >
                                 {
                                     POPULAR_PERIODS.map((item) => (
                                         <option key={item.value} value={item.value}>
@@ -439,8 +438,7 @@ function SearchResults() {
                                         </option>
                                     ))
                                 }
-                            </select>
-                        </label>
+                        </Select>
                     }
                 </section>
 

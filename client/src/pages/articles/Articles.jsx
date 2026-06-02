@@ -9,7 +9,7 @@ import ContentService from "../../service/ContentService";
 import ContentList from "../../components/content-list/ContentList";
 import ArticleCard from "../../components/article-card/ArticleCard";
 import GlobalSearchInput from "../../components/global-search-input/GlobalSearchInput";
-import { Button, Card, Tabs, TabsList, TabsTrigger } from "../../components/ui";
+import { Button, Card, Select, Tabs, TabsList, TabsTrigger } from "../../components/ui";
 
 const ARTICLE_TABS = {
     recommendations: "recommendations",
@@ -134,20 +134,19 @@ function Articles() {
                     </TabsList>
                 </Tabs>
 
-                <label className="articles-page-sort" htmlFor="articles-sort-select">
-                    <span>Sort</span>
-                    <select
-                        id="articles-sort-select"
-                        value={activeSort}
-                        onChange={(event) => setSort(event.target.value)}
-                    >
+                <Select
+                    className="articles-page-sort"
+                    fitToOptions
+                    label="Sort"
+                    value={activeSort}
+                    onChange={(event) => setSort(event.target.value)}
+                >
                         {availableSorts.map((sortOption) => (
                             <option key={sortOption.id} value={sortOption.id}>
                                 {sortOption.label}
                             </option>
                         ))}
-                    </select>
-                </label>
+                </Select>
             </div>
 
             <ContentList

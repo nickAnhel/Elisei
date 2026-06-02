@@ -8,6 +8,7 @@ import ContentService from "../../service/ContentService";
 
 import ContentList from "../../components/content-list/ContentList";
 import FeedContentCard from "../../components/feed-content-card/FeedContentCard";
+import { Select } from "../../components/ui";
 
 
 const FEED_TABS = {
@@ -142,20 +143,19 @@ function GlobalFeed() {
                         ))}
                     </div>
 
-                    <label className="global-feed-sort" htmlFor="global-feed-sort-select">
-                        <span>Sort</span>
-                        <select
-                            id="global-feed-sort-select"
-                            value={activeSort}
-                            onChange={(event) => setSort(event.target.value)}
-                        >
+                    <Select
+                        className="global-feed-sort"
+                        fitToOptions
+                        label="Sort"
+                        value={activeSort}
+                        onChange={(event) => setSort(event.target.value)}
+                    >
                             {availableSorts.map((sort) => (
                                 <option key={sort.id} value={sort.id}>
                                     {sort.label}
                                 </option>
                             ))}
-                        </select>
-                    </label>
+                    </Select>
                 </div>
             </header>
 

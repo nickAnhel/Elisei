@@ -7,6 +7,7 @@ import { StoreContext } from "../..";
 import Loader from "../../components/loader/Loader";
 import TagInput from "../../components/tag-input/TagInput";
 import Unauthorized from "../../components/unauthorized/Unauthorized";
+import { Select } from "../../components/ui";
 import { formatDuration } from "../../components/video-card/VideoCard";
 import MomentService from "../../service/MomentService";
 import {
@@ -339,13 +340,14 @@ function MomentEditor() {
                     />
                     {tagInputState.error ? <p className="moment-editor-error inline">{tagInputState.error}</p> : null}
 
-                    <label>
-                        <span>Visibility</span>
-                        <select value={visibility} onChange={(event) => setVisibility(event.target.value)}>
+                    <Select
+                        label="Visibility"
+                        value={visibility}
+                        onChange={(event) => setVisibility(event.target.value)}
+                    >
                             <option value="private">Private</option>
                             <option value="public">Public</option>
-                        </select>
-                    </label>
+                    </Select>
 
                     <div className="moment-editor-actions">
                         <button
