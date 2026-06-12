@@ -46,7 +46,7 @@ function MarkdownToolbarIcon({ icon }) {
         return <svg {...commonProps}><path d="M2 12s4-6 10-6 10 6 10 6-4 6-10 6-10-6-10-6z" /><circle cx="12" cy="12" r="2.5" /></svg>;
     case "mermaid":
         return <svg {...commonProps}><path d="M4 7h6l2 3h8" /><path d="M4 17h6l2-3h8" /><circle cx="4" cy="7" r="1.5" /><circle cx="4" cy="17" r="1.5" /><circle cx="20" cy="10" r="1.5" /><circle cx="20" cy="14" r="1.5" /></svg>;
-    case "youtube":
+    case "platform_video":
         return <svg {...commonProps}><rect x="3" y="7" width="18" height="10" rx="3" /><polygon points="11,10 15,12 11,14" fill="currentColor" stroke="none" /></svg>;
     case "upload_image":
         return <svg {...commonProps}><rect x="3" y="5" width="18" height="14" rx="2" /><circle cx="9" cy="10" r="1.4" /><path d="M7 16l4-4 3 3 3-2 2 3" /></svg>;

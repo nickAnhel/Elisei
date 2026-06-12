@@ -4,6 +4,9 @@ jest.mock("../..", () => ({
     StoreContext: require("react").createContext({
         store: {
             isAuthenticated: true,
+            user: {
+                user_id: "viewer-1",
+            },
             refreshPosts: jest.fn(),
         },
     }),

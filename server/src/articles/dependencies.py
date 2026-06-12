@@ -15,6 +15,7 @@ from src.notifications.repository import NotificationRepository
 from src.notifications.service import NotificationService
 from src.tags.repository import TagRepository
 from src.tags.service import TagService
+from src.videos.repository import VideoRepository
 
 
 async def get_article_service(
@@ -31,6 +32,7 @@ async def get_article_service(
             task_dispatcher=get_task_dispatcher(),
         ),
         asset_storage=get_asset_storage(),
+        video_repository=VideoRepository(async_session),
         activity_service=ActivityService(
             repository=ActivityRepository(async_session),
             asset_storage=get_asset_storage(),

@@ -6,6 +6,7 @@ import "./ArticleEditor.css";
 import { StoreContext } from "../..";
 import ArticleService from "../../service/ArticleService";
 import AssetService from "../../service/AssetService";
+import VideoService from "../../service/VideoService";
 
 import Unauthorized from "../../components/unauthorized/Unauthorized";
 import Loader from "../../components/loader/Loader";
@@ -15,7 +16,7 @@ import MarkdownToolbar from "../../components/markdown-toolbar";
 import TagInput from "../../components/tag-input/TagInput";
 import ArticleRenderer from "../../components/article-renderer/ArticleRenderer";
 import AddIcon from "../../components/icons/AddIcon";
-import { Button, Select } from "../../components/ui";
+import { Button, Input, Select } from "../../components/ui";
 import { buildComposerAttachmentFromAsset, resolveAssetTypeForFile } from "../../utils/postAttachments";
 import { MarkdownIcon, PreviewIcon, SplitViewIcon } from "../../components/icons/ArticleUiIcons";
 import {
@@ -23,6 +24,7 @@ import {
     buildMermaidBlock,
     buildMermaidPreviewUrl,
     collectReferencedArticleAssetIds,
+    collectReferencedArticleVideoIds,
     findMermaidBlockAtSelection,
     insertAtCursor,
     normalizeArticleMarkdown,
@@ -62,6 +64,7 @@ function ArticleEditor() {
     const [form, setForm] = useState(DEFAULT_FORM);
     const [coverAsset, setCoverAsset] = useState(null);
     const [editorAssets, setEditorAssets] = useState([]);
+    const [embeddedVideos, setEmbeddedVideos] = useState([]);
     const [isLoading, setIsLoading] = useState(Boolean(routeArticleId));
     const [isSaving, setIsSaving] = useState(false);
     const [saveError, setSaveError] = useState("");
@@ -79,6 +82,12 @@ function ArticleEditor() {
     const [mediaViewerItems, setMediaViewerItems] = useState([]);
     const [mediaViewerIndex, setMediaViewerIndex] = useState(0);
     const [isMediaViewerOpen, setIsMediaViewerOpen] = useState(false);
+    const [isPlatformVideoModalActive, setIsPlatformVideoModalActive] = useState(false);
+    const [videoLibraryItems, setVideoLibraryItems] = useState([]);
+    const [isVideoLibraryLoading, setIsVideoLibraryLoading] = useState(false);
+    const [videoLibraryError, setVideoLibraryError] = useState("");
+    const [videoLinkInput, setVideoLinkInput] = useState("");
+    const [isVideoLinkChecking, setIsVideoLinkChecking] = useState(false);
 
     useEffect(() => {
         const nextArticleId = routeArticleId || null;
@@ -87,6 +96,7 @@ function ArticleEditor() {
             setForm(DEFAULT_FORM);
             setCoverAsset(null);
             setEditorAssets([]);
+            setEmbeddedVideos([]);
             lastSavedSnapshotRef.current = "";
             setIsLoading(false);
             return;
@@ -108,6 +118,11 @@ function ArticleEditor() {
                 setEditorAssets((prevAssets) => mergeEditorAssets({
                     previousAssets: prevAssets,
                     nextAssets: res.data.referenced_assets || [],
+                    bodyMarkdown: res.data.body_markdown || "",
+                }));
+                setEmbeddedVideos((prevVideos) => mergeEmbeddedVideos({
+                    previousVideos: prevVideos,
+                    nextVideos: res.data.embedded_videos || [],
                     bodyMarkdown: res.data.body_markdown || "",
                 }));
                 lastSavedSnapshotRef.current = buildSnapshot(nextForm, res.data.cover || null);
@@ -162,7 +177,8 @@ function ArticleEditor() {
     const previewArticle = useMemo(() => ({
         referenced_assets: editorAssets,
         cover: coverAsset,
-    }), [editorAssets, coverAsset]);
+        embedded_videos: embeddedVideos,
+    }), [editorAssets, coverAsset, embeddedVideos]);
 
     const applyTextareaEdit = (transformer) => {
         const textarea = textareaRef.current;
@@ -278,6 +294,11 @@ function ArticleEditor() {
                 nextAssets: savedArticle.referenced_assets || [],
                 bodyMarkdown: normalizedBodyMarkdown,
             }));
+            setEmbeddedVideos((prevVideos) => mergeEmbeddedVideos({
+                previousVideos: prevVideos,
+                nextVideos: savedArticle.embedded_videos || [],
+                bodyMarkdown: normalizedBodyMarkdown,
+            }));
             setCoverAsset((prevCoverAsset) => mergeCoverAsset(
                 prevCoverAsset,
                 savedArticle.cover,
@@ -314,6 +335,34 @@ function ArticleEditor() {
     useEffect(() => {
         persistArticleRef.current = persistArticle;
     });
+
+    useEffect(() => {
+        if (!isPlatformVideoModalActive || !store.user?.user_id) {
+            return;
+        }
+
+        const fetchOwnVideos = async () => {
+            setIsVideoLibraryLoading(true);
+            setVideoLibraryError("");
+            try {
+                const res = await VideoService.getVideos({
+                    user_id: store.user.user_id,
+                    profile_filter: "all",
+                    order: "updated_at",
+                    desc: true,
+                    limit: 24,
+                });
+                setVideoLibraryItems(res.data || []);
+            } catch (error) {
+                console.log(error);
+                setVideoLibraryError(error?.response?.data?.detail || "Failed to load your videos.");
+            } finally {
+                setIsVideoLibraryLoading(false);
+            }
+        };
+
+        void fetchOwnVideos();
+    }, [isPlatformVideoModalActive, store.user?.user_id]);
 
     const uploadAssetFile = async (file, usageContext, attachmentType) => {
         const assetType = resolveAssetTypeForFile(file);
@@ -384,6 +433,68 @@ function ArticleEditor() {
             applyTextareaEdit((textarea) => insertAtCursor(textarea, directive));
         } catch (error) {
             setAssetError(error?.message || error?.response?.data?.detail || "Failed to upload asset.");
+        }
+    };
+
+    const openPlatformVideoPicker = () => {
+        setVideoLibraryError("");
+        setVideoLinkInput("");
+        setIsVideoLinkChecking(false);
+        setIsPlatformVideoModalActive(true);
+    };
+
+    const handlePlatformVideoInsert = async (video) => {
+        if (!video) {
+            return;
+        }
+
+        const nextVideoId = video.video_id || video.content_id;
+        if (!nextVideoId) {
+            setVideoLibraryError("Selected video is missing an identifier.");
+            return;
+        }
+
+        let resolvedVideo = video;
+        if (!Array.isArray(video.playback_sources) || !Array.isArray(video.chapters)) {
+            try {
+                const res = await VideoService.getVideo(nextVideoId);
+                resolvedVideo = res.data;
+            } catch (error) {
+                console.log(error);
+                setVideoLibraryError(error?.response?.data?.detail || "Failed to load the selected video.");
+                return;
+            }
+        }
+
+        setVideoLibraryError("");
+        setEmbeddedVideos((prevVideos) => ([
+            ...prevVideos.filter((item) => (item.video_id || item.content_id) !== nextVideoId),
+            resolvedVideo,
+        ]));
+        applyTextareaEdit((textarea) => insertAtCursor(
+            textarea,
+            `::platform_video{video-id="${nextVideoId}" size="wide" caption=""}\n`,
+        ));
+        setIsPlatformVideoModalActive(false);
+    };
+
+    const handlePlatformVideoLinkInsert = async () => {
+        const videoId = parsePlatformVideoReference(videoLinkInput);
+        if (!videoId) {
+            setVideoLibraryError("Paste a valid video URL, /videos/{id} path, or raw video UUID.");
+            return;
+        }
+
+        setIsVideoLinkChecking(true);
+        setVideoLibraryError("");
+        try {
+            const res = await VideoService.getVideo(videoId);
+            await handlePlatformVideoInsert(res.data);
+        } catch (error) {
+            console.log(error);
+            setVideoLibraryError(error?.response?.data?.detail || "This video is unavailable or you do not have access to it.");
+        } finally {
+            setIsVideoLinkChecking(false);
         }
     };
 
@@ -480,7 +591,7 @@ function ArticleEditor() {
 
         if (event.altKey && !event.shiftKey && key === "y") {
             event.preventDefault();
-            insertMarkdown('::youtube{id="dQw4w9WgXcQ" title="Video"}\n');
+            openPlatformVideoPicker();
             return;
         }
 
@@ -534,8 +645,8 @@ function ArticleEditor() {
         case "spoiler":
             wrapMarkdownSelection(":::spoiler[Context]\n", "\n:::", "Hidden details");
             break;
-        case "youtube":
-            insertMarkdown('::youtube{id="dQw4w9WgXcQ" title="Video"}\n');
+        case "platform_video":
+            openPlatformVideoPicker();
             break;
         case "link":
             insertMarkdown("[$SELECTION$](https://example.com)", "link text");
@@ -753,6 +864,7 @@ function ArticleEditor() {
                                     bodyMarkdown={form.bodyMarkdown}
                                     article={previewArticle}
                                     extraAssets={Object.values(buildArticleAssetLookup(previewArticle))}
+                                    extraVideos={embeddedVideos}
                                     renderMode="editor"
                                     onEditMermaid={openMermaidEditor}
                                     onMediaOpen={handleArticleMediaOpen}
@@ -803,6 +915,105 @@ function ArticleEditor() {
                             {editingMermaidBlockIndex !== null ? "Update diagram" : "Insert diagram"}
                         </Button>
                     </div>
+                </div>
+            </Modal>
+
+            <Modal
+                active={isPlatformVideoModalActive}
+                setActive={setIsPlatformVideoModalActive}
+                contentClassName="article-platform-video-modal-content"
+            >
+                <div className="article-platform-video-modal">
+                    <h2>Insert platform video</h2>
+                    <p>Select one of your videos or paste a direct video link. The video will be validated before insertion.</p>
+
+                    <div className="article-platform-video-link-row">
+                        <Input
+                            fullWidth
+                            label="Paste video link"
+                            placeholder="https://elisei.com/videos/uuid or raw UUID"
+                            value={videoLinkInput}
+                            onChange={(event) => setVideoLinkInput(event.target.value)}
+                            onKeyDown={(event) => {
+                                if (event.key === "Enter") {
+                                    event.preventDefault();
+                                    void handlePlatformVideoLinkInsert();
+                                }
+                            }}
+                            hint="Accepted formats: full URL, /videos/{id}, or plain UUID."
+                        />
+                        <Button
+                            type="button"
+                            variant="primary"
+                            onClick={() => {
+                                void handlePlatformVideoLinkInsert();
+                            }}
+                            disabled={isVideoLinkChecking}
+                        >
+                            {isVideoLinkChecking ? "Checking..." : "Insert link"}
+                        </Button>
+                    </div>
+
+                    {
+                        isVideoLibraryLoading &&
+                        <div className="article-platform-video-state">Loading videos...</div>
+                    }
+
+                    {
+                        !isVideoLibraryLoading && videoLibraryError &&
+                        <div className="article-editor-error">{videoLibraryError}</div>
+                    }
+
+                    {
+                        !isVideoLibraryLoading && videoLibraryItems.length === 0 &&
+                        <div className="article-platform-video-state">
+                            <span>You have no videos yet.</span>
+                            <Button
+                                type="button"
+                                variant="secondary"
+                                onClick={() => {
+                                    setIsPlatformVideoModalActive(false);
+                                    navigate("/videos/new");
+                                }}
+                            >
+                                Create video
+                            </Button>
+                        </div>
+                    }
+
+                    {
+                        !isVideoLibraryLoading && videoLibraryItems.length > 0 &&
+                        <div className="article-platform-video-list">
+                            {
+                                videoLibraryItems.map((video) => (
+                                    <button
+                                        key={video.video_id || video.content_id}
+                                        type="button"
+                                        className="article-platform-video-option"
+                                        onClick={() => {
+                                            void handlePlatformVideoInsert(video);
+                                        }}
+                                    >
+                                        <div className="article-platform-video-option-preview">
+                                            {
+                                                video.cover?.preview_url || video.cover?.original_url
+                                                    ? <img src={video.cover.preview_url || video.cover.original_url} alt={video.title || "Video cover"} />
+                                                    : <div className="article-platform-video-option-empty">No preview</div>
+                                            }
+                                        </div>
+                                        <div className="article-platform-video-option-body">
+                                            <strong>{video.title || "Untitled video"}</strong>
+                                            <span>{video.status} · {video.visibility} · {video.processing_status}</span>
+                                            {
+                                                video.excerpt &&
+                                                <p>{video.excerpt}</p>
+                                            }
+                                        </div>
+                                    </button>
+                                ))
+                            }
+                        </div>
+                    }
                 </div>
             </Modal>
 
@@ -873,6 +1084,61 @@ function mergeEditorAssets({
     });
 
     return Array.from(mergedAssets.values()).filter((asset) => referencedAssetIds.has(asset.asset_id));
+}
+
+function mergeEmbeddedVideos({
+    previousVideos,
+    nextVideos,
+    bodyMarkdown,
+}) {
+    const mergedVideos = new Map();
+    const referencedVideoIds = collectReferencedArticleVideoIds(bodyMarkdown);
+
+    (previousVideos || []).forEach((video) => {
+        const videoId = video?.video_id || video?.content_id;
+        if (videoId) {
+            mergedVideos.set(videoId, video);
+        }
+    });
+
+    (nextVideos || []).forEach((video) => {
+        const videoId = video?.video_id || video?.content_id;
+        if (videoId) {
+            mergedVideos.set(videoId, {
+                ...(mergedVideos.get(videoId) || {}),
+                ...video,
+            });
+        }
+    });
+
+    return referencedVideoIds
+        .map((videoId) => mergedVideos.get(videoId))
+        .filter(Boolean);
+}
+
+function parsePlatformVideoReference(rawValue) {
+    const value = String(rawValue || "").trim();
+    if (!value) {
+        return "";
+    }
+
+    const directIdMatch = value.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i);
+    if (directIdMatch) {
+        return directIdMatch[0];
+    }
+
+    const pathMatch = value.match(/(?:^|\/)videos\/([0-9a-f-]{36})(?:$|[/?#])/i);
+    if (pathMatch) {
+        return pathMatch[1];
+    }
+
+    try {
+        const url = new URL(value, window.location.origin);
+        const match = url.pathname.match(/^\/videos\/([0-9a-f-]{36})\/?$/i);
+        return match?.[1] || "";
+    } catch {
+        return "";
+    }
 }
 
 export default ArticleEditor;

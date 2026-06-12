@@ -83,11 +83,11 @@ const COMMON_ACTIONS = {
         icon: "mermaid",
         title: "Mermaid diagram (Ctrl/Cmd+Alt+M)",
     },
-    youtube: {
-        id: "youtube",
-        label: "YouTube embed",
-        icon: "youtube",
-        title: "YouTube embed (Ctrl/Cmd+Alt+Y)",
+    platform_video: {
+        id: "platform_video",
+        label: "Insert video",
+        icon: "platform_video",
+        title: "Insert platform video (Ctrl/Cmd+Alt+Y)",
     },
     upload_image: {
         id: "upload_image",
@@ -117,7 +117,7 @@ const PRESET_KEYS = {
         "code_block",
         "table",
         "spoiler",
-        "youtube",
+        "platform_video",
         "upload_image",
         "upload_video",
         "link",

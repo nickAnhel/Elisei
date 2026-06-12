@@ -93,13 +93,13 @@ function SimilarContentBlock({
 
             {
                 !isLoading && isError && !hideOnError
-                    ? <div className="similar-content-state">Не удалось загрузить похожие публикации.</div>
+                    ? <div className="similar-content-state">Failed to load similar publications.</div>
                     : null
             }
 
             {
                 !isLoading && !isError && items.length === 0
-                    ? <div className="similar-content-state">Похожих публикаций пока нет.</div>
+                    ? <div className="similar-content-state">No similar publications yet.</div>
                     : null
             }
 

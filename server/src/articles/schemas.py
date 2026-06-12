@@ -8,6 +8,7 @@ from src.common.schemas import BaseSchema
 from src.content.enums import ContentStatusEnum, ContentVisibilityEnum, ReactionTypeEnum
 from src.tags.schemas import TagGet
 from src.users.schemas import UserGet
+from src.videos.schemas import VideoGet
 
 
 class ArticleAssetGet(BaseSchema):
@@ -82,6 +83,7 @@ class ArticleGet(ArticleCardGet):
     body_markdown: str
     toc: list[ArticleTocItemGet] = Field(default_factory=list)
     referenced_assets: list[ArticleAssetGet] = Field(default_factory=list)
+    embedded_videos: list[VideoGet] = Field(default_factory=list)
 
 
 class ArticleEditorGet(ArticleGet):

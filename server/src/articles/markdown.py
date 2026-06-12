@@ -40,6 +40,7 @@ class ArticleMarkdownAnalysis:
     reading_time_minutes: int
     toc: list[dict[str, str | int]]
     asset_references: list[ArticleAssetReference]
+    embedded_video_ids: list[uuid.UUID]
 
 
 def slugify_title(value: str) -> str:
@@ -61,6 +62,8 @@ def analyze_article_markdown(body_markdown: str) -> ArticleMarkdownAnalysis:
     plain_segments: list[str] = []
     toc: list[dict[str, str | int]] = []
     asset_references: list[ArticleAssetReference] = []
+    embedded_video_ids: list[uuid.UUID] = []
+    seen_embedded_video_ids: set[uuid.UUID] = set()
 
     in_code_block = False
     inside_spoiler = False
@@ -128,6 +131,23 @@ def analyze_article_markdown(body_markdown: str) -> ArticleMarkdownAnalysis:
                 if attrs.get("title"):
                     plain_segments.append(attrs["title"])
                 continue
+            if directive_name == "platform_video":
+                video_id_value = attrs.get("video-id")
+                if not video_id_value:
+                    raise InvalidArticle("Directive platform_video requires video-id")
+                try:
+                    video_id = uuid.UUID(video_id_value)
+                except ValueError as exc:
+                    raise InvalidArticle("Directive platform_video has an invalid video-id") from exc
+                size = attrs.get("size", "wide")
+                if size not in SIZE_CHOICES:
+                    raise InvalidArticle(f"Directive platform_video has unsupported size {size}")
+                if video_id not in seen_embedded_video_ids:
+                    embedded_video_ids.append(video_id)
+                    seen_embedded_video_ids.add(video_id)
+                if attrs.get("caption"):
+                    plain_segments.append(attrs["caption"])
+                continue
             raise InvalidArticle(f"Unsupported markdown directive {directive_name}")
 
         if stripped.startswith("::") or stripped.startswith(":::"):
@@ -169,6 +189,7 @@ def analyze_article_markdown(body_markdown: str) -> ArticleMarkdownAnalysis:
         reading_time_minutes=reading_time_minutes,
         toc=toc,
         asset_references=asset_references,
+        embedded_video_ids=embedded_video_ids,
     )
 
 

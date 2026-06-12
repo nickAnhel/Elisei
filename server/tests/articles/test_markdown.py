@@ -9,6 +9,7 @@ from src.articles.markdown import analyze_article_markdown, slugify_title
 def test_analyze_article_markdown_builds_toc_excerpt_and_asset_references() -> None:
     image_id = uuid.uuid4()
     video_id = uuid.uuid4()
+    platform_video_id = uuid.uuid4()
 
     analysis = analyze_article_markdown(
         "\n".join(
@@ -18,6 +19,7 @@ def test_analyze_article_markdown_builds_toc_excerpt_and_asset_references() -> N
                 f'::image{{asset-id="{image_id}" size="wide" caption="Architecture"}}',
                 "### Details",
                 f'::video{{asset-id="{video_id}" size="full" caption="Demo"}}',
+                f'::platform_video{{video-id="{platform_video_id}" size="wide" caption="Platform video"}}',
                 '::youtube{id="dQw4w9WgXcQ" title="Video"}',
                 "```mermaid",
                 "flowchart TD",
@@ -32,6 +34,7 @@ def test_analyze_article_markdown_builds_toc_excerpt_and_asset_references() -> N
     assert analysis.excerpt.startswith("Intro First paragraph")
     assert [item["text"] for item in analysis.toc] == ["Intro", "Details"]
     assert [item.asset_id for item in analysis.asset_references] == [image_id, video_id]
+    assert analysis.embedded_video_ids == [platform_video_id]
 
 
 @pytest.mark.parametrize(
@@ -40,6 +43,7 @@ def test_analyze_article_markdown_builds_toc_excerpt_and_asset_references() -> N
         ("<div>bad</div>", "Raw HTML"),
         ("# Heading\ntext", "H1"),
         ("::youtube{id=\"bad\"}", "YouTube"),
+        ("::platform_video{video-id=\"bad\"}", "video-id"),
     ],
 )
 def test_analyze_article_markdown_rejects_invalid_input(body: str, message: str) -> None:

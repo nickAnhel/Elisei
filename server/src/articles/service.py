@@ -26,6 +26,10 @@ from src.content.access import can_view_content
 from src.content.enums import ContentStatusEnum, ContentTypeEnum, ContentVisibilityEnum, ReactionTypeEnum
 from src.tags.service import TagService
 from src.users.schemas import UserGet
+from src.videos.enums import VideoProcessingStatusEnum
+from src.videos.presentation import build_video_get
+from src.videos.repository import VideoRepository
+from src.videos.schemas import VideoGet
 
 if TYPE_CHECKING:
     from src.activity.service import ActivityService
@@ -51,6 +55,7 @@ class ArticleService:
         asset_repository: AssetRepository,
         asset_service: AssetService,
         asset_storage: AssetStorage,
+        video_repository: VideoRepository,
         activity_service: ActivityService | None = None,
         notification_service: NotificationService | None = None,
     ) -> None:
@@ -59,6 +64,7 @@ class ArticleService:
         self._asset_repository = asset_repository
         self._asset_service = asset_service
         self._asset_storage = asset_storage
+        self._video_repository = video_repository
         self._activity_service = activity_service
         self._notification_service = notification_service
 
@@ -93,6 +99,10 @@ class ArticleService:
             owner_id=user.user_id,
             cover_asset_id=cover_asset_id,
             asset_references=analysis.asset_references,
+        )
+        await self._validate_embedded_videos(
+            viewer_id=user.user_id,
+            embedded_video_ids=analysis.embedded_video_ids,
         )
 
         article = await self._repository.create(
@@ -235,6 +245,10 @@ class ArticleService:
             owner_id=user.user_id,
             cover_asset_id=next_cover,
             asset_references=analysis.asset_references,
+        )
+        await self._validate_embedded_videos(
+            viewer_id=user.user_id,
+            embedded_video_ids=analysis.embedded_video_ids,
         )
 
         updated_at = self._now()
@@ -583,7 +597,16 @@ class ArticleService:
         *,
         viewer_id: uuid.UUID | None,
     ) -> ArticleGet:
-        return await build_article_get(article, viewer_id=viewer_id, storage=self._asset_storage)
+        embedded_videos = await self._build_embedded_videos(
+            body_markdown=article.article_details.body_markdown,
+            viewer_id=viewer_id,
+        )
+        return await build_article_get(
+            article,
+            viewer_id=viewer_id,
+            storage=self._asset_storage,
+            embedded_videos=embedded_videos,
+        )
 
     async def _build_article_editor_get(
         self,
@@ -591,7 +614,84 @@ class ArticleService:
         *,
         viewer_id: uuid.UUID | None,
     ) -> ArticleEditorGet:
-        return await build_article_editor_get(article, viewer_id=viewer_id, storage=self._asset_storage)
+        embedded_videos = await self._build_embedded_videos(
+            body_markdown=article.article_details.body_markdown,
+            viewer_id=viewer_id,
+        )
+        return await build_article_editor_get(
+            article,
+            viewer_id=viewer_id,
+            storage=self._asset_storage,
+            embedded_videos=embedded_videos,
+        )
+
+    async def _validate_embedded_videos(
+        self,
+        *,
+        viewer_id: uuid.UUID,
+        embedded_video_ids: list[uuid.UUID],
+    ) -> None:
+        if not embedded_video_ids:
+            return
+
+        videos_by_id = await self._get_accessible_embedded_videos(
+            embedded_video_ids=embedded_video_ids,
+            viewer_id=viewer_id,
+        )
+        missing_video_ids = [video_id for video_id in embedded_video_ids if video_id not in videos_by_id]
+        if missing_video_ids:
+            raise InvalidArticle(
+                "Some embedded platform videos are unavailable for this user: "
+                + ", ".join(str(video_id) for video_id in missing_video_ids)
+            )
+
+    async def _build_embedded_videos(
+        self,
+        *,
+        body_markdown: str,
+        viewer_id: uuid.UUID | None,
+    ) -> list[VideoGet]:
+        analysis = analyze_article_markdown(body_markdown)
+        if not analysis.embedded_video_ids:
+            return []
+
+        videos_by_id = await self._get_accessible_embedded_videos(
+            embedded_video_ids=analysis.embedded_video_ids,
+            viewer_id=viewer_id,
+        )
+        ordered_videos = [
+            videos_by_id[video_id]
+            for video_id in analysis.embedded_video_ids
+            if video_id in videos_by_id
+        ]
+        return [
+            await build_video_get(
+                video,
+                viewer_id=viewer_id,
+                storage=self._asset_storage,
+                include_playback_sources=(
+                    video.video_playback_details is not None
+                    and video.video_playback_details.processing_status == VideoProcessingStatusEnum.READY
+                ),
+            )
+            for video in ordered_videos
+        ]
+
+    async def _get_accessible_embedded_videos(
+        self,
+        *,
+        embedded_video_ids: list[uuid.UUID],
+        viewer_id: uuid.UUID | None,
+    ) -> dict[uuid.UUID, object]:
+        videos = await self._video_repository.get_many_by_ids(
+            content_ids=embedded_video_ids,
+            viewer_id=viewer_id,
+        )
+        return {
+            video.content_id: video
+            for video in videos
+            if self._can_view_video(video=video, viewer_id=viewer_id)
+        }
 
     def _current_cover_asset_id(self, article) -> uuid.UUID | None:  # type: ignore[no-untyped-def]
         for link in getattr(article, "asset_links", []):
@@ -606,6 +706,14 @@ class ArticleService:
         viewer_id: uuid.UUID | None,
     ) -> bool:
         return can_view_content(content=article, viewer_id=viewer_id)
+
+    def _can_view_video(
+        self,
+        *,
+        video,
+        viewer_id: uuid.UUID | None,
+    ) -> bool:
+        return can_view_content(content=video, viewer_id=viewer_id)
 
     def _map_status(self, status: ArticleWriteStatus) -> ContentStatusEnum:
         mapping = {

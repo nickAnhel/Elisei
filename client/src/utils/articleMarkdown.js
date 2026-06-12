@@ -33,6 +33,23 @@ export function buildArticleAssetLookup(article, extraAssets = []) {
     return lookup;
 }
 
+export function buildArticleVideoLookup(article, extraVideos = []) {
+    const lookup = {};
+    const allVideos = [
+        ...(article?.embedded_videos || []),
+        ...(extraVideos || []),
+    ];
+
+    allVideos.forEach((video) => {
+        const videoId = video?.video_id || video?.content_id;
+        if (videoId) {
+            lookup[videoId] = video;
+        }
+    });
+
+    return lookup;
+}
+
 export function parseArticleMarkdown(bodyMarkdown) {
     const lines = (bodyMarkdown || "").split("\n");
     const blocks = [];
@@ -181,6 +198,21 @@ export function collectReferencedArticleAssetIds(bodyMarkdown) {
     });
 
     return assetIds;
+}
+
+export function collectReferencedArticleVideoIds(bodyMarkdown) {
+    const videoIds = [];
+    const seenVideoIds = new Set();
+
+    parseArticleMarkdown(bodyMarkdown).forEach((block) => {
+        const videoId = block?.type === "platform_video" ? block?.attrs?.["video-id"] : null;
+        if (videoId && !seenVideoIds.has(videoId)) {
+            seenVideoIds.add(videoId);
+            videoIds.push(videoId);
+        }
+    });
+
+    return videoIds;
 }
 
 export function parseDirectiveAttributes(rawAttrs) {

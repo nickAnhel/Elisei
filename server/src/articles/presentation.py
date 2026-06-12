@@ -7,6 +7,7 @@ from src.assets.enums import AssetVariantStatusEnum, AssetVariantTypeEnum, Attac
 from src.assets.storage import AssetStorage
 from src.articles.schemas import ArticleAssetGet, ArticleCardGet, ArticleEditorGet, ArticleGet
 from src.users.presentation import build_user_get
+from src.videos.schemas import VideoGet
 
 
 IMAGE_PREVIEW_VARIANTS = (
@@ -67,6 +68,7 @@ async def build_article_get(
     *,
     viewer_id: uuid.UUID | None,
     storage: AssetStorage,
+    embedded_videos: list[VideoGet] | None = None,
 ) -> ArticleGet:
     card = await build_article_card_get(article, viewer_id=viewer_id, storage=storage)
     referenced_assets: list[ArticleAssetGet] = []
@@ -88,6 +90,7 @@ async def build_article_get(
         body_markdown=article.article_details.body_markdown,
         toc=article.article_details.toc,
         referenced_assets=referenced_assets,
+        embedded_videos=embedded_videos or [],
     )
 
 
@@ -96,8 +99,14 @@ async def build_article_editor_get(
     *,
     viewer_id: uuid.UUID | None,
     storage: AssetStorage,
+    embedded_videos: list[VideoGet] | None = None,
 ) -> ArticleEditorGet:
-    article_get = await build_article_get(article, viewer_id=viewer_id, storage=storage)
+    article_get = await build_article_get(
+        article,
+        viewer_id=viewer_id,
+        storage=storage,
+        embedded_videos=embedded_videos,
+    )
     return ArticleEditorGet(
         **article_get.model_dump(),
         slug_editable=article.published_at is None,

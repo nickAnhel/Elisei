@@ -19,6 +19,7 @@ from src.assets.enums import (
 from src.content.enums import ContentStatusEnum, ContentVisibilityEnum, ReactionTypeEnum
 from src.tags.service import TagService
 from src.users.schemas import UserGet
+from src.videos.enums import VideoOrientationEnum, VideoProcessingStatusEnum
 
 
 @dataclass
@@ -92,6 +93,49 @@ class FakeArticle:
     comments_count: int = 0
     likes_count: int = 0
     dislikes_count: int = 0
+    my_reaction: ReactionTypeEnum | None = None
+    is_owner: bool = False
+    tags: list[FakeTag] = field(default_factory=list)
+    asset_links: list[FakeContentAsset] = field(default_factory=list)
+
+
+@dataclass
+class FakeVideoDetails:
+    description: str
+    chapters: list[dict[str, object]]
+    publish_requested_at: datetime.datetime | None = None
+
+
+@dataclass
+class FakeVideoPlaybackDetails:
+    duration_seconds: int | None
+    width: int | None
+    height: int | None
+    orientation: VideoOrientationEnum | None
+    processing_status: VideoProcessingStatusEnum
+    processing_error: str | None = None
+    available_quality_metadata: dict[str, object] = field(default_factory=dict)
+
+
+@dataclass
+class FakeVideo:
+    content_id: uuid.UUID
+    author_id: uuid.UUID
+    author: UserGet
+    title: str
+    excerpt: str
+    video_details: FakeVideoDetails
+    video_playback_details: FakeVideoPlaybackDetails
+    status: ContentStatusEnum
+    visibility: ContentVisibilityEnum
+    created_at: datetime.datetime
+    updated_at: datetime.datetime
+    published_at: datetime.datetime | None = None
+    deleted_at: datetime.datetime | None = None
+    comments_count: int = 0
+    likes_count: int = 0
+    dislikes_count: int = 0
+    views_count: int = 0
     my_reaction: ReactionTypeEnum | None = None
     is_owner: bool = False
     tags: list[FakeTag] = field(default_factory=list)
@@ -313,6 +357,18 @@ class FakeAssetService:
         return True
 
 
+class FakeVideoRepository:
+    def __init__(self, videos: dict[uuid.UUID, FakeVideo]) -> None:
+        self.videos = videos
+
+    async def get_many_by_ids(self, *, content_ids: list[uuid.UUID], viewer_id: uuid.UUID | None = None) -> list[FakeVideo]:
+        return [self._decorate(self.videos[content_id], viewer_id=viewer_id) for content_id in content_ids if content_id in self.videos]
+
+    def _decorate(self, video: FakeVideo, viewer_id: uuid.UUID | None) -> FakeVideo:
+        video.is_owner = viewer_id == video.author_id
+        return video
+
+
 class FakeStorage:
     async def generate_presigned_get(self, *, bucket: str, key: str, **kwargs) -> str:
         return f"https://cdn.example/{bucket}/{key}"
@@ -328,6 +384,7 @@ class ServiceBundle:
     image_asset: FakeAsset
     inline_asset: FakeAsset
     video_asset: FakeAsset
+    embedded_video: FakeVideo
 
 
 @pytest.fixture
@@ -360,6 +417,33 @@ def _make_asset(*, owner_id: uuid.UUID, asset_type: AssetTypeEnum, usage_context
     )
 
 
+def _make_embedded_video(*, author: UserGet, visibility: ContentVisibilityEnum = ContentVisibilityEnum.PRIVATE) -> FakeVideo:
+    now = datetime.datetime.now(datetime.timezone.utc)
+    return FakeVideo(
+        content_id=uuid.uuid4(),
+        author_id=author.user_id,
+        author=author,
+        title="Platform video",
+        excerpt="Embedded video preview",
+        video_details=FakeVideoDetails(
+            description="Video description",
+            chapters=[],
+        ),
+        video_playback_details=FakeVideoPlaybackDetails(
+            duration_seconds=95,
+            width=1280,
+            height=720,
+            orientation=VideoOrientationEnum.LANDSCAPE,
+            processing_status=VideoProcessingStatusEnum.READY,
+        ),
+        status=ContentStatusEnum.PUBLISHED,
+        visibility=visibility,
+        created_at=now,
+        updated_at=now,
+        published_at=now,
+    )
+
+
 @pytest.fixture
 def service_bundle() -> ServiceBundle:
     author_id = uuid.uuid4()
@@ -385,6 +469,7 @@ def service_bundle() -> ServiceBundle:
     image_asset = _make_asset(owner_id=author_id, asset_type=AssetTypeEnum.IMAGE, usage_context="article_cover")
     inline_asset = _make_asset(owner_id=author_id, asset_type=AssetTypeEnum.IMAGE, usage_context="article_inline_image")
     video_asset = _make_asset(owner_id=author_id, asset_type=AssetTypeEnum.VIDEO, usage_context="article_video")
+    embedded_video = _make_embedded_video(author=author)
     assets = {
         image_asset.asset_id: image_asset,
         inline_asset.asset_id: inline_asset,
@@ -400,6 +485,7 @@ def service_bundle() -> ServiceBundle:
         asset_repository=asset_repository,
         asset_service=asset_service,  # type: ignore[arg-type]
         asset_storage=FakeStorage(),  # type: ignore[arg-type]
+        video_repository=FakeVideoRepository({embedded_video.content_id: embedded_video}),  # type: ignore[arg-type]
     )
     return ServiceBundle(
         service=service,
@@ -410,6 +496,7 @@ def service_bundle() -> ServiceBundle:
         image_asset=image_asset,
         inline_asset=inline_asset,
         video_asset=video_asset,
+        embedded_video=embedded_video,
     )
 
 
@@ -423,6 +510,7 @@ async def test_create_article_creates_draft_with_cover_and_referenced_assets(ser
                 "## Intro\n"
                 f'::image{{asset-id="{service_bundle.inline_asset.asset_id}" size="wide" caption="Inline"}}\n'
                 f'::video{{asset-id="{service_bundle.video_asset.asset_id}" size="wide" caption="Demo"}}\n'
+                f'::platform_video{{video-id="{service_bundle.embedded_video.content_id}" size="wide" caption="Watch more"}}\n'
             ),
             cover_asset_id=service_bundle.image_asset.asset_id,
             tags=["python", "backend"],
@@ -437,6 +525,7 @@ async def test_create_article_creates_draft_with_cover_and_referenced_assets(ser
         service_bundle.inline_asset.asset_id,
         service_bundle.video_asset.asset_id,
     ]
+    assert [video.video_id for video in article.embedded_videos] == [service_bundle.embedded_video.content_id]
     assert article.reading_time_minutes >= 1
 
 
@@ -472,6 +561,23 @@ async def test_private_article_is_hidden_from_stranger(service_bundle: ServiceBu
 
     with pytest.raises(ArticleNotFound):
         await service_bundle.service.get_article(article.article_id, user=service_bundle.stranger)
+
+
+@pytest.mark.anyio
+async def test_public_article_hides_private_embedded_video_from_stranger(service_bundle: ServiceBundle) -> None:
+    article = await service_bundle.service.create_article(
+        user=service_bundle.author,
+        data=ArticleCreate(
+            title="Embedded",
+            body_markdown=f'::platform_video{{video-id="{service_bundle.embedded_video.content_id}" size="wide"}}',
+            status="published",
+            visibility="public",
+        ),
+    )
+
+    stranger_view = await service_bundle.service.get_article(article.article_id, user=service_bundle.stranger)
+
+    assert stranger_view.embedded_videos == []
 
 
 @pytest.mark.anyio

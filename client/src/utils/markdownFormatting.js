@@ -35,8 +35,8 @@ export function applyMarkdownAction(textarea, actionId) {
         return replaceSelection(textarea, "| Column | Value |\n| --- | --- |\n| $SELECTION$ |  |\n", "Item");
     case "spoiler":
         return wrapSelection(textarea, ":::spoiler[Context]\n", "\n:::", "Hidden details");
-    case "youtube":
-        return replaceSelection(textarea, "::youtube{id=\"dQw4w9WgXcQ\" title=\"Video\"}\n", "");
+    case "platform_video":
+        return replaceSelection(textarea, "::platform_video{video-id=\"\" size=\"wide\" caption=\"\"}\n", "");
     case "mermaid":
         return insertAtCursor(textarea, `${buildMermaidBlock("flowchart TD\n    Start[Idea] --> Draft[Draft]\n    Draft --> Publish[Published]")}\n`);
     default:

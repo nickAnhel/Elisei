@@ -108,6 +108,18 @@ class VideoRepository:
         result = await self._session.execute(stmt)
         return self._one_or_none(result, viewer_id=viewer_id)
 
+    async def get_many_by_ids(
+        self,
+        *,
+        content_ids: list[uuid.UUID],
+        viewer_id: uuid.UUID | None = None,
+    ) -> list[ContentModel]:
+        if not content_ids:
+            return []
+        stmt = self._build_video_query(viewer_id=viewer_id).where(ContentModel.content_id.in_(content_ids))
+        result = await self._session.execute(stmt)
+        return self._many(result, viewer_id=viewer_id)
+
     async def get_feed(
         self,
         *,

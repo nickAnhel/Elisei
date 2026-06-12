@@ -1,11 +1,14 @@
 import ReactMarkdown from "react-markdown";
+import { Link } from "react-router-dom";
 import remarkGfm from "remark-gfm";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { oneDark } from "react-syntax-highlighter/dist/esm/styles/prism";
 
 import "./ArticleRenderer.css";
 
-import { buildArticleAssetLookup, buildMermaidPreviewUrl, parseArticleMarkdown, slugifyHeading } from "../../utils/articleMarkdown";
+import { buildArticleAssetLookup, buildArticleVideoLookup, buildMermaidPreviewUrl, parseArticleMarkdown, slugifyHeading } from "../../utils/articleMarkdown";
+import { formatVideoTime } from "../video-player/utils/time";
+import { getUserDisplayName } from "../../utils/userDisplay";
 import { normalizeAttachmentToMediaViewerItem } from "../media-viewer";
 import VideoPlayer from "../video-player";
 
@@ -91,16 +94,91 @@ function buildArticleMediaItems(assetLookup) {
         .map((asset) => normalizeAttachmentToMediaViewerItem(asset));
 }
 
+function PlatformVideoBlock({ block, video, renderMode }) {
+    if (!video) {
+        return (
+            <div className={renderMode === "editor" ? "article-pending-asset" : "article-missing-asset"}>
+                {renderMode === "editor" ? "Loading video preview..." : "Embedded video is unavailable."}
+            </div>
+        );
+    }
+
+    const previewUrl = video.cover?.preview_url || video.cover?.original_url;
+    const publishedLabel = new Date(video.published_at || video.created_at).toLocaleDateString();
+    const durationLabel = video.duration_seconds ? formatVideoTime(video.duration_seconds) : "";
+    const canPlayInline = video.processing_status === "ready" && Array.isArray(video.playback_sources) && video.playback_sources.length > 0;
+
+    return (
+        <figure className={`article-platform-video-block ${block.attrs.size || "wide"}`}>
+            <div className="article-platform-video-card">
+                {
+                    canPlayInline
+                        ? (
+                            <VideoPlayer
+                                skin="article"
+                                sources={video.playback_sources}
+                                posterUrl={previewUrl || undefined}
+                                title={video.title || "Embedded video"}
+                                chapters={video.chapters || []}
+                                preload="metadata"
+                            />
+                        ) : (
+                            <Link to={video.canonical_path} className="article-platform-video-link">
+                                <div className={`article-platform-video-preview ${video.orientation || ""}`}>
+                                    {
+                                        previewUrl
+                                            ? <img src={previewUrl} alt={video.title || "Embedded video preview"} />
+                                            : <div className="article-platform-video-preview-empty">Preview unavailable</div>
+                                    }
+                                    <span className="article-platform-video-play">Open video</span>
+                                    {
+                                        durationLabel &&
+                                        <span className="article-platform-video-duration">{durationLabel}</span>
+                                    }
+                                </div>
+                            </Link>
+                        )
+                }
+                <div className="article-platform-video-body">
+                    <div className="article-platform-video-meta">
+                        <span>{getUserDisplayName(video.user, video.user?.username || "Unknown")}</span>
+                        <span>{publishedLabel}</span>
+                        {durationLabel ? <span>{durationLabel}</span> : null}
+                    </div>
+                    <div className="article-platform-video-heading">
+                        <strong>{video.title || "Untitled video"}</strong>
+                        <Link to={video.canonical_path} className="article-platform-video-page-link">
+                            Open
+                        </Link>
+                    </div>
+                    {
+                        video.excerpt &&
+                        <p>{video.excerpt}</p>
+                    }
+                </div>
+            </div>
+            {
+                (block.attrs.caption || video.processing_status !== "ready") &&
+                <figcaption>
+                    {block.attrs.caption || `Video status: ${video.processing_status}`}
+                </figcaption>
+            }
+        </figure>
+    );
+}
+
 function ArticleRenderer({
     bodyMarkdown,
     article = null,
     extraAssets = [],
+    extraVideos = [],
     renderMode = "default",
     onEditMermaid = null,
     onMediaOpen = null,
 }) {
     const blocks = parseArticleMarkdown(bodyMarkdown || "");
     const assetLookup = buildArticleAssetLookup(article, extraAssets);
+    const videoLookup = buildArticleVideoLookup(article, extraVideos);
     const mediaViewerItems = buildArticleMediaItems(assetLookup);
     let mermaidIndex = -1;
 
@@ -120,6 +198,7 @@ function ArticleRenderer({
                                     bodyMarkdown={block.bodyMarkdown}
                                     article={article}
                                     extraAssets={extraAssets}
+                                    extraVideos={extraVideos}
                                     renderMode={renderMode}
                                     onEditMermaid={onEditMermaid}
                                     onMediaOpen={onMediaOpen}
@@ -226,6 +305,18 @@ function ArticleRenderer({
                                 </div>
                                 {block.attrs.title && <figcaption>{block.attrs.title}</figcaption>}
                             </figure>
+                        );
+                    }
+
+                    if (block.type === "platform_video") {
+                        const video = videoLookup[block.attrs["video-id"]];
+                        return (
+                            <PlatformVideoBlock
+                                key={`platform-video-${index}`}
+                                block={block}
+                                video={video}
+                                renderMode={renderMode}
+                            />
                         );
                     }
 
