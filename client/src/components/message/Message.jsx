@@ -136,6 +136,19 @@ function MessageReactions({ reactions = [] }) {
 }
 
 function MessageSharedContentPreview({ content }) {
+    if (content.is_available === false) {
+        return (
+            <div className="msg-shared-content msg-shared-content-unavailable" aria-label="Shared content unavailable">
+                <span className="msg-shared-content-body">
+                    <span className="msg-shared-content-type">Content unavailable</span>
+                    <span className="msg-shared-content-title">
+                        {content.unavailable_message || "You can't view this content"}
+                    </span>
+                </span>
+            </div>
+        );
+    }
+
     const path = resolveContentPath(content);
     const imageUrl = resolveContentImage(content);
     const title = content.title || resolveContentTypeLabel(content.content_type);

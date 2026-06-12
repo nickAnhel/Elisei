@@ -1,32 +1,67 @@
 .post-file-block {
     display: flex;
     flex-direction: column;
-    gap: 0.65rem;
+    gap: var(--space-2);
+    min-width: 0;
+}
+
+.post-file-block.feed {
+    gap: var(--space-2);
+}
+
+.post-file-block.detail {
+    gap: var(--space-3);
+}
+
+.post-file-item {
+    min-width: 0;
 }
 
 .post-file-card,
 .post-file-more-card {
-    display: flex;
-    align-items: center;
-    gap: 0.85rem;
-    width: 100%;
     box-sizing: border-box;
-    padding: 0.85rem 1rem;
-    border-radius: 0.9rem;
-    border: 1px solid #323232;
-    background: #171717;
+    width: 100%;
+    border-radius: var(--radius-xl);
+    border: 1px solid var(--color-border);
+    color: var(--color-text);
+}
+
+.post-file-card {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    padding: var(--space-3) var(--space-4);
+    background: var(--color-surface-raised);
+    box-shadow: var(--shadow-card);
+    transition: border-color var(--duration-fast) var(--ease-standard), background-color var(--duration-fast) var(--ease-standard);
+}
+
+.post-file-block.detail .post-file-card {
+    padding: var(--space-4);
+}
+
+.post-file-card:hover {
+    border-color: color-mix(in srgb, var(--color-accent-muted) 55%, var(--color-border));
+    background: var(--color-surface);
+}
+
+.post-file-header {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-3);
+    min-width: 0;
 }
 
 .post-file-icon {
-    width: 2.5rem;
-    height: 2.5rem;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 0.7rem;
-    background: #232323;
-    color: #d9d9d9;
-    flex-shrink: 0;
+    width: 2.6rem;
+    height: 2.6rem;
+    display: grid;
+    place-items: center;
+    flex: 0 0 auto;
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--color-border);
+    background: var(--color-surface-muted);
+    color: var(--color-text-subtle);
 }
 
 .post-file-icon svg {
@@ -38,42 +73,45 @@
 .post-file-body {
     min-width: 0;
     display: flex;
+    flex: 1 1 auto;
     flex-direction: column;
     gap: 0.25rem;
-    flex: 1;
 }
 
 .post-file-name {
-    font-weight: 600;
-    color: #f5f5f5;
-    word-break: break-word;
+    overflow-wrap: anywhere;
+    font-size: var(--font-size-md);
+    font-weight: var(--font-weight-semibold);
+    color: var(--color-text);
 }
 
 .post-file-meta {
-    color: #a8a8a8;
-    font-size: 0.85rem;
+    color: var(--color-text-subtle);
+    font-size: var(--font-size-sm);
+    line-height: var(--line-height-tight);
 }
 
 .post-file-download-button {
-    width: 2.2rem;
-    height: 2.2rem;
-    min-width: 2.2rem;
-    border-radius: 999px;
-    border: 1px solid #6d3cc0;
-    background: rgba(157, 80, 255, 0.14);
-    color: #cda8ff;
+    width: 2.4rem;
+    height: 2.4rem;
+    min-width: 2.4rem;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    flex-shrink: 0;
+    flex: 0 0 auto;
+    border-radius: var(--radius-pill);
+    border: 1px solid var(--color-accent-muted);
+    background: var(--color-accent-surface);
+    color: var(--color-accent);
     text-decoration: none;
-    transition: background-color 0.18s ease, border-color 0.18s ease, color 0.18s ease;
+    transition: background-color var(--duration-fast) var(--ease-standard), border-color var(--duration-fast) var(--ease-standard), color var(--duration-fast) var(--ease-standard), transform var(--duration-fast) var(--ease-standard);
 }
 
 .post-file-download-button:hover {
-    background: rgba(157, 80, 255, 0.28);
-    border-color: #9d50ff;
-    color: #ead8ff;
+    border-color: var(--color-accent);
+    background: color-mix(in srgb, var(--color-accent) 12%, var(--color-surface));
+    color: var(--color-accent);
+    transform: translateY(-1px);
 }
 
 .post-file-download-button svg {
@@ -82,8 +120,42 @@
     display: block;
 }
 
+.post-file-audio {
+    min-width: 0;
+}
+
+.post-file-audio .post-audio-player {
+    max-width: none;
+}
+
 .post-file-more-card {
+    display: flex;
+    align-items: center;
     justify-content: center;
-    color: #bdbdbd;
-    font-size: 0.95rem;
+    padding: var(--space-2) var(--space-3);
+    background: var(--color-surface-muted);
+    color: var(--color-text-subtle);
+    font-size: var(--font-size-sm);
+    letter-spacing: 0.01em;
+}
+
+@media (max-width: 640px) {
+    .post-file-card {
+        padding: var(--space-3);
+    }
+
+    .post-file-header {
+        gap: var(--space-2);
+    }
+
+    .post-file-icon {
+        width: 2.4rem;
+        height: 2.4rem;
+    }
+
+    .post-file-download-button {
+        width: 2.25rem;
+        height: 2.25rem;
+        min-width: 2.25rem;
+    }
 }

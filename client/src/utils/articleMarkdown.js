@@ -145,6 +145,31 @@ export function parseArticleMarkdown(bodyMarkdown) {
     return blocks;
 }
 
+export function normalizeArticleMarkdown(bodyMarkdown) {
+    const lines = (bodyMarkdown || "").split("\n");
+    const normalizedLines = [];
+    let inCodeBlock = false;
+
+    lines.forEach((line) => {
+        const trimmed = line.trim();
+
+        if (trimmed.startsWith("```")) {
+            inCodeBlock = !inCodeBlock;
+            normalizedLines.push(line);
+            return;
+        }
+
+        if (!inCodeBlock && /^#\s+/.test(trimmed)) {
+            normalizedLines.push(line.replace(/^(\s*)#(\s+)/, "$1##$2"));
+            return;
+        }
+
+        normalizedLines.push(line);
+    });
+
+    return normalizedLines.join("\n");
+}
+
 export function collectReferencedArticleAssetIds(bodyMarkdown) {
     const assetIds = new Set();
 

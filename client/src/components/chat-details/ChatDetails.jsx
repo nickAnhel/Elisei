@@ -229,6 +229,8 @@ function normalizeSharedContent(content) {
     }
 
     return {
+        is_available: content.is_available,
+        unavailable_message: content.unavailable_message,
         content_id: content.content_id,
         content_type: content.content_type,
         title: content.title,

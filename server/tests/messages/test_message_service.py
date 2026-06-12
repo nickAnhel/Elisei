@@ -6,6 +6,7 @@ import pytest
 from sqlalchemy.exc import NoResultFound
 
 from src.common.exceptions import PermissionDenied
+from src.content.exceptions import ContentNotFound
 from src.assets.enums import AssetStatusEnum, AssetVariantStatusEnum, AssetVariantTypeEnum
 from src.content.enums import ContentStatusEnum, ContentTypeEnum, ContentVisibilityEnum, ReactionTypeEnum
 from src.content.schemas import ContentListItemGet
@@ -232,12 +233,15 @@ class _SharedContentWithoutLoadedContent:
 
 
 class _ContentService:
-    def __init__(self, result=None) -> None:
+    def __init__(self, result=None, *, raises=None) -> None:
         self.checked = []
         self.result = result
+        self.raises = raises
 
     async def get_shareable_content(self, *, content_id, viewer_id):
         self.checked.append((content_id, viewer_id))
+        if self.raises is not None:
+            raise self.raises
         if self.result is not None:
             return self.result
         return make_content_item(content_id=content_id, my_reaction=None)
@@ -676,6 +680,25 @@ async def test_shared_content_preview_uses_viewer_reaction_from_content_service(
     assert content_service.checked == [(content_id, viewer_id)]
     assert result.shared_content is not None
     assert result.shared_content.my_reaction == ReactionTypeEnum.LIKE
+
+
+@pytest.mark.asyncio
+async def test_shared_content_preview_falls_back_when_content_is_not_accessible() -> None:
+    content_id = uuid.uuid4()
+    viewer_id = uuid.uuid4()
+    message = _Message(shared_content=_SharedContentWithoutLoadedContent(content_id))
+    content_service = _ContentService(raises=ContentNotFound())
+    service = MessageService(
+        _Repository(message),  # type: ignore[arg-type]
+        content_service=content_service,  # type: ignore[arg-type]
+    )
+
+    result = await service._build_message_with_user(message, viewer_id=viewer_id)
+
+    assert content_service.checked == [(content_id, viewer_id)]
+    assert result.shared_content is not None
+    assert result.shared_content.is_available is False
+    assert result.shared_content.unavailable_message == "You can't view this content"
 
 
 def test_search_messages_trims_query_before_querying_repository() -> None:

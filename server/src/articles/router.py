@@ -16,7 +16,7 @@ router = APIRouter(
 )
 
 
-@router.post("/")
+@router.post("")
 async def create_article(
     data: ArticleCreate,
     user: UserGet = Depends(get_current_user),

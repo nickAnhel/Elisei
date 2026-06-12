@@ -19,7 +19,7 @@ router = APIRouter(
 )
 
 
-@router.post("/")
+@router.post("")
 async def create_video(
     data: VideoCreate,
     user: UserGet = Depends(get_current_user),

@@ -38,3 +38,29 @@ test("renders dialog preview time and unread count", () => {
     expect(screen.getByText("Latest update")).toBeTruthy();
     expect(screen.getByText("2")).toBeTruthy();
 });
+
+
+test("renders unavailable shared content fallback in dialog preview", () => {
+    render(
+        <ChatListItem
+            chat={{
+                chat_id: "chat-2",
+                chat_type: "group",
+                title: "Private group",
+                display_title: "Private group",
+                last_message: {
+                    shared_content: {
+                        is_available: false,
+                        unavailable_message: "You can't view this content",
+                    },
+                    created_at: "2026-05-12T10:00:00Z",
+                },
+                last_message_at: "2026-05-12T10:00:00Z",
+                unread_count: 0,
+                members: [],
+            }}
+        />
+    );
+
+    expect(screen.getByText("You can't view this content")).toBeTruthy();
+});

@@ -109,7 +109,6 @@ const PRESET_KEYS = {
     article: [
         "bold",
         "italic",
-        "h1",
         "h2",
         "h3",
         "h4",

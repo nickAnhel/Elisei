@@ -4,6 +4,7 @@ import typing as tp
 import uuid
 
 from src.assets.enums import AssetTypeEnum, AssetVariantStatusEnum, AssetVariantTypeEnum
+from src.content.exceptions import ContentNotFound
 from src.content.enums import ReactionTypeEnum
 from src.content.service import ContentService
 from src.messages.schemas import (
@@ -11,6 +12,7 @@ from src.messages.schemas import (
     MessageGetWithUser,
     MessageReactionGet,
     MessageReplyPreview,
+    MessageSharedContentUnavailableGet,
 )
 from src.users.presentation import build_user_get
 
@@ -128,10 +130,13 @@ async def build_message_shared_content(
     if content_id is None or content_service is None or viewer_id is None:
         return None
 
-    return await content_service.get_shareable_content(
-        content_id=content_id,
-        viewer_id=viewer_id,
-    )
+    try:
+        return await content_service.get_shareable_content(
+            content_id=content_id,
+            viewer_id=viewer_id,
+        )
+    except ContentNotFound:
+        return MessageSharedContentUnavailableGet(content_id=content_id)
 
 
 async def build_message_attachments(
