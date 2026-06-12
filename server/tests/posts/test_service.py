@@ -1222,6 +1222,48 @@ async def test_update_post_replaces_attachment_set_and_marks_removed_assets_orph
 
 
 @pytest.mark.anyio
+async def test_update_post_keeps_existing_attachments_even_if_owner_check_would_fail(service_bundle: ServiceBundle) -> None:
+    image_asset_id = find_asset_id(service_bundle, "photo.png")
+    stranger_asset_id = find_asset_id(service_bundle, "secret.pdf")
+    file_asset_id = find_asset_id(service_bundle, "report.pdf")
+
+    post = await service_bundle.service.create_post(
+        service_bundle.author,
+        PostCreate(
+            content="before",
+            attachments=[
+                attachment_payload(image_asset_id, AttachmentTypeEnum.MEDIA, 0),
+            ],
+        ),
+    )
+
+    stored_post = service_bundle.repository.posts[post.post_id]
+    stored_post.asset_links = [
+        FakeContentAsset(
+            content_id=post.post_id,
+            asset_id=stranger_asset_id,
+            attachment_type=AttachmentTypeEnum.FILE,
+            position=0,
+            asset=service_bundle.asset_repository.assets[stranger_asset_id],
+        )
+    ]
+
+    updated = await service_bundle.service.update_post(
+        service_bundle.author,
+        post.post_id,
+        PostUpdate(
+            content="after",
+            attachments=[
+                attachment_payload(stranger_asset_id, AttachmentTypeEnum.FILE, 0),
+                attachment_payload(file_asset_id, AttachmentTypeEnum.FILE, 1),
+            ],
+        ),
+    )
+
+    assert [attachment.asset_id for attachment in updated.file_attachments] == [stranger_asset_id, file_asset_id]
+
+
+@pytest.mark.anyio
 async def test_update_post_replaces_tags_set(service_bundle: ServiceBundle) -> None:
     post = service_bundle.repository.seed_post(
         author=service_bundle.author,

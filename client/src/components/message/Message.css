@@ -209,9 +209,22 @@
     text-decoration: none;
 }
 
+.msg-shared-content-unavailable {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    background-color: var(--color-surface-muted);
+    cursor: default;
+}
+
 .msg-shared-content:hover {
     border-color: var(--color-accent-muted);
     background-color: var(--color-accent-surface);
+}
+
+.msg-shared-content-unavailable:hover {
+    border-color: var(--color-border);
+    background-color: var(--color-surface-muted);
 }
 
 .msg .msg-shared-content-image {
@@ -244,6 +257,10 @@
     font-size: 0.9rem;
     font-weight: var(--font-weight-semibold);
     white-space: nowrap;
+}
+
+.msg-shared-content-unavailable .msg-shared-content-title {
+    white-space: normal;
 }
 
 .msg-shared-content-excerpt {

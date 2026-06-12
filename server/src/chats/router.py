@@ -29,7 +29,7 @@ router = APIRouter(
 )
 
 
-@router.post("/")
+@router.post("")
 async def create_chat(
     data: ChatCreate,
     user: UserGet = Depends(get_current_user),

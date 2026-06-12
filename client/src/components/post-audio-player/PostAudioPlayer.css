@@ -1,13 +1,13 @@
 .post-audio-player {
     display: flex;
     align-items: center;
-    gap: 0.65rem;
+    gap: var(--space-2);
     width: 100%;
-    max-width: 25rem;
-    /* padding: 0.5rem 0.65rem;
-    border-radius: 0.85rem;
-    background: #121212;
-    border: 1px solid #2d2d2d; */
+    min-width: 0;
+    padding: var(--space-2) var(--space-3);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    background: var(--color-surface);
 }
 
 .post-audio-player audio {
@@ -18,27 +18,27 @@
     width: 2.2rem;
     height: 2.2rem;
     min-width: 2.2rem;
-    border-radius: 999px;
-    margin: 0;
-    padding: 0;
-    border: 1px solid #3a3a3a;
-    background: #1b1b1b;
-    color: #f3f3f3;
     display: inline-flex;
     align-items: center;
     justify-content: center;
+    margin: 0;
+    padding: 0;
+    border: 1px solid var(--color-border-strong);
+    border-radius: var(--radius-pill);
+    background: var(--color-surface-raised);
+    color: var(--color-text);
     cursor: pointer;
-    transition: opacity 0.18s ease;
+    transition: background-color var(--duration-fast) var(--ease-standard), border-color var(--duration-fast) var(--ease-standard), color var(--duration-fast) var(--ease-standard), opacity var(--duration-fast) var(--ease-standard);
 }
 
 .post-audio-control:hover {
-    opacity: 0.82;
+    opacity: 0.9;
 }
 
 .post-audio-control.primary {
-    border-color: #8a47e2;
-    background: linear-gradient(135deg, #9d50ff, #b375ff);
-    color: #fff;
+    border-color: var(--color-accent-muted);
+    background: var(--color-accent-surface);
+    color: var(--color-accent);
 }
 
 .post-audio-control svg {
@@ -49,7 +49,7 @@
 
 .post-audio-track-group {
     min-width: 0;
-    flex: 1;
+    flex: 1 1 auto;
     display: flex;
     flex-direction: column;
     gap: 0.25rem;
@@ -59,50 +59,50 @@
 .post-audio-volume-slider {
     width: 100%;
     margin: 0;
-    -webkit-appearance: none;
     appearance: none;
+    -webkit-appearance: none;
     height: 0.3rem;
-    border-radius: 999px;
+    border-radius: var(--radius-pill);
     background: linear-gradient(
         to right,
-        #9d50ff 0,
-        #9d50ff var(--range-progress, 0%),
-        #3a3a3a var(--range-progress, 0%),
-        #3a3a3a 100%
+        var(--color-accent) 0,
+        var(--color-accent) var(--range-progress, 0%),
+        color-mix(in srgb, var(--color-border-strong) 90%, var(--color-border)) var(--range-progress, 0%),
+        color-mix(in srgb, var(--color-border-strong) 90%, var(--color-border)) 100%
     );
 }
 
 .post-audio-progress::-webkit-slider-runnable-track,
 .post-audio-volume-slider::-webkit-slider-runnable-track {
     height: 0.3rem;
-    border-radius: 999px;
+    border-radius: var(--radius-pill);
     background: transparent;
 }
 
 .post-audio-progress::-moz-range-track,
 .post-audio-volume-slider::-moz-range-track {
     height: 0.3rem;
-    border-radius: 999px;
+    border-radius: var(--radius-pill);
     background: transparent;
 }
 
 .post-audio-progress::-moz-range-progress,
 .post-audio-volume-slider::-moz-range-progress {
     height: 0.3rem;
-    border-radius: 999px;
-    background: #9d50ff;
+    border-radius: var(--radius-pill);
+    background: var(--color-accent);
 }
 
 .post-audio-progress::-webkit-slider-thumb,
 .post-audio-volume-slider::-webkit-slider-thumb {
-    -webkit-appearance: none;
     appearance: none;
+    -webkit-appearance: none;
     width: 0.8rem;
     height: 0.8rem;
-    border: 0;
-    border-radius: 999px;
-    background: #9d50ff;
     margin-top: -0.25rem;
+    border: 0;
+    border-radius: var(--radius-pill);
+    background: var(--color-accent);
 }
 
 .post-audio-progress::-moz-range-thumb,
@@ -110,16 +110,16 @@
     width: 0.8rem;
     height: 0.8rem;
     border: 0;
-    border-radius: 999px;
-    background: #9d50ff;
+    border-radius: var(--radius-pill);
+    background: var(--color-accent);
 }
 
 .post-audio-time {
     display: flex;
     justify-content: space-between;
-    gap: 0.5rem;
-    color: #a7a7a7;
-    font-size: 0.78rem;
+    gap: var(--space-2);
+    color: var(--color-text-subtle);
+    font-size: var(--font-size-2xs);
 }
 
 .post-audio-volume {
@@ -132,11 +132,11 @@
     width: 0;
     opacity: 0;
     pointer-events: none;
-    transition: width 0.18s ease, opacity 0.18s ease, margin-left 0.18s ease;
+    transition: width var(--duration-fast) var(--ease-standard), opacity var(--duration-fast) var(--ease-standard), margin-left var(--duration-fast) var(--ease-standard);
 }
 
 .post-audio-volume.expanded {
-    gap: 0.45rem;
+    gap: var(--space-2);
 }
 
 .post-audio-volume.expanded .post-audio-volume-slider {
@@ -147,7 +147,6 @@
 
 @media (max-width: 640px) {
     .post-audio-player {
-        max-width: 100%;
         flex-wrap: wrap;
     }
 

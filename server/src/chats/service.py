@@ -533,10 +533,13 @@ class ChatService:
             if direct_member is not None and direct_member.avatar is not None
             else chat_get.avatar
         )
+        display_title = chat.title
+        if direct_member is not None:
+            display_title = direct_member.display_name or direct_member.username
 
         return ChatDialogGet(
             **chat_get.model_dump(),
-            display_title=direct_member.username if direct_member is not None else chat.title,
+            display_title=display_title,
             display_avatar=display_avatar,
             last_message=(
                 await self._build_message_get_with_user(last_message, viewer_id=user_id)

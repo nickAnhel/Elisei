@@ -1,46 +1,37 @@
 import { render, screen } from "@testing-library/react";
 
-jest.mock("../..", () => {
-    const React = require("react");
-    return {
-        StoreContext: React.createContext({
-            store: {
-                user: {
-                    username: "alice",
-                    avatar: null,
-                },
-            },
-        }),
-    };
-});
-jest.mock("react-router-dom", () => ({
-    Link: ({ to, children, ...props }) => <a href={to} {...props}>{children}</a>,
-}), { virtual: true });
-
-import { StoreContext } from "../..";
 import Message from "./Message";
 
+jest.mock("react-router-dom", () => ({
+    Link: ({ children, className, to }) => (
+        <a className={className} href={to}>{children}</a>
+    ),
+}), { virtual: true });
 
-test("renders aggregated emoji reactions without labels", () => {
+jest.mock("../video-player", () => () => null, { virtual: true });
+
+jest.mock("../..", () => ({
+    StoreContext: require("react").createContext({
+        store: { user: { user_id: "user-1", username: "alice" } },
+    }),
+}));
+
+
+test("renders unavailable shared content fallback", () => {
     render(
-        <StoreContext.Provider value={{ store: { user: { username: "alice", avatar: null } } }}>
-            <Message
-                messageId="message-1"
-                username="You"
-                content="Hello there"
-                createdAt="2026-05-13T10:00:00Z"
-                reactions={[
-                    { reactionType: "like", count: 2, reactedByMe: true },
-                    { reactionType: "heart", count: 1, reactedByMe: false },
-                ]}
-            />
-        </StoreContext.Provider>
+        <Message
+            messageId="message-1"
+            username="Bob"
+            profileUsername="bob"
+            content="Hello"
+            createdAt="2026-05-12T10:00:00Z"
+            sharedContent={{
+                is_available: false,
+                unavailable_message: "You can't view this content",
+            }}
+        />
     );
 
-    expect(screen.getByText("👍")).not.toBeNull();
-    expect(screen.getByText("2")).not.toBeNull();
-    expect(screen.getByText("❤️")).not.toBeNull();
-
-    expect(screen.queryByText("Like")).toBeNull();
-    expect(screen.queryByText("Heart")).toBeNull();
+    expect(screen.getByText("You can't view this content")).toBeTruthy();
+    expect(screen.getByText("Content unavailable")).toBeTruthy();
 });

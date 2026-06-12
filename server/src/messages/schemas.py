@@ -58,6 +58,12 @@ class MessageAttachmentGet(BaseModel):
     is_audio: bool = False
 
 
+class MessageSharedContentUnavailableGet(BaseModel):
+    content_id: uuid.UUID
+    is_available: bool = False
+    unavailable_message: str = "You can't view this content"
+
+
 class MessageGetWS(BaseModel):
     message_id: uuid.UUID
     chat_id: uuid.UUID
@@ -75,7 +81,7 @@ class MessageGetWS(BaseModel):
     user_id: uuid.UUID
     avatar_small_url: str | None = None
     attachments: list[MessageAttachmentGet] = Field(default_factory=list)
-    shared_content: ContentListItemGet | None = None
+    shared_content: ContentListItemGet | MessageSharedContentUnavailableGet | None = None
     reactions: list[MessageReactionGet] = Field(default_factory=list)
 
 
@@ -131,7 +137,7 @@ class MessageGet(MessageCreate):
     chat_seq: int | None = None
     reply_preview: MessageReplyPreview | None = None
     attachments: list[MessageAttachmentGet] = Field(default_factory=list)
-    shared_content: ContentListItemGet | None = None
+    shared_content: ContentListItemGet | MessageSharedContentUnavailableGet | None = None
     reactions: list[MessageReactionGet] = Field(default_factory=list)
 
 

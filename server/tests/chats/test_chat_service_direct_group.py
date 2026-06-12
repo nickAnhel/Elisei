@@ -10,6 +10,7 @@ from src.chats.schemas import ChatAvatarUpdate, ChatCreate
 from src.chats.service import ChatService
 from src.common.exceptions import PermissionDenied
 from src.common.model_registry import import_all_models
+from src.content.exceptions import ContentNotFound
 from src.events.models import EventModel
 from src.messages.models import MessageModel
 from src.users.models import UserModel
@@ -17,11 +18,11 @@ from src.users.models import UserModel
 import_all_models()
 
 
-def _user(user_id: uuid.UUID, username: str):
+def _user(user_id: uuid.UUID, username: str, display_name: str | None = None):
     return SimpleNamespace(
         user_id=user_id,
         username=username,
-        display_name=None,
+        display_name=display_name,
         bio=None,
         links=[],
         avatar_asset_id=None,
@@ -151,6 +152,15 @@ class FakeChatRepository:
         return await self.get_single(chat_id=chat_id)
 
 
+class _UnavailableContentService:
+    def __init__(self) -> None:
+        self.checked = []
+
+    async def get_shareable_content(self, *, content_id, viewer_id):
+        self.checked.append((content_id, viewer_id))
+        raise ContentNotFound()
+
+
 class FakeAssetService:
     def __init__(self) -> None:
         self.generated_calls = []
@@ -278,7 +288,7 @@ async def test_user_dialogs_resolve_direct_display_title_and_unread_state() -> N
             is_private=True,
             members=[
                 _user(owner_id, "owner"),
-                _user(member_id, "member"),
+                _user(member_id, "member", "Member Display"),
             ],
         )
     ]
@@ -301,7 +311,7 @@ async def test_user_dialogs_resolve_direct_display_title_and_unread_state() -> N
         limit=10,
     )
 
-    assert dialogs[0].display_title == "member"
+    assert dialogs[0].display_title == "Member Display"
     assert dialogs[0].display_avatar is None
     assert dialogs[0].unread_count == 3
     assert dialogs[0].is_muted is True
@@ -334,6 +344,59 @@ async def test_user_dialogs_keep_group_display_title() -> None:
 
     assert dialogs[0].display_title == "Study group"
     assert dialogs[0].display_avatar is None
+
+
+@pytest.mark.asyncio
+async def test_user_dialogs_fall_back_when_last_shared_content_is_inaccessible() -> None:
+    owner_id = uuid.uuid4()
+    viewer_id = uuid.uuid4()
+    content_id = uuid.uuid4()
+    repository = FakeChatRepository()
+    repository.dialogs = [
+        _chat(
+            chat_id=uuid.uuid4(),
+            owner_id=owner_id,
+            chat_type=ChatType.GROUP.value,
+            title="Study group",
+            members=[_user(owner_id, "owner"), _user(viewer_id, "viewer")],
+        )
+    ]
+    setattr(
+        repository.dialogs[0],
+        "last_message",
+        SimpleNamespace(
+            message_id=uuid.uuid4(),
+            chat_id=repository.dialogs[0].chat_id,
+            client_message_id=uuid.uuid4(),
+            content="",
+            user_id=owner_id,
+            created_at=datetime.datetime.now(datetime.timezone.utc),
+            edited_at=None,
+            deleted_at=None,
+            deleted_by=None,
+            chat_seq=1,
+            user=_user(owner_id, "owner"),
+            reply_to_message_id=None,
+            reply_to_message=None,
+            asset_links=[],
+            shared_content=SimpleNamespace(content_id=content_id),
+            reactions=[],
+        ),
+    )
+    service = ChatService(repository, content_service=_UnavailableContentService())  # type: ignore[arg-type]
+
+    dialogs, _ = await service.get_user_joined_chats(
+        user=_user(viewer_id, "viewer"),
+        order=ChatOrder.ID,
+        order_desc=True,
+        offset=0,
+        limit=10,
+    )
+
+    assert dialogs[0].last_message is not None
+    assert dialogs[0].last_message.shared_content is not None
+    assert dialogs[0].last_message.shared_content.is_available is False
+    assert dialogs[0].last_message.shared_content.unavailable_message == "You can't view this content"
 
 
 @pytest.mark.asyncio

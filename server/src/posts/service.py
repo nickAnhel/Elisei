@@ -189,14 +189,16 @@ class PostService:
             else post.visibility
         )
         next_content = payload.get("content", post.post_details.body_text)
+        current_attachment_input = self._build_current_attachment_input(post)
         next_attachment_input = (
             data.attachments
             if "attachments" in payload
-            else self._build_current_attachment_input(post)
+            else current_attachment_input
         )
         next_attachments = await self._validate_and_prepare_attachments(
             owner_id=user.user_id,
             attachments=next_attachment_input,
+            trusted_asset_ids={attachment.asset_id for attachment in current_attachment_input},
         )
         self._ensure_post_has_content(
             text_content=next_content,
@@ -427,19 +429,39 @@ class PostService:
         *,
         owner_id: uuid.UUID,
         attachments: list[PostAttachmentWrite],
+        trusted_asset_ids: set[uuid.UUID] | None = None,
     ) -> list[dict[str, object]]:
         self._validate_attachment_payload(attachments)
+        trusted_asset_ids = trusted_asset_ids or set()
         asset_ids = [attachment.asset_id for attachment in attachments]
-        assets = await self._asset_repository.get_assets(
-            asset_ids=asset_ids,
-            owner_id=owner_id,
-        )
-        assets_by_id = {asset.asset_id: asset for asset in assets}
-        missing_asset_ids = [asset_id for asset_id in asset_ids if asset_id not in assets_by_id]
-        if missing_asset_ids:
-            raise InvalidPost(
-                f"Some attachments are unavailable for this user: {', '.join(str(asset_id) for asset_id in missing_asset_ids)}"
+        assets_by_id: dict[uuid.UUID, AssetModel] = {}
+
+        trusted_attachment_ids = [asset_id for asset_id in asset_ids if asset_id in trusted_asset_ids]
+        if trusted_attachment_ids:
+            trusted_assets = await self._asset_repository.get_assets(
+                asset_ids=trusted_attachment_ids,
             )
+            assets_by_id.update({asset.asset_id: asset for asset in trusted_assets})
+            missing_trusted_asset_ids = [
+                asset_id for asset_id in trusted_attachment_ids if asset_id not in assets_by_id
+            ]
+            if missing_trusted_asset_ids:
+                raise InvalidPost(
+                    f"Some attachments are unavailable for this post: {', '.join(str(asset_id) for asset_id in missing_trusted_asset_ids)}"
+                )
+
+        new_asset_ids = [asset_id for asset_id in asset_ids if asset_id not in trusted_asset_ids]
+        if new_asset_ids:
+            new_assets = await self._asset_repository.get_assets(
+                asset_ids=new_asset_ids,
+                owner_id=owner_id,
+            )
+            assets_by_id.update({asset.asset_id: asset for asset in new_assets})
+            missing_new_asset_ids = [asset_id for asset_id in new_asset_ids if asset_id not in assets_by_id]
+            if missing_new_asset_ids:
+                raise InvalidPost(
+                    f"Some attachments are unavailable for this user: {', '.join(str(asset_id) for asset_id in missing_new_asset_ids)}"
+                )
 
         records: list[dict[str, object]] = []
         for attachment in attachments:

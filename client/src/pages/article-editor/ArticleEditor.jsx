@@ -25,6 +25,7 @@ import {
     collectReferencedArticleAssetIds,
     findMermaidBlockAtSelection,
     insertAtCursor,
+    normalizeArticleMarkdown,
     prefixSelectedLines,
     replaceMermaidBlockByIndex,
     replaceSelection,
@@ -97,7 +98,7 @@ function ArticleEditor() {
                 const res = await ArticleService.getArticleEditor(nextArticleId);
                 const nextForm = {
                     title: res.data.title || "",
-                    bodyMarkdown: res.data.body_markdown || "",
+                    bodyMarkdown: normalizeArticleMarkdown(res.data.body_markdown || ""),
                     status: res.data.status || "draft",
                     visibility: res.data.visibility || "private",
                     tags: normalizeTagList(res.data.tags),
@@ -241,9 +242,10 @@ function ArticleEditor() {
             return null;
         }
 
+        const normalizedBodyMarkdown = normalizeArticleMarkdown(form.bodyMarkdown);
         const payload = {
             title: form.title,
-            body_markdown: form.bodyMarkdown,
+            body_markdown: normalizedBodyMarkdown,
             status: publish ? "published" : form.status,
             visibility: publish ? form.visibility : form.visibility,
             tags: form.tags,
@@ -254,6 +256,7 @@ function ArticleEditor() {
                 ...form,
                 status: payload.status,
                 visibility: payload.visibility,
+                bodyMarkdown: normalizedBodyMarkdown,
             },
             coverAsset
         );
@@ -273,7 +276,7 @@ function ArticleEditor() {
             setEditorAssets((prevAssets) => mergeEditorAssets({
                 previousAssets: prevAssets,
                 nextAssets: savedArticle.referenced_assets || [],
-                bodyMarkdown: formRef.current.bodyMarkdown,
+                bodyMarkdown: normalizedBodyMarkdown,
             }));
             setCoverAsset((prevCoverAsset) => mergeCoverAsset(
                 prevCoverAsset,
@@ -281,6 +284,12 @@ function ArticleEditor() {
                 coverAssetRef.current?.asset_id || null,
             ));
             lastSavedSnapshotRef.current = snapshotAtStart;
+            if (normalizedBodyMarkdown !== formRef.current.bodyMarkdown) {
+                setForm((prevForm) => ({
+                    ...prevForm,
+                    bodyMarkdown: normalizedBodyMarkdown,
+                }));
+            }
             setSaveState(savedArticle.status === "published" ? "Published" : "Draft saved");
 
             if (!routeArticleId) {
@@ -417,7 +426,7 @@ function ArticleEditor() {
 
         if (event.altKey && !event.shiftKey && key === "1") {
             event.preventDefault();
-            prefixMarkdownLines("# ", "Main heading");
+            prefixMarkdownLines("## ", "Section heading");
             return;
         }
 
@@ -508,7 +517,7 @@ function ArticleEditor() {
             wrapMarkdownSelection("```js\n", "\n```", "console.log('Hello')");
             break;
         case "h1":
-            prefixMarkdownLines("# ", "Main heading");
+            prefixMarkdownLines("## ", "Section heading");
             break;
         case "h2":
             prefixMarkdownLines("## ", "Section heading");

@@ -16,7 +16,7 @@ router = APIRouter(
 )
 
 
-@router.post("/")
+@router.post("")
 async def create_post(
     data: PostCreate,
     user: UserGet = Depends(get_current_user),

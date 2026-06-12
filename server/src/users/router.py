@@ -23,7 +23,7 @@ router = APIRouter(
 )
 
 
-@router.post("/")
+@router.post("")
 async def create_user(
     data: UserCreate,
     users_service: UserService = Depends(get_user_service),

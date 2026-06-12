@@ -48,20 +48,27 @@ function buildLastMessagePreview(lastMessage, currentUserId) {
         };
     }
 
+    if (lastMessage.shared_content) {
+        const shared = lastMessage.shared_content;
+        if (shared.is_available === false) {
+            return {
+                text: `${ownPrefix}${shared.unavailable_message || "You can't view this content"}`,
+                tone: "unavailable",
+            };
+        }
+
+        return {
+            text: `${ownPrefix}Shared ${shared.content_type || "content"}: ${shared.title || shared.excerpt || shared.post_content || ""}`,
+            tone: "attachment",
+        };
+    }
+
     const attachmentsCount = Array.isArray(lastMessage.attachments)
         ? lastMessage.attachments.length
         : 0;
     if (attachmentsCount > 0) {
         return {
             text: `${ownPrefix}${attachmentsCount} ${attachmentsCount === 1 ? "attachment" : "attachments"}`,
-            tone: "attachment",
-        };
-    }
-
-    if (lastMessage.shared_content) {
-        const shared = lastMessage.shared_content;
-        return {
-            text: `${ownPrefix}Shared ${shared.content_type || "content"}: ${shared.title || shared.excerpt || shared.post_content || ""}`,
             tone: "attachment",
         };
     }

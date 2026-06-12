@@ -17,7 +17,7 @@ router = APIRouter(
 )
 
 
-@router.post("/")
+@router.post("")
 async def create_moment(
     data: MomentCreate,
     user: UserGet = Depends(get_current_user),
