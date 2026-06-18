@@ -10,6 +10,9 @@ export default class Store {
     user = {}
     isAuthenticated = false
     isLoading = false
+    hasInitializedAuth = typeof window === "undefined"
+        ? true
+        : !Boolean(window.localStorage.getItem("token"))
 
     isRefreshPosts = false
 
@@ -29,8 +32,24 @@ export default class Store {
         this.isLoading = value;
     }
 
+    setAuthInitialized(value) {
+        this.hasInitializedAuth = value;
+    }
+
     refreshPosts() {
         this.isRefreshPosts = !this.isRefreshPosts;
+    }
+
+    normalizeUser(user) {
+        const userData = { ...user };
+        delete userData.subscribers;
+        delete userData.subscribed;
+        return userData;
+    }
+
+    async loadCurrentUser() {
+        const userRes = await UserService.getMe();
+        this.setUser(this.normalizeUser(userRes.data));
     }
 
     async register(data) {
@@ -43,13 +62,8 @@ export default class Store {
         const response = await AuthService.login(username, password);
         localStorage.setItem('token', response.data.access_token);
         this.setAuthenticated(true);
-
-        const userRes = await UserService.getMe();
-        let userData = userRes.data;
-        delete userData.subscribers;
-        delete userData.subscribed;
-
-        this.setUser(userData);
+        await this.loadCurrentUser();
+        this.setAuthInitialized(true);
     }
 
     async logout() {
@@ -66,15 +80,22 @@ export default class Store {
     async checkAuth() {
         this.setLoading(true);
         try {
+            const existingToken = localStorage.getItem("token");
+
+            if (existingToken) {
+                try {
+                    await this.loadCurrentUser();
+                    this.setAuthenticated(true);
+                    return;
+                } catch (tokenError) {
+                    console.log(tokenError?.response?.data?.detail);
+                }
+            }
+
             const response = await axios.post(`${APIUrl}auth/refresh`);
             localStorage.setItem('token', response.data.access_token);
+            await this.loadCurrentUser();
             this.setAuthenticated(true);
-
-            const userRes = await UserService.getMe();
-            let userData = userRes.data;
-            delete userData.subscribers;
-            delete userData.subscribed;
-            this.setUser(userData);
         } catch (e) {
             console.log(e?.response?.data?.detail);
 
@@ -83,6 +104,7 @@ export default class Store {
             this.setUser({});
         } finally {
             this.setLoading(false);
+            this.setAuthInitialized(true);
         }
     }
 }

@@ -1,0 +1,70 @@
+.demo-cursor-layer {
+    position: fixed;
+    inset: 0;
+    z-index: 1600;
+    pointer-events: none;
+}
+
+.demo-cursor {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 1.25rem;
+    height: 1.25rem;
+    margin-left: -0.625rem;
+    margin-top: -0.625rem;
+    opacity: 0;
+    transform: translate3d(-999px, -999px, 0);
+    transition:
+        opacity 180ms var(--ease-standard),
+        transform 110ms linear;
+    will-change: transform, opacity;
+}
+
+.demo-cursor.is-visible {
+    opacity: 1;
+}
+
+.demo-cursor-core,
+.demo-cursor-ring,
+.demo-cursor-ripple {
+    position: absolute;
+    border-radius: 999px;
+}
+
+.demo-cursor-core {
+    inset: 0.2rem;
+    background: rgba(255, 255, 255, 0.95);
+    border: 1px solid rgba(20, 25, 40, 0.22);
+    box-shadow: 0 10px 24px rgba(20, 25, 40, 0.22);
+}
+
+.demo-cursor-ring {
+    inset: -0.15rem;
+    border: 1px solid rgba(255, 255, 255, 0.74);
+    background: radial-gradient(circle, rgba(255, 255, 255, 0.2), transparent 75%);
+}
+
+.demo-cursor-ripple {
+    top: 0;
+    left: 0;
+    width: 2.5rem;
+    height: 2.5rem;
+    margin-left: -1.25rem;
+    margin-top: -1.25rem;
+    border: 2px solid rgba(255, 255, 255, 0.7);
+    background: rgba(255, 255, 255, 0.14);
+    animation: demo-cursor-ripple 320ms var(--ease-standard) forwards;
+}
+
+@keyframes demo-cursor-ripple {
+    from {
+        opacity: 0.95;
+        transform: scale(0.2);
+    }
+
+    to {
+        opacity: 0;
+        transform: scale(1);
+    }
+}

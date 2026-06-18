@@ -19,6 +19,7 @@ import AddIcon from "../../components/icons/AddIcon";
 import { Button, Input, Select } from "../../components/ui";
 import { buildComposerAttachmentFromAsset, resolveAssetTypeForFile } from "../../utils/postAttachments";
 import { MarkdownIcon, PreviewIcon, SplitViewIcon } from "../../components/icons/ArticleUiIcons";
+import { useDemoMode } from "../../utils/demoMode";
 import {
     buildArticleAssetLookup,
     buildMermaidBlock,
@@ -50,6 +51,7 @@ function ArticleEditor() {
     const { store } = useContext(StoreContext);
     const navigate = useNavigate();
     const { articleId: routeArticleId } = useParams();
+    const demoMode = useDemoMode();
 
     const textareaRef = useRef(null);
     const coverInputRef = useRef(null);
@@ -158,6 +160,10 @@ function ArticleEditor() {
     );
 
     useEffect(() => {
+        if (demoMode) {
+            return undefined;
+        }
+
         if (isLoading || isSaving || form.status !== "draft") {
             return undefined;
         }
@@ -172,7 +178,7 @@ function ArticleEditor() {
         }, 2000);
 
         return () => clearTimeout(timerId);
-    }, [snapshot, articleId, isLoading, isSaving, form.status, hasMeaningfulContent]);
+    }, [demoMode, snapshot, articleId, isLoading, isSaving, form.status, hasMeaningfulContent]);
 
     const previewArticle = useMemo(() => ({
         referenced_assets: editorAssets,
@@ -717,6 +723,7 @@ function ArticleEditor() {
                                     title: event.target.value,
                                 }))}
                                 placeholder="Article title"
+                                data-testid="article-title-input"
                             />
                         </label>
 
@@ -763,7 +770,12 @@ function ArticleEditor() {
                                     </div>
                                 )
                                 : (
-                                    <button type="button" className="article-cover-trigger" onClick={() => coverInputRef.current?.click()}>
+                                    <button
+                                        type="button"
+                                        className="article-cover-trigger"
+                                        onClick={() => coverInputRef.current?.click()}
+                                        data-testid="article-cover-trigger"
+                                    >
                                         <AddIcon />
                                         <span>Upload cover</span>
                                     </button>
@@ -774,6 +786,7 @@ function ArticleEditor() {
                             type="file"
                             accept="image/*"
                             hidden
+                            data-testid="article-cover-input"
                             onChange={(event) => handleCoverUpload(event.target.files?.[0])}
                         />
                     </div>
@@ -782,6 +795,8 @@ function ArticleEditor() {
                         tags={form.tags}
                         onChange={(tags) => setForm((prevForm) => ({ ...prevForm, tags }))}
                         onInputStateChange={setTagInputState}
+                        rootTestId="article-tag-input"
+                        inputTestId="article-tag-input-field"
                     />
 
                     <div className="article-editor-view-toggle" role="tablist" aria-label="Editor view mode">
@@ -828,6 +843,7 @@ function ArticleEditor() {
                         type="file"
                         accept="image/*"
                         hidden
+                        data-testid="article-inline-image-input"
                         onChange={(event) => handleInlineAssetUpload(event.target.files?.[0], "image")}
                     />
                     <input
@@ -835,6 +851,7 @@ function ArticleEditor() {
                         type="file"
                         accept="video/*"
                         hidden
+                        data-testid="article-inline-video-input"
                         onChange={(event) => handleInlineAssetUpload(event.target.files?.[0], "video")}
                     />
 
@@ -851,6 +868,7 @@ function ArticleEditor() {
                                 onPaste={handleEditorPaste}
                                 onKeyDown={handleEditorKeyDown}
                                 placeholder="Write your article in markdown..."
+                                data-testid="article-body-input"
                             />
                             <p className="article-editor-hint">
                                 View modes: Markdown, Split, Rendered preview. Shortcuts work in the markdown pane.
@@ -883,6 +901,7 @@ function ArticleEditor() {
                             type="button"
                             variant="primary"
                             onClick={() => persistArticle({ publish: form.status === "published" })}
+                            data-testid="article-publish-button"
                         >
                             {form.status === "published" ? "Publish / Update" : "Save draft"}
                         </Button>
@@ -941,6 +960,7 @@ function ArticleEditor() {
                                 }
                             }}
                             hint="Accepted formats: full URL, /videos/{id}, or plain UUID."
+                            data-testid="article-platform-video-link-input"
                         />
                         <Button
                             type="button"
@@ -949,6 +969,7 @@ function ArticleEditor() {
                                 void handlePlatformVideoLinkInsert();
                             }}
                             disabled={isVideoLinkChecking}
+                            data-testid="article-platform-video-link-submit"
                         >
                             {isVideoLinkChecking ? "Checking..." : "Insert link"}
                         </Button>
@@ -993,6 +1014,7 @@ function ArticleEditor() {
                                         onClick={() => {
                                             void handlePlatformVideoInsert(video);
                                         }}
+                                        data-testid="article-platform-video-option"
                                     >
                                         <div className="article-platform-video-option-preview">
                                             {

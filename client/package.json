@@ -26,7 +26,14 @@
     "start": "react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",
-    "eject": "react-scripts eject"
+    "eject": "react-scripts eject",
+    "demo:install-browsers": "node demo-recorder/scripts/install-browsers.js",
+    "demo:auth": "node demo-recorder/scripts/auth.js",
+    "demo:record": "node demo-recorder/scripts/record.js",
+    "demo:build-video": "node demo-recorder/scripts/build-video.js"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.60.0"
   },
   "eslintConfig": {
     "extends": [

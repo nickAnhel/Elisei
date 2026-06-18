@@ -14,6 +14,9 @@ function GlobalSearchInput({
     className = "",
     autoFocus = false,
     disabled = false,
+    inputTestId,
+    submitTestId,
+    clearTestId,
 }) {
     const inputRef = useRef(null);
 
@@ -44,6 +47,7 @@ function GlobalSearchInput({
                     autoFocus={autoFocus}
                     maxLength={120}
                     disabled={disabled}
+                    data-testid={inputTestId}
                 />
                 {
                     value &&
@@ -55,6 +59,7 @@ function GlobalSearchInput({
                             inputRef.current?.focus();
                         }}
                         aria-label="Clear search"
+                        data-testid={clearTestId}
                     >
                         <CloseIcon />
                     </button>
@@ -64,6 +69,7 @@ function GlobalSearchInput({
                     className="global-search-submit-btn"
                     onClick={submit}
                     disabled={!value.trim() || disabled}
+                    data-testid={submitTestId}
                 >
                     Search
                 </button>

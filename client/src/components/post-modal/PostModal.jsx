@@ -29,6 +29,20 @@ const POST_MEDIA_LIMIT = 30;
 const POST_FILE_LIMIT = 10;
 
 
+function createLocalPreviewUrl(file, assetType) {
+    if ((assetType !== "image" && assetType !== "video") || typeof URL === "undefined" || typeof URL.createObjectURL !== "function") {
+        return null;
+    }
+
+    return URL.createObjectURL(file);
+}
+
+function revokeLocalPreviewUrl(url) {
+    if (url?.startsWith("blob:") && typeof URL !== "undefined" && typeof URL.revokeObjectURL === "function") {
+        URL.revokeObjectURL(url);
+    }
+}
+
 function moveItem(items, fromIndex, toIndex) {
     if (fromIndex === toIndex || fromIndex < 0 || toIndex < 0 || fromIndex >= items.length || toIndex >= items.length) {
         return items;
@@ -76,6 +90,9 @@ function PostModal({
     const fileInputRef = useRef(null);
     const contentTextareaRef = useRef(null);
     const dragStateRef = useRef(null);
+    const localPreviewUrlsRef = useRef(new Set());
+    const composerMediaAttachmentsRef = useRef([]);
+    const composerFileAttachmentsRef = useRef([]);
 
     const incomingTags = tags ?? EMPTY_TAGS;
     const normalizedIncomingTags = useMemo(
@@ -113,6 +130,21 @@ function PostModal({
     const [filesError, setFilesError] = useState("");
 
     useEffect(() => {
+        composerMediaAttachmentsRef.current = composerMediaAttachments;
+    }, [composerMediaAttachments]);
+
+    useEffect(() => {
+        composerFileAttachmentsRef.current = composerFileAttachments;
+    }, [composerFileAttachments]);
+
+    useEffect(() => {
+        [...composerMediaAttachmentsRef.current, ...composerFileAttachmentsRef.current].forEach((attachment) => {
+            if (attachment.local_preview_url) {
+                revokeLocalPreviewUrl(attachment.local_preview_url);
+                localPreviewUrlsRef.current.delete(attachment.local_preview_url);
+            }
+        });
+
         setPostContent(content || "");
         setPostStatus(status);
         setPostVisibility(visibility);
@@ -142,6 +174,13 @@ function PostModal({
         normalizedIncomingFiles,
     ]);
 
+    useEffect(() => () => {
+        localPreviewUrlsRef.current.forEach((url) => {
+            revokeLocalPreviewUrl(url);
+        });
+        localPreviewUrlsRef.current.clear();
+    }, []);
+
     const isUploadingAttachments = [...composerMediaAttachments, ...composerFileAttachments]
         .some((attachment) => attachment.uploadState === "uploading");
     const hasAttachmentErrors = [...composerMediaAttachments, ...composerFileAttachments]
@@ -164,6 +203,13 @@ function PostModal({
     };
 
     const handleRemoveAttachment = (attachmentType, attachmentId) => {
+        const currentAttachments = attachmentType === "media" ? composerMediaAttachments : composerFileAttachments;
+        const removedAttachment = currentAttachments.find((attachment) => attachment.id === attachmentId);
+        if (removedAttachment?.local_preview_url) {
+            revokeLocalPreviewUrl(removedAttachment.local_preview_url);
+            localPreviewUrlsRef.current.delete(removedAttachment.local_preview_url);
+        }
+
         updateAttachmentsByType(attachmentType, (prevAttachments) => (
             prevAttachments.filter((attachment) => attachment.id !== attachmentId)
         ));
@@ -190,18 +236,24 @@ function PostModal({
         }
 
         for (const file of filesToUpload) {
+            const assetType = resolveAssetTypeForFile(file);
+            const localPreviewUrl = createLocalPreviewUrl(file, assetType);
             const tempId = `temp-${attachmentType}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+            if (localPreviewUrl) {
+                localPreviewUrlsRef.current.add(localPreviewUrl);
+            }
             updateAttachmentsByType(attachmentType, (prevAttachments) => ([
                 ...prevAttachments,
                 {
                     id: tempId,
                     asset_id: null,
                     attachment_type: attachmentType,
-                    asset_type: resolveAssetTypeForFile(file),
+                    asset_type: assetType,
                     mime_type: file.type || "",
                     file_kind: "file",
                     original_filename: file.name,
                     size_bytes: file.size,
+                    local_preview_url: localPreviewUrl,
                     preview_url: null,
                     original_url: null,
                     poster_url: null,
@@ -240,7 +292,12 @@ function PostModal({
                 );
 
                 updateAttachmentsByType(attachmentType, (prevAttachments) => prevAttachments.map((attachment) => (
-                    attachment.id === tempId ? uploadedAttachment : attachment
+                    attachment.id === tempId
+                        ? {
+                            ...uploadedAttachment,
+                            local_preview_url: attachment.local_preview_url || null,
+                        }
+                        : attachment
                 )));
             } catch (error) {
                 updateAttachmentsByType(attachmentType, (prevAttachments) => prevAttachments.map((attachment) => (
@@ -330,16 +387,21 @@ function PostModal({
                 : await savePostFunc(postData);
             const savedPost = res.data;
 
+            const nextLocation = navigateTo
+                ? (typeof navigateTo === "function" ? navigateTo(savedPost) : navigateTo)
+                : null;
+
             if (onSaved) {
                 onSaved(savedPost);
             }
 
             store.refreshPosts();
-            setActive(false);
 
-            if (navigateTo) {
-                navigate(typeof navigateTo === "function" ? navigateTo(savedPost) : navigateTo);
+            if (nextLocation) {
+                navigate(nextLocation);
             }
+
+            setActive(false);
         } catch (error) {
             setSaveError(error?.response?.data?.detail || "Failed to save post");
         } finally {
@@ -366,6 +428,7 @@ function PostModal({
                         className="post-hidden-input"
                         accept="image/*,video/*"
                         multiple
+                        data-testid="post-media-input"
                         onChange={(event) => {
                             const selectedFiles = Array.from(event.target.files || []);
                             if (selectedFiles.length > 0) {
@@ -385,17 +448,17 @@ function PostModal({
                                 onDragOver={(event) => event.preventDefault()}
                                 onDrop={() => handleDrop("media", index)}
                             >
-                                {attachment.preview_url || attachment.original_url ? (
+                                {attachment.local_preview_url || attachment.preview_url || attachment.original_url ? (
                                     attachment.asset_type === "video" ? (
                                         <video
-                                            src={attachment.preview_url || attachment.original_url}
+                                            src={attachment.local_preview_url || attachment.preview_url || attachment.original_url}
                                             muted
                                             playsInline
                                             preload="metadata"
                                         />
                                     ) : (
                                         <img
-                                            src={attachment.preview_url || attachment.original_url}
+                                            src={attachment.local_preview_url || attachment.preview_url || attachment.original_url}
                                             alt={attachment.original_filename}
                                         />
                                     )
@@ -434,6 +497,7 @@ function PostModal({
                                 className="post-media-add-tile"
                                 onClick={() => mediaInputRef.current?.click()}
                                 aria-label="Add media"
+                                data-testid="post-media-trigger"
                             >
                                 <AddIcon />
                             </button>
@@ -456,6 +520,7 @@ function PostModal({
                         type="file"
                         className="post-hidden-input"
                         multiple
+                        data-testid="post-file-input"
                         onChange={(event) => {
                             const selectedFiles = Array.from(event.target.files || []);
                             if (selectedFiles.length > 0) {
@@ -533,6 +598,7 @@ function PostModal({
                         value={postContent}
                         onChange={(event) => setPostContent(event.target.value)}
                         maxLength={2048}
+                        data-testid="post-content-input"
                     />
                     <span className="post-content-length">{postContent.trim().length} / 2048</span>
                 </div>
@@ -545,6 +611,8 @@ function PostModal({
                             setSaveError("");
                         }}
                         onInputStateChange={setTagInputState}
+                        rootTestId="post-tag-input"
+                        inputTestId="post-tag-input-field"
                     />
 
                     <div className="post-setting-group">
@@ -602,6 +670,7 @@ function PostModal({
                     loading={isLoadingSavePost}
                     disabled={!hasMeaningfulContent || isUploadingAttachments || hasAttachmentErrors}
                     onClick={(event) => { handleSavePost(event); }}
+                    data-testid="post-submit-button"
                 >
                     {buttonText}
                 </Button>

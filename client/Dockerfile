@@ -1,8 +1,8 @@
-FROM node:latest
+FROM node:20-bookworm-slim
 
 WORKDIR /project
 
 COPY ./package*.json .
-RUN npm install
+RUN npm ci
 
 COPY . .

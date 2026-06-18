@@ -63,6 +63,7 @@ function Message({
                 id={messageId ? `message-${messageId}` : undefined}
                 className={`${isOwnMessage ? "msg you" : "msg"} ${status !== "sent" ? `msg-${status}` : ""} ${isDeleted ? "msg-deleted" : ""} ${isHighlighted ? "msg-highlighted" : ""}`}
                 onContextMenu={onContextMenu}
+                data-testid="chat-message"
             >
                 <Link className="msg-avatar-link" to={profilePath}>
                     <img
@@ -87,6 +88,7 @@ function Message({
                             className={`msg-reply-preview ${replyPreview.deleted ? "msg-reply-preview-deleted" : ""}`}
                             type="button"
                             onClick={() => onReplyPreviewClick?.(replyPreview.messageId)}
+                            data-testid="chat-message-reply-preview"
                         >
                             <span>{replyPreview.senderDisplayName}</span>
                             <p>{replyPreview.contentPreview}</p>

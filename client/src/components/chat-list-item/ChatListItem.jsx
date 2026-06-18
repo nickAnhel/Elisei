@@ -109,6 +109,7 @@ const ChatListItem = forwardRef((props, ref) => {
             ].filter(Boolean).join(" ")}
             ref={ref}
             to={`/chats/@${chat.chat_id}`}
+            data-testid="chat-list-item"
         >
             {
                 directMember

@@ -46,7 +46,11 @@
     box-shadow: none;
     background: transparent;
     color: var(--color-text);
-    font-size: var(--font-size-sm);
+    font-family: inherit;
+    font-size: var(--font-size-md);
+    line-height: var(--line-height-normal);
+    caret-color: var(--color-text);
+    border-radius: 0;
     padding: 0;
 }
 

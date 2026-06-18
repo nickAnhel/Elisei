@@ -101,6 +101,9 @@ function VideoEditor() {
                 }));
                 if (video.status === "published") {
                     setPublishNotice("Published.");
+                    if (video.canonical_path) {
+                        navigate(video.canonical_path);
+                    }
                 }
             } catch (pollError) {
                 setError(pollError?.response?.data?.detail || "Failed to refresh video processing status.");
@@ -108,7 +111,7 @@ function VideoEditor() {
         }, 5000);
 
         return () => window.clearInterval(intervalId);
-    }, [formState, uploadFlow, videoId]);
+    }, [formState, navigate, uploadFlow, videoId]);
 
     const canSave = useMemo(() => (
         uploadFlow.canUseAssets
@@ -206,7 +209,12 @@ function VideoEditor() {
                     <button type="button" onClick={() => persistVideo()} disabled={!canSave}>
                         {isSaving ? "Saving..." : "Save draft"}
                     </button>
-                    <button type="button" onClick={() => persistVideo({ publish: true })} disabled={!canSave}>
+                    <button
+                        type="button"
+                        onClick={() => persistVideo({ publish: true })}
+                        disabled={!canSave}
+                        data-testid="video-publish-button"
+                    >
                         {isSaving ? "Publishing..." : "Publish"}
                     </button>
                 </div>

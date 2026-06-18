@@ -2,6 +2,7 @@ import { fireEvent, render, screen } from "@testing-library/react";
 
 const mockNavigate = jest.fn();
 let mockLocationSearch = "";
+let latestPostModalProps = null;
 
 jest.mock("react-router-dom", () => ({
     useNavigate: () => mockNavigate,
@@ -45,7 +46,10 @@ jest.mock("../global-search-input/GlobalSearchInput", () => ({
     </div>
 ));
 
-jest.mock("../post-modal/PostModal", () => () => null);
+jest.mock("../post-modal/PostModal", () => (props) => {
+    latestPostModalProps = props;
+    return null;
+});
 
 jest.mock("../../service/PostService", () => ({
     __esModule: true,
@@ -61,6 +65,7 @@ import { StoreContext } from "../..";
 beforeEach(() => {
     jest.clearAllMocks();
     mockLocationSearch = "";
+    latestPostModalProps = null;
 });
 
 
@@ -82,4 +87,41 @@ test("feed sidebar sends query to /search and keeps only recommendations/subscri
     fireEvent.click(screen.getByRole("button", { name: "Submit feed search" }));
 
     expect(mockNavigate).toHaveBeenCalledWith("/search?q=neo4j%20tags&type=all");
+});
+
+test("create post modal navigates to profile query details route after save", () => {
+    const store = {
+        isAuthenticated: true,
+        user: { username: "owner" },
+    };
+    render(
+        <StoreContext.Provider value={{ store }}>
+            <FeedSidebar />
+        </StoreContext.Provider>
+    );
+
+    expect(
+        latestPostModalProps.navigateTo({
+            user: { username: "alice" },
+            post_id: "post-123",
+        })
+    ).toBe("/people/@alice?p=post-123");
+});
+
+test("create post modal falls back to authenticated username when response user is absent", () => {
+    const store = {
+        isAuthenticated: true,
+        user: { username: "owner" },
+    };
+    render(
+        <StoreContext.Provider value={{ store }}>
+            <FeedSidebar />
+        </StoreContext.Provider>
+    );
+
+    expect(
+        latestPostModalProps.navigateTo({
+            post_id: "post-123",
+        })
+    ).toBe("/people/@owner?p=post-123");
 });

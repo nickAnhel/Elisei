@@ -44,6 +44,7 @@ export default function useVideoUploadFlow({ onSourceReplaced } = {}) {
     const loadAssets = ({ source, cover }) => {
         setSourceAsset(source || null);
         setCoverAsset(cover || null);
+        setLocalVideoUrl(source?.stream_url || source?.original_url || source?.preview_url || "");
         setLocalCoverUrl(cover?.preview_url || cover?.original_url || "");
         setAssetUploadStates({
             source: source ? source.status || "uploaded" : "empty",

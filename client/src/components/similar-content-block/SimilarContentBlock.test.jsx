@@ -15,6 +15,7 @@ import SimilarContentBlock from "./SimilarContentBlock";
 
 beforeEach(() => {
     jest.clearAllMocks();
+    localStorage.clear();
 });
 
 test("renders similar content items from API payload", async () => {
@@ -43,7 +44,7 @@ test("renders empty state when API returns no items", async () => {
 
     render(<SimilarContentBlock contentId="content-1" />);
 
-    await waitFor(() => expect(screen.getByText("Похожих публикаций пока нет.")).not.toBeNull());
+    await waitFor(() => expect(screen.getByText("No similar publications yet.")).not.toBeNull());
 });
 
 test("hides block on fetch error by default", async () => {
@@ -63,6 +64,33 @@ test("shows error state when hideOnError is disabled", async () => {
 
     render(<SimilarContentBlock contentId="content-1" hideOnError={false} />);
 
-    await waitFor(() => expect(screen.getByText("Не удалось загрузить похожие публикации.")).not.toBeNull());
+    await waitFor(() => expect(screen.getByText("Failed to load similar publications.")).not.toBeNull());
     consoleSpy.mockRestore();
+});
+
+test("hides block in demo mode when requested", async () => {
+    localStorage.setItem("demoMode", "true");
+    ContentService.getSimilarContent.mockResolvedValue({
+        data: {
+            items: [{ content: { content_id: "one", content_type: "post" } }],
+        },
+    });
+
+    render(<SimilarContentBlock contentId="content-1" hideInDemoMode />);
+
+    await waitFor(() => expect(ContentService.getSimilarContent).toHaveBeenCalled());
+    expect(screen.queryByRole("heading", { name: "Similar publications" })).toBeNull();
+});
+
+test("hides empty block when hideWhenEmpty is enabled", async () => {
+    ContentService.getSimilarContent.mockResolvedValue({
+        data: {
+            items: [],
+        },
+    });
+
+    render(<SimilarContentBlock contentId="content-1" hideWhenEmpty />);
+
+    await waitFor(() => expect(ContentService.getSimilarContent).toHaveBeenCalled());
+    expect(screen.queryByText("No similar publications yet.")).toBeNull();
 });

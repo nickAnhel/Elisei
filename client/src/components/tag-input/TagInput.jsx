@@ -16,6 +16,8 @@ function TagInput({
     tags,
     onChange,
     onInputStateChange,
+    inputTestId,
+    rootTestId,
 }) {
     const [inputValue, setInputValue] = useState("");
     const [inputError, setInputError] = useState("");
@@ -117,7 +119,7 @@ function TagInput({
     };
 
     return (
-        <div className="tag-input">
+        <div className="tag-input" data-testid={rootTestId}>
             <div className="tag-input-header">
                 <span>Tags</span>
                 <p>{TAG_FORMAT_HINT}</p>
@@ -143,6 +145,7 @@ function TagInput({
                     onKeyDown={handleKeyDown}
                     placeholder="Type tag and press Enter"
                     maxLength={64}
+                    data-testid={inputTestId}
                 />
             </div>
 

@@ -35,6 +35,11 @@ client/build/
 # demo
 server/src/demo_seed/media_cache/
 server/src/demo_seed/output/
+client/demo-recorder/.env.demo-recorder
+client/demo-recorder/.auth/
+client/demo-recorder/out/
+client/demo-recorder/test-results/
+client/demo-recorder/playwright-report/
 
 # load tests artifacts
 load-tests/results/*.json

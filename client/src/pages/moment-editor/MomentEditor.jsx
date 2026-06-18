@@ -330,6 +330,7 @@ function MomentEditor() {
                             maxLength={2200}
                             onChange={(event) => setCaption(event.target.value)}
                             rows={6}
+                            data-testid="moment-caption-input"
                         />
                     </label>
 
@@ -337,6 +338,8 @@ function MomentEditor() {
                         tags={tags}
                         onChange={setTags}
                         onInputStateChange={setTagInputState}
+                        rootTestId="moment-tag-input"
+                        inputTestId="moment-tag-input-field"
                     />
                     {tagInputState.error ? <p className="moment-editor-error inline">{tagInputState.error}</p> : null}
 
@@ -362,6 +365,7 @@ function MomentEditor() {
                             className="primary"
                             onClick={() => { void saveMoment("published"); }}
                             disabled={!canSave}
+                            data-testid="moment-publish-button"
                         >
                             {isSaving ? "Publishing..." : "Publish"}
                         </button>

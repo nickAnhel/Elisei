@@ -376,7 +376,7 @@ function ArticleDetails() {
 
     if (isLoading) {
         return (
-            <div id="article-details" className="article-details-state" ref={pageRef}>
+            <div id="article-details" className="article-details-state" ref={pageRef} data-testid="article-details-page">
                 <Loader />
             </div>
         );
@@ -384,7 +384,7 @@ function ArticleDetails() {
 
     if (isUnavailable || !article) {
         return (
-            <div id="article-details" className="article-details-state" ref={pageRef}>
+            <div id="article-details" className="article-details-state" ref={pageRef} data-testid="article-details-page">
                 <h2>Article unavailable</h2>
                 <p>This article is private, still a draft, deleted, or does not exist.</p>
             </div>
@@ -392,7 +392,7 @@ function ArticleDetails() {
     }
 
     return (
-        <div id="article-details" ref={pageRef}>
+        <div id="article-details" ref={pageRef} data-testid="article-details-page">
             <div className="article-reading-progress" style={{ width: `${readingProgress}%` }} />
 
             <div className="article-details-layout">
@@ -521,6 +521,8 @@ function ArticleDetails() {
                             contentType="article"
                             limit={3}
                             compact
+                            hideWhenEmpty
+                            hideInDemoMode
                         />
                     </div>
                 </aside>

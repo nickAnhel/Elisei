@@ -5,6 +5,7 @@ import "./SimilarContentBlock.css";
 import Loader from "../loader/Loader";
 import ContentService from "../../service/ContentService";
 import SimilarPublicationItem from "./SimilarPublicationItem";
+import { isDemoMode } from "../../utils/demoModeCore";
 
 
 function SimilarContentBlock({
@@ -13,8 +14,10 @@ function SimilarContentBlock({
     limit = 4,
     title = "Similar publications",
     hideOnError = true,
+    hideWhenEmpty = false,
     compact = false,
     className = "",
+    hideInDemoMode = false,
 }) {
     const [items, setItems] = useState([]);
     const [isLoading, setIsLoading] = useState(false);
@@ -67,6 +70,10 @@ function SimilarContentBlock({
         return null;
     }
 
+    if (hideInDemoMode && isDemoMode()) {
+        return null;
+    }
+
     if (isError && hideOnError) {
         return null;
     }
@@ -86,6 +93,7 @@ function SimilarContentBlock({
                     ? (
                         <div className="similar-content-state">
                             <Loader />
+                            <span>Recommendations are being prepared.</span>
                         </div>
                     )
                     : null
@@ -98,7 +106,7 @@ function SimilarContentBlock({
             }
 
             {
-                !isLoading && !isError && items.length === 0
+                !isLoading && !isError && items.length === 0 && !hideWhenEmpty
                     ? <div className="similar-content-state">No similar publications yet.</div>
                     : null
             }

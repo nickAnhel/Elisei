@@ -147,7 +147,7 @@ const PostListItem = forwardRef((props, ref) => {
     };
 
     return (
-        <div className="post-list-item" ref={ref}>
+        <div className="post-list-item" ref={ref} data-testid={isDetailView ? "post-detail-card" : "post-card"}>
             <div className="header">
                 <div className="post-meta">
                     <Link to={`/people/@${post.user.username}`} className="author">
@@ -258,6 +258,7 @@ const PostListItem = forwardRef((props, ref) => {
                             navigate(buildPostQueryLocation(post.post_id));
                         }
                     }}
+                    data-testid="post-comment-count-button"
                 >
                     <span className="comment-count-icon" aria-hidden="true">
                         <CommentIcon />
@@ -269,6 +270,7 @@ const PostListItem = forwardRef((props, ref) => {
                     onClick={handleLike}
                     disabled={!canReact}
                     aria-label={isLiked ? "Remove like" : "Like post"}
+                    data-testid="post-like-button"
                 >
                     <LikeIcon />
                     <span>{post.likes_count}</span>
@@ -278,6 +280,7 @@ const PostListItem = forwardRef((props, ref) => {
                     onClick={handleDislike}
                     disabled={!canReact}
                     aria-label={isDisliked ? "Remove dislike" : "Dislike post"}
+                    data-testid="post-dislike-button"
                 >
                     <DislikeIcon />
                     <span>{post.dislikes_count}</span>

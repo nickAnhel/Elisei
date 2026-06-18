@@ -18,6 +18,8 @@ function CommentComposer({
     onCancel,
     isSubmitting = false,
     autoFocus = false,
+    textareaTestId,
+    submitTestId,
 }) {
     const [value, setValue] = useState(initialValue);
     const [error, setError] = useState("");
@@ -110,6 +112,7 @@ function CommentComposer({
                 }}
                 rows={1}
                 disabled={isSubmitting}
+                data-testid={textareaTestId}
             />
             <div className="comment-composer-footer">
                 <span className="comment-composer-meta">
@@ -132,6 +135,7 @@ function CommentComposer({
                         variant="primary"
                         onClick={() => { void handleSubmit(); }}
                         disabled={isSubmitting}
+                        data-testid={submitTestId}
                     >
                         {isSubmitting ? "Saving..." : submitLabel}
                     </Button>

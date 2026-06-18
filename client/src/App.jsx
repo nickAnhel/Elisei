@@ -178,12 +178,12 @@ function App() {
     const { store } = useContext(StoreContext);
 
     useEffect(() => {
-        if (localStorage.getItem('token')) {
+        if (!store.hasInitializedAuth) {
             store.checkAuth();
         }
     }, [store]);
 
-    if (store.isLoading) {
+    if (store.isLoading || !store.hasInitializedAuth) {
         return <Loader />
     }
 

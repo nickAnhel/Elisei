@@ -49,26 +49,12 @@ import {
     TYPING_STATUS_TIMEOUT_MS,
     upsertTypingUser,
 } from "./typingState";
+import { useDemoMode } from "../../utils/demoMode";
 
 
 const HISTORY_PAGE_SIZE = 50;
 const CHAT_SETTING_UPDATED_EVENT = "notifications:chat-setting-updated";
 
-
-function getMaxCharsInLine(textarea, content) {
-    if (!content) {
-        return 1;
-    }
-
-    const context = document.createElement('canvas').getContext('2d');
-    if (!context) {
-        return 1;
-    }
-    const computedStyle = window.getComputedStyle(textarea);
-    context.font = computedStyle.font;
-    const width = context.measureText(content).width / content.length;
-    return Math.max(Math.floor(textarea.clientWidth / width), 1);
-}
 
 function createClientMessageId() {
     if (window.crypto?.randomUUID) {
@@ -373,6 +359,7 @@ function MessageSearchNavigator({
 
 
 function ChatDetails() {
+    const demoMode = useDemoMode();
     const { store } = useContext(StoreContext);
 
     const navigate = useNavigate();
@@ -455,6 +442,9 @@ function ChatDetails() {
     const canSendMessage = editingMessage
         ? message.trim() !== ""
         : (message.trim() !== "" || hasReadyAttachments) && !hasUploadingAttachments;
+    const visibleChatItems = demoMode
+        ? chatItems.filter((item) => item.type !== "message" || !item.deletedAt)
+        : chatItems;
 
     const markCurrentChatRead = useCallback(async (chatId) => {
         try {
@@ -481,11 +471,23 @@ function ChatDetails() {
     }, [store.user.user_id]);
 
     const applyReactionEvent = useCallback((reactionEvent) => {
-        setChatItems((items) => items.map((item) => applyReactionEventToMessage(
-            item,
-            reactionEvent,
-            store.user.user_id,
-        )));
+        setChatItems((items) => {
+            const shouldKeepLastMessageVisible = items.some((item) => (
+                item.type === "message"
+                && item.messageId === reactionEvent.message_id
+                && item.chatSeq === latestSeqRef.current
+            ));
+
+            if (shouldKeepLastMessageVisible) {
+                shouldScrollBottomRef.current = true;
+            }
+
+            return items.map((item) => applyReactionEventToMessage(
+                item,
+                reactionEvent,
+                store.user.user_id,
+            ));
+        });
     }, [store.user.user_id]);
 
     const clearSearchState = useCallback(() => {
@@ -1185,16 +1187,14 @@ function ChatDetails() {
             return;
         }
 
-        let rowsTotalHeight = value.split("\n").length * 25;
-        let symbolsTotalLength = Math.max(
-            Math.ceil(value.length / getMaxCharsInLine(textareaRef.current, value)), 1
-        ) * 25;
-
-        textareaRef.current.style.height = `${Math.min(
-            symbolsTotalLength ? Math.max(rowsTotalHeight, symbolsTotalLength) : rowsTotalHeight,
+        textareaRef.current.style.height = "0px";
+        const minHeight = 25;
+        const nextHeight = Math.min(
+            Math.max(textareaRef.current.scrollHeight, minHeight),
             200
-        )
-            }px`;
+        );
+
+        textareaRef.current.style.height = `${nextHeight}px`;
 
         messagesEndRef.current?.scroll({
             top: messagesEndRef.current.scrollHeight,
@@ -1272,9 +1272,15 @@ function ChatDetails() {
         }
         if (textareaRef.current) {
             textareaRef.current.value = "";
-            textareaRef.current.style.height = "25px";
+            resizeTextarea("");
         }
     }
+
+    useEffect(() => {
+        requestAnimationFrame(() => {
+            resizeTextarea(textareaRef.current?.value || "");
+        });
+    }, [chat.chat_id]);
 
     const updateMessage = () => {
         const trimmedMessage = message.trim();
@@ -1600,6 +1606,10 @@ function ChatDetails() {
                 return;
             }
 
+            if (messageItem.chatSeq === latestSeqRef.current) {
+                shouldScrollBottomRef.current = true;
+            }
+
             updateMessageInChat(normalizeMessagePayload(response.data, store.user.user_id));
         });
     }
@@ -1844,7 +1854,7 @@ function ChatDetails() {
             <div className="chat-body" ref={messagesEndRef} onScroll={handleHistoryScroll}>
                 <div className="chat-body-lane">
                     {isLoadingHistory && <div className="history-loader">Loading history...</div>}
-                    {chatItems.map((item, index) => {
+                    {visibleChatItems.map((item, index) => {
                         if (item.type === "message") {
                             return (
                                 <Message
@@ -1892,6 +1902,7 @@ function ChatDetails() {
                     className={`message-context-menu${messageMenu.mobileMenu ? " message-context-menu-mobile" : ""}`}
                     style={messageMenu.mobileMenu ? undefined : { left: messageMenu.x, top: messageMenu.y }}
                     onClick={(event) => event.stopPropagation()}
+                    data-testid="message-context-menu"
                 >
                     {!messageMenu.message.deletedAt && (
                         <>
@@ -1909,6 +1920,7 @@ function ChatDetails() {
                                             aria-label={reaction.ariaLabel}
                                             title={reaction.ariaLabel}
                                             onClick={() => handleMessageContextReaction(reaction.reactionType)}
+                                            data-testid={`message-reaction-${reaction.reactionType}`}
                                         >
                                             <span aria-hidden="true">{reaction.emoji}</span>
                                         </button>
@@ -1919,7 +1931,7 @@ function ChatDetails() {
                         </>
                     )}
                     <div className="message-context-menu-actions">
-                        <button type="button" onClick={startReplyingToMessage}>Reply</button>
+                        <button type="button" onClick={startReplyingToMessage} data-testid="message-reply-action">Reply</button>
                         {messageMenu.message.userId === store.user.user_id && !messageMenu.message.deletedAt && (
                             <>
                                 <button type="button" onClick={startEditingMessage}>Edit</button>
@@ -1969,7 +1981,7 @@ function ChatDetails() {
                         </div>
                     )}
                     {replyingToMessage && (
-                        <div className="reply-banner">
+                        <div className="reply-banner" data-testid="chat-reply-banner">
                             <div>
                                 <span>Replying to {replyingToMessage.username}</span>
                                 <p>{replyingToMessage.deletedAt ? "Message deleted" : replyingToMessage.content}</p>
@@ -2020,7 +2032,7 @@ function ChatDetails() {
                             {typingIndicatorText}
                         </div>
                     )}
-                    <div className="chat-composer">
+                    <div className="chat-composer" data-testid="chat-composer">
                         <div className="msg-box">
                             <IconButton
                                 type="button"
@@ -2039,16 +2051,19 @@ function ChatDetails() {
                                 multiple
                                 className="attachment-input"
                                 onChange={handleAttachmentSelect}
+                                data-testid="chat-attachment-input"
                             />
                             <textarea
                                 name="message-input"
                                 ref={textareaRef}
                                 value={message}
+                                rows={1}
                                 placeholder={editingMessage ? "Edit message" : "Type a message"}
                                 onChange={handleMessageChange}
                                 onBlur={handleMessageBlur}
                                 id="message-input"
                                 onKeyDown={handleKeyDown}
+                                data-testid="chat-message-input"
                             />
                         </div>
                         <Button
@@ -2058,6 +2073,7 @@ function ChatDetails() {
                             aria-label={editingMessage ? "Save message" : "Send message"}
                             onClick={sendMessage}
                             disabled={!canSendMessage}
+                            data-testid="chat-send-button"
                         >
                             <img src="../../../assets/send-message.svg" alt="" />
                         </Button>

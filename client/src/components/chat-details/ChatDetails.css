@@ -288,7 +288,7 @@
     min-height: 0;
     overflow-y: auto;
     overflow-x: hidden;
-    padding: var(--space-1) clamp(var(--space-3), 6vw, var(--space-10)) var(--space-2);
+    padding: var(--space-1) clamp(var(--space-3), 6vw, var(--space-10)) var(--space-4);
 }
 
 .chat-body-lane {
@@ -399,17 +399,20 @@
 #message-input {
     font-family: inherit;
     font-size: var(--font-size-md);
+    font-weight: var(--font-weight-regular);
     width: 100%;
     min-height: 2rem;
     max-height: 12.5rem;
-    line-height: 1.45;
+    line-height: var(--line-height-normal);
     background: transparent;
     color: var(--color-text);
+    caret-color: var(--color-text);
     resize: none;
     border: 0;
     overflow-y: auto;
     padding: 0;
     box-sizing: border-box;
+    border-radius: 0;
 }
 
 #message-input:focus {

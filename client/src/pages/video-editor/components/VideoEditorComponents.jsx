@@ -97,6 +97,7 @@ export function VideoSourcePicker({
                     accept="video/mp4,video/webm,video/quicktime,.mp4,.webm,.mov"
                     onChange={(event) => onVideoFile(event.target.files?.[0])}
                     disabled={isUploading}
+                    data-testid="video-source-input"
                 />
                 <label htmlFor={inputId} className={`video-file-trigger${isUploading ? " is-disabled" : ""}`}>
                     <span className="video-file-trigger-icon" aria-hidden="true">
@@ -179,6 +180,7 @@ export function VideoCoverPicker({ coverAsset, localCoverUrl, isUploading, onCov
                     accept="image/jpeg,image/png,image/webp,image/gif,.jpg,.jpeg,.png,.webp,.gif"
                     onChange={(event) => onCoverFile(event.target.files?.[0])}
                     disabled={isUploading}
+                    data-testid="video-cover-input"
                 />
                 <label htmlFor={inputId} className={`video-file-trigger${isUploading ? " is-disabled" : ""}`}>
                     <span className="video-file-trigger-icon" aria-hidden="true">
@@ -212,6 +214,7 @@ export function VideoPublishSettings({ form, updateField, tagInputState, setTagI
                     maxLength={300}
                     onChange={(event) => updateField("title", event.target.value)}
                     placeholder="Video title"
+                    data-testid="video-title-input"
                 />
             </label>
             <label>
@@ -221,6 +224,7 @@ export function VideoPublishSettings({ form, updateField, tagInputState, setTagI
                     maxLength={4000}
                     onChange={(event) => updateField("description", event.target.value)}
                     placeholder="Describe the video"
+                    data-testid="video-description-input"
                 />
             </label>
             <Select
@@ -235,6 +239,8 @@ export function VideoPublishSettings({ form, updateField, tagInputState, setTagI
                 tags={form.tags}
                 onChange={(tags) => updateField("tags", tags)}
                 onInputStateChange={setTagInputState}
+                rootTestId="video-tag-input"
+                inputTestId="video-tag-input-field"
             />
             {tagInputState.error ? <p className="video-editor-error inline">{tagInputState.error}</p> : null}
         </section>

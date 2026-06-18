@@ -273,10 +273,10 @@ function VideoDetails() {
     const canShowPlayer = ready && video.playback_sources?.length > 0;
 
     return (
-        <main className="video-details-page">
+        <main className="video-details-page" data-testid="video-details-page">
             <div className="video-details-layout">
                 <div className="video-details-primary">
-                    <section className="video-watch-surface">
+                    <section className="video-watch-surface" data-testid="video-watch-surface">
                         {
                             canShowPlayer
                                 ? (
@@ -361,15 +361,27 @@ function VideoDetails() {
                                 <ViewIcon />
                                 <span>{video.views_count || 0} views</span>
                             </div>
-                            <button type="button" onClick={handleLike} className={isLiked ? "active" : ""} disabled={!canReact}>
+                            <button
+                                type="button"
+                                onClick={handleLike}
+                                className={isLiked ? "active" : ""}
+                                disabled={!canReact}
+                                data-testid="video-like-button"
+                            >
                                 <LikeIcon />
                                 <span>{video.likes_count || 0}</span>
                             </button>
-                            <button type="button" onClick={handleDislike} className={isDisliked ? "active" : ""} disabled={!canReact}>
+                            <button
+                                type="button"
+                                onClick={handleDislike}
+                                className={isDisliked ? "active" : ""}
+                                disabled={!canReact}
+                                data-testid="video-dislike-button"
+                            >
                                 <DislikeIcon />
                                 <span>{video.dislikes_count || 0}</span>
                             </button>
-                            <button type="button" onClick={handleScrollToComments}>
+                            <button type="button" onClick={handleScrollToComments} data-testid="video-comments-button">
                                 <CommentIcon />
                                 <span>{video.comments_count || 0}</span>
                             </button>
@@ -404,6 +416,8 @@ function VideoDetails() {
                             contentType="video"
                             limit={3}
                             compact
+                            hideWhenEmpty
+                            hideInDemoMode
                         />
                     </div>
                 </aside>

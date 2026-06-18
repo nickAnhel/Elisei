@@ -4,6 +4,7 @@ import "./CommentSection.css";
 
 import { StoreContext } from "../..";
 import CommentService from "../../service/CommentService";
+import { hydrateCurrentUserCommentAuthor } from "../../utils/commentAuthor";
 import CommentComposer from "../comment-composer/CommentComposer";
 import CommentList from "../comment-list/CommentList";
 import Loader from "../loader/Loader";
@@ -86,7 +87,8 @@ function CommentSection({ contentId, isEnabled, onCommentsCountChange }) {
             const res = await CommentService.createContentComment(contentId, {
                 body_text: bodyText,
             });
-            setComments((prevComments) => [res.data, ...prevComments]);
+            const createdComment = hydrateCurrentUserCommentAuthor(res.data, store.user);
+            setComments((prevComments) => [createdComment, ...prevComments]);
             setOffset((prevOffset) => prevOffset + 1);
             onCommentsCountChange?.(1);
         } catch (submitError) {
@@ -121,7 +123,7 @@ function CommentSection({ contentId, isEnabled, onCommentsCountChange }) {
     }
 
     return (
-        <section className="comment-section">
+        <section className="comment-section" data-testid="comment-section">
             <div className="comment-section-header">
                 <h3>Comments</h3>
             </div>
@@ -134,6 +136,8 @@ function CommentSection({ contentId, isEnabled, onCommentsCountChange }) {
                             submitLabel="Comment"
                             onSubmit={handleCreateRootComment}
                             isSubmitting={isSubmitting}
+                            textareaTestId="comment-composer-input"
+                            submitTestId="comment-composer-submit"
                         />
                     )
                     : (

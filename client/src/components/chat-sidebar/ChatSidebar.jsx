@@ -45,6 +45,7 @@ function ChatSidebar() {
                     maxLength={50}
                     onChange={(event) => setQuery(event.target.value)}
                     fullWidth
+                    data-testid="chat-search-input"
                     leftIcon={<SearchIcon />}
                     rightSlot={(
                         <IconButton
@@ -61,7 +62,7 @@ function ChatSidebar() {
                 />
             </div>
 
-            <div className="chat-sidebar__list">
+            <div className="chat-sidebar__list" data-testid="chat-list">
                 {
                     isSearch
                         ? (

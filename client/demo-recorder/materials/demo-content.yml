@@ -1,0 +1,25 @@
+{
+  "search_query": "python",
+  "post": {
+    "text": "Demo post about the unified content architecture, reusable media flows, and stable product interactions.",
+    "tags": ["demo", "platform"],
+    "comment": "This post was created during the diploma demo recording."
+  },
+  "article": {
+    "title": "Designing a Modern Content Platform",
+    "tags": ["demo"]
+  },
+  "video": {
+    "title": "System Architecture Walkthrough",
+    "description": "A concise walkthrough of the product surfaces, content lifecycle, and media architecture shown during the diploma defense.",
+    "tags": ["demo"]
+  },
+  "messenger": {
+    "text": "Hello from the automated diploma demo recorder.",
+    "attachments_text": "Sharing media attachments for the messenger scenario.",
+    "reply_text": "Replying here to demonstrate threaded chat behavior."
+  },
+  "selectors": {
+    "chat_name": "Demo Chat"
+  }
+}

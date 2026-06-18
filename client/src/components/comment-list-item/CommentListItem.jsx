@@ -14,6 +14,7 @@ import CommentReplies from "../comment-replies/CommentReplies";
 import MarkdownRenderer from "../markdown-renderer";
 import Modal from "../modal/Modal";
 import { getAvatarUrl } from "../../utils/avatar";
+import { hydrateCurrentUserCommentAuthor } from "../../utils/commentAuthor";
 import { getUserDisplayName } from "../../utils/userDisplay";
 
 
@@ -33,7 +34,9 @@ function CommentListItem({
 }) {
     const { store } = useContext(StoreContext);
 
-    const [comment, setComment] = useState(initialComment);
+    const [comment, setComment] = useState(
+        hydrateCurrentUserCommentAuthor(initialComment, store.user)
+    );
     const [authorPhotoSrc, setAuthorPhotoSrc] = useState(
         initialComment.author ? buildCommentAuthorPhotoSrc(initialComment.author) : ""
     );
@@ -50,17 +53,17 @@ function CommentListItem({
     const [error, setError] = useState("");
 
     useEffect(() => {
-        setComment(initialComment);
-    }, [initialComment]);
+        setComment(hydrateCurrentUserCommentAuthor(initialComment, store.user));
+    }, [initialComment, store.user]);
 
     useEffect(() => {
-        if (!initialComment.author) {
+        if (!comment.author) {
             setAuthorPhotoSrc("");
             return;
         }
 
-        setAuthorPhotoSrc(buildCommentAuthorPhotoSrc(initialComment.author));
-    }, [initialComment]);
+        setAuthorPhotoSrc(buildCommentAuthorPhotoSrc(comment.author));
+    }, [comment.author]);
 
     const visualDepthClassName = (() => {
         if (comment.depth <= 0) {
@@ -105,7 +108,7 @@ function CommentListItem({
                 offset: nextOffset,
                 limit: REPLIES_PAGE_SIZE,
             });
-            const fetchedReplies = res.data.items;
+            const fetchedReplies = res.data.items.map((item) => hydrateCurrentUserCommentAuthor(item, store.user));
             setReplies((prevReplies) => (
                 reset
                     ? fetchedReplies
@@ -170,7 +173,7 @@ function CommentListItem({
             const res = await CommentService.updateComment(comment.comment_id, {
                 body_text: bodyText,
             });
-            updateCurrentComment(res.data);
+            updateCurrentComment(hydrateCurrentUserCommentAuthor(res.data, store.user));
             setIsEditing(false);
         } catch (saveError) {
             setError(saveError?.response?.data?.detail || "Failed to update comment.");
@@ -204,7 +207,7 @@ function CommentListItem({
             const res = await CommentService.createReply(comment.comment_id, {
                 body_text: bodyText,
             });
-            const createdReply = res.data;
+            const createdReply = hydrateCurrentUserCommentAuthor(res.data, store.user);
 
             onCommentsCountChange?.(1);
             setIsReplying(false);

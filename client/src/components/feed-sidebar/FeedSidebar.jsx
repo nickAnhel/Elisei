@@ -48,6 +48,14 @@ function FeedSidebar() {
         setSearchParams(nextSearchParams);
     };
 
+    const buildCreatedPostLocation = (post) => {
+        const username = post?.user?.username || store.user?.username;
+        if (!post?.post_id || !username) {
+            return "/feed";
+        }
+        return `/people/@${username}?p=${post.post_id}`;
+    };
+
     return (
         <div id="feed-sidebar">
             <GlobalSearchInput
@@ -55,6 +63,8 @@ function FeedSidebar() {
                 onChange={setSearchQuery}
                 onSubmit={(query) => navigate(`/search?q=${encodeURIComponent(query)}&type=all`)}
                 placeholder="Search all content"
+                inputTestId="feed-search-input"
+                submitTestId="feed-search-submit"
             />
 
             <Tabs value={activeTab} onValueChange={setTab}>
@@ -76,9 +86,14 @@ function FeedSidebar() {
                 <>
                     <hr />
 
-                    <button className="btn btn-primary btn-block" onClick={() => { setIsCreatePostModalActive(true); }}>
+                    <button
+                        className="btn btn-primary btn-block"
+                        onClick={() => { setIsCreatePostModalActive(true); }}
+                        data-testid="create-post-trigger"
+                    >
                         Create Post
-                    </button>                </>
+                    </button>
+                </>
             }
 
             <PostModal
@@ -87,7 +102,7 @@ function FeedSidebar() {
                 savePostFunc={PostService.createPost}
                 modalHeader={"Create new post"}
                 buttonText={"Create"}
-                navigateTo={(post) => `/people/@${post.user.username}`}
+                navigateTo={buildCreatedPostLocation}
             />
         </div>
     );

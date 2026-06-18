@@ -230,6 +230,7 @@ function MomentsViewer() {
                 onClick={goPrev}
                 disabled={activeIndex === 0}
                 aria-label="Previous Moment"
+                data-testid="moments-prev-button"
             >
                 <ChevronIcon direction="up" />
             </button>
@@ -264,6 +265,7 @@ function MomentsViewer() {
                 onClick={goNext}
                 disabled={activeIndex >= moments.length - 1 && !hasMore}
                 aria-label="Next Moment"
+                data-testid="moments-next-button"
             >
                 <ChevronIcon direction="down" />
             </button>
@@ -458,7 +460,12 @@ export function MomentSlide({
     };
 
     return (
-        <article className={isActive ? "moment-slide active" : "moment-slide"} data-testid="moment-slide" aria-hidden={!isActive}>
+        <article
+            className={isActive ? "moment-slide active" : "moment-slide"}
+            data-testid="moment-slide"
+            data-active={isActive ? "true" : "false"}
+            aria-hidden={!isActive}
+        >
             <div className="moment-player-shell">
                 <VideoPlayer
                     skin="moments"

@@ -8,6 +8,11 @@
     background: var(--color-bg);
 }
 
+.app-shell--demo,
+.app-shell--demo .app-shell__content {
+    scroll-behavior: smooth;
+}
+
 .app-shell__sidebar {
     position: sticky;
     top: 0;
@@ -24,6 +29,18 @@
     display: flex;
     overflow-x: hidden;
     overflow-y: auto;
+}
+
+:root.demo-mode {
+    --duration-fast: 160ms;
+    --duration-normal: 220ms;
+    --duration-slow: 250ms;
+}
+
+html.demo-mode,
+body.demo-mode,
+body.demo-mode * {
+    cursor: none !important;
 }
 
 @media (max-width: 1024px) {

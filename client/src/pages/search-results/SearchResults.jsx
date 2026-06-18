@@ -255,22 +255,27 @@ function SearchResults() {
 
         return (
             <>
-                <div className="search-results-list">
+                <div className="search-results-list" data-testid="search-results-list">
                     {
                         items.map((item, index) => {
                             if (item.result_type === "content" && item.content) {
                                 return (
-                                    <FeedContentCard
-                                        key={`content-${item.content.content_id}-${index}`}
-                                        item={item.content}
-                                        removeItem={() => {}}
-                                    />
+                                    <div key={`content-${item.content.content_id}-${index}`} data-testid="search-result-item">
+                                        <FeedContentCard
+                                            item={item.content}
+                                            removeItem={() => {}}
+                                        />
+                                    </div>
                                 );
                             }
 
                             if (item.result_type === "author" && item.author) {
                                 return (
-                                    <div className="search-author-result" key={`author-${item.author.user_id}-${index}`}>
+                                    <div
+                                        className="search-author-result"
+                                        key={`author-${item.author.user_id}-${index}`}
+                                        data-testid="search-result-item"
+                                    >
                                         <UserListItem user={item.author} />
                                     </div>
                                 );
@@ -363,6 +368,8 @@ function SearchResults() {
                     }}
                     placeholder="Search by title, tags, text, or author"
                     autoFocus
+                    inputTestId="search-results-input"
+                    submitTestId="search-results-submit"
                 />
             </Card>
 
